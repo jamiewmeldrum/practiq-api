@@ -38,12 +38,15 @@ TARGET (Phase 4+ only): API → SQS → practiq-processor → extractor Lambda �
 
 ## 4. Stack & project config
 
-- Java 21 · Micronaut 4.x · Gradle **Kotlin DSL** · package root `com.practiq`
+- Java 21 · **Micronaut 4.10.x (pinned)** · Gradle **Kotlin DSL** · package root `com.practiq`
+    - Micronaut 5.0 GA'd May 2026 and moved its baseline to Java 25. This project stays on 4.x/21 deliberately — 4.x continues full support on Java 17/21, and there's no reason to chase a one-month-old major release mid-build. Do not suggest upgrading to 5.0.
 - PostgreSQL 16 (Docker Compose) · Micronaut Data **JPA** · Flyway (hbm2ddl off, always)
+    - **JPA wiring is intentionally NOT in the build yet.** Micronaut eagerly builds a Hibernate `SessionFactory` at startup, which fails hard (`Entities not found for JPA configuration`) if zero `@Entity` classes exist — and none do until Sprint 0.2. The Hibernate dependencies (`micronaut-data-hibernate-jpa`, `micronaut-hibernate-jpa`, the `micronaut-data-processor` annotation processor) are commented out in `build.gradle.kts`, marked `// re-add Sprint 0.2`. Datasource + Flyway are active and don't need Hibernate. Don't suggest adding a placeholder entity to work around this — wait for real entities in 0.2.
+- Config format is **`application.properties`**, not YAML — this is Micronaut 4's default (it dropped the bundled SnakeYAML dependency). Don't convert to `.yml` without good reason; it just adds a dependency for no benefit here.
 - Lombok · Bean Validation on DTOs
 - LocalStack for S3 (added Sprint 1.2) — same SDK, endpoint override in local profile
 - Profiles: `local` is the dev default (stub AI, local DB, LocalStack). Real AI only when explicitly switched.
-- **App AI key env var: `PRACTIQ_ANTHROPIC_API_KEY`** — deliberately NOT `ANTHROPIC_API_KEY`, to avoid colliding with Claude Code's own credentials. Never committed, never in application.yml.
+- **App AI key env var: `PRACTIQ_ANTHROPIC_API_KEY`** — deliberately NOT `ANTHROPIC_API_KEY`, to avoid colliding with Claude Code's own credentials. Never committed, never in application config.
 - Local DB: `jdbc:postgresql://localhost:5432/practiq`, user/pass `practiq`/`practiq_local`.
 
 ## 5. Package layout
