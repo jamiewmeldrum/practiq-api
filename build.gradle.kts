@@ -59,6 +59,16 @@ graalvmNative.toolchainDetection = false
 micronaut {
     runtime("netty")
     testRuntime("junit5")
+    testResources {
+        // Docker Engine 29+ enforces a minimum API version of 1.40 and hard-rejects the
+        // 1.32 that Testcontainers' bundled docker-java hardcodes for its initial probe.
+        // That probe runs in the forked Test Resources service JVM, so the override must
+        // target THAT process (serverSystemProperties), not the test task. docker-java
+        // reads the `api.version` property (not the DOCKER_API_VERSION env var). 1.40 is
+        // the daemon floor and is accepted by every Docker since 19.03.
+        // TODO: drop once Micronaut's test-resources ships Testcontainers >= 2.0.2.
+        serverSystemProperties.put("api.version", "1.40")
+    }
     processing {
         incremental(true)
         annotations("com.practiq.*")
