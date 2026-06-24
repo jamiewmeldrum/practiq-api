@@ -68,6 +68,14 @@ micronaut {
         // the daemon floor and is accepted by every Docker since 19.03.
         // TODO: drop once Micronaut's test-resources ships Testcontainers >= 2.0.2.
         serverSystemProperties.put("api.version", "1.40")
+
+        // Force the Postgres JDBC test-resources module. Auto-inference doesn't add it
+        // because the persistence layer (micronaut-data-hibernate-jpa) it keys off is
+        // deliberately commented out until Sprint 0.2 — the bare driver alone isn't
+        // enough of a signal. Without this, only GenericTestContainerProvider loads and
+        // datasources.default.url is never resolved ("No URL specified").
+        // TODO: likely redundant once 0.2 re-adds the JPA layer — re-test and drop then.
+        additionalModules.add("jdbc-postgresql")
     }
     processing {
         incremental(true)
@@ -86,6 +94,16 @@ micronaut {
         replaceLogbackXml = true
     }
 
+}
+
+
+tasks.named<JavaExec>("run") {
+    // Default `./gradlew run` to the `local` environment so the app uses the Compose
+    // Postgres in application-local.properties (jdbc:...localhost:5432). Without an active
+    // environment the base config has no datasource URL, so Test Resources fills the gap
+    // and silently runs the app Update against a throwaway container instead of your real DB.
+    // Override on the CLI when needed, e.g. MICRONAUT_ENVIRONMENTS=local,foo ./gradlew run.
+    environment("MICRONAUT_ENVIRONMENTS", "local")
 }
 
 

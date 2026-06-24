@@ -1,3 +1,50 @@
+# practiq-api
+
+Adaptive learning/practice platform API (Java 21 · Micronaut 4.10 · PostgreSQL 16).
+
+## Running locally
+
+Start the Compose Postgres, then run the app:
+
+```bash
+docker compose up -d            # Postgres 16 on localhost:5432
+./gradlew run                   # serves http://localhost:8080
+```
+
+`./gradlew run` defaults to the `local` environment (`application-local.properties`), so
+the app connects to the Compose database. Verify it's up:
+
+```bash
+curl http://localhost:8080/health
+```
+
+> The `local` default is wired into the `run` task in `build.gradle.kts`. Without it, the
+> base config has no datasource URL and Micronaut Test Resources would start a throwaway
+> Postgres container instead of using your Compose DB.
+
+### Running/debugging from IntelliJ
+
+Running the application's main class directly in IntelliJ (e.g. to attach the debugger)
+bypasses the Gradle `run` task, so the `local` environment is **not** activated
+automatically. Add an environment variable to the run configuration:
+
+```
+MICRONAUT_ENVIRONMENTS=local
+```
+
+Without it, the app starts with no datasource URL and Test Resources spins up a throwaway
+Postgres container instead of connecting to your Compose DB.
+
+## Testing
+
+```bash
+./gradlew test                  # unit + context tests
+./gradlew integrationTest       # Testcontainers-backed integration tests
+```
+
+Both spin up a real Postgres 16 via Micronaut Test Resources — Docker must be available.
+No external database or `MICRONAUT_ENVIRONMENTS` is required.
+
 ## Micronaut 4.10.16 Documentation
 
 - [User Guide](https://docs.micronaut.io/4.10.16/guide/index.html)
