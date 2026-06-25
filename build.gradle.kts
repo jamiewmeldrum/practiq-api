@@ -16,23 +16,26 @@ repositories {
 
 dependencies {
     annotationProcessor("org.projectlombok:lombok")
-    //annotationProcessor("io.micronaut.data:micronaut-data-processor")
+    annotationProcessor("io.micronaut.data:micronaut-data-processor")
     annotationProcessor("io.micronaut:micronaut-http-validation")
     annotationProcessor("io.micronaut.serde:micronaut-serde-processor")
     annotationProcessor("io.micronaut.validation:micronaut-validation-processor")
     implementation("io.micronaut:micronaut-management")
-    //implementation("io.micronaut.data:micronaut-data-hibernate-jpa")
+    implementation("io.micronaut.data:micronaut-data-hibernate-jpa")
     implementation("io.micronaut.flyway:micronaut-flyway")
     implementation("io.micronaut.serde:micronaut-serde-jackson")
     implementation("io.micronaut.sql:micronaut-jdbc-hikari")
     implementation("io.micronaut.validation:micronaut-validation")
     implementation("jakarta.validation:jakarta.validation-api")
+    implementation("io.micronaut.sql:micronaut-hibernate-jpa")
+    implementation("io.micronaut.data:micronaut-data-tx-hibernate")
     compileOnly("io.micronaut:micronaut-http-client")
     compileOnly("org.projectlombok:lombok")
     runtimeOnly("ch.qos.logback:logback-classic")
     runtimeOnly("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation("io.micronaut:micronaut-http-client")
+    testImplementation("org.mockito:mockito-junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -106,6 +109,27 @@ tasks.named<JavaExec>("run") {
     environment("MICRONAUT_ENVIRONMENTS", "local")
 }
 
+
+// Unit (*Test) + component (*CT) tests: the every-change loop. Excludes *IT.
+// Component tests are DB-free (no Postgres container — see ConceptControllerCT / README),
+// but the Micronaut plugin still attaches the Test Resources service to every Test task,
+// so this task currently still starts a ryuk container and needs Docker.
+// TODO(test-resources): make `test` fully Docker-free — detach the Test Resources service
+//   from this task (likely a dedicated integrationTest source set so only *IT pulls it).
+tasks.test {
+    useJUnitPlatform()
+    exclude("**/*IT.class")
+}
+
+// Integration tests (*IT): real Postgres via Testcontainers. Slower — run pre-merge/CI.
+val integrationTest = tasks.register<Test>("integrationTest") {
+    useJUnitPlatform()
+    include("**/*IT.class")
+    shouldRunAfter(tasks.test)
+}
+
+// `./gradlew build` (CI) runs everything; the dev fast loop is `./gradlew test`.
+tasks.check { dependsOn(integrationTest) }
 
 tasks.named<io.micronaut.gradle.docker.NativeImageDockerfile>("dockerfileNative") {
     jdkVersion = "21"

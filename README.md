@@ -35,15 +35,112 @@ MICRONAUT_ENVIRONMENTS=local
 Without it, the app starts with no datasource URL and Test Resources spins up a throwaway
 Postgres container instead of connecting to your Compose DB.
 
-## Testing
+## Local development data
+
+`src/main/resources/db/seed_local.sql` holds sample rows (concepts, and more data
+types as they're added) for manually inspecting the app and exercising endpoints
+like `GET /api/v1/concepts`.
+
+It is **not** a Flyway migration — it sits outside `db/migration/`, so Flyway never
+runs it. Seeding is deliberately separate from schema: real content will be
+AI-generated and human-reviewed through the ingestion pipeline, so it doesn't belong
+baked into migrations. Tests generate their own data and don't use this file.
+
+Load it (Compose Postgres must be up):
 
 ```bash
-./gradlew test                  # unit + context tests
-./gradlew integrationTest       # Testcontainers-backed integration tests
+docker exec -i practiq-api-postgres-1 psql -U practiq -d practiq < src/main/resources/db/seed_local.sql
 ```
 
-Both spin up a real Postgres 16 via Micronaut Test Resources — Docker must be available.
-No external database or `MICRONAUT_ENVIRONMENTS` is required.
+The script is **idempotent** — every insert uses `ON CONFLICT DO NOTHING`, so you can
+run it as often as you like (after migrations, after a rebuild, whenever) without
+duplicate-key errors. Re-running picks up newly added rows and leaves existing ones
+untouched. New data types get their own section in the same file following the same
+pattern, so loading everything stays a single command.
+
+If you want a clean slate — e.g. to drop rows that are no longer in the file — reset
+first, then reload:
+
+```bash
+docker exec -i practiq-api-postgres-1 psql -U practiq -d practiq -c 'TRUNCATE concept CASCADE;'
+```
+
+## Testing
+
+Three tiers, split by how much of the app is wired and where the boundary is cut.
+The guiding rule: **put each test where it can actually observe the behaviour it
+claims to verify.** Mocking everything around a thin layer just tests a tautology.
+
+| Tier | Suffix | Wires | Boundary | Task |
+|------|--------|-------|----------|------|
+| Unit | `*Test` | one class, no context | all deps mocked (Mockito) | `test` |
+| Component | `*CT` | real web layer (routing, binding, validation, serialization) | repository / external calls mocked, no DB | `test` |
+| Integration | `*IT` | full stack | real Postgres (Testcontainers) | `integrationTest` |
+
+```bash
+./gradlew test                  # unit + component (*CT) — the every-change loop
+./gradlew integrationTest       # integration (*IT) — real Postgres, pre-merge / CI
+./gradlew build                 # runs everything (check depends on integrationTest)
+```
+
+**What goes where**
+
+- **Unit** — service logic with deps mocked; and validation *rule correctness* via a bare
+  `jakarta.validation.Validator` (no context at all) when a constraint is non-trivial.
+- **Component** — controller behaviour: routing, body binding, that `@Valid` is actually
+  *wired* (bad payload → 400), JSON serialization. The repository boundary is mocked, so no
+  SQL runs. This is the layer that keeps the slow integration tier thin.
+- **Integration** — only what genuinely needs a real database: repository queries, `@Query`,
+  migrations, transactional behaviour. Kept deliberately few.
+
+**Writing a component test.** Micronaut has no `@WebMvcTest`-style slice annotation, so a
+few things have to be arranged by hand to test the web layer without a database. The pattern
+lives in `ConceptControllerCT` + `src/test/resources/application-ctslice.properties`:
+
+```java
+@MicronautTest(transactional = false, environments = "ctslice")
+class ConceptControllerCT {
+
+    @Inject @Client("/") HttpClient client;
+    @Inject ConceptRepository conceptRepository;            // the mock, for stubbing
+
+    @MockBean(ConceptRepository.class)
+    ConceptRepository conceptRepository() { return mock(ConceptRepository.class); }
+
+    // when(conceptRepository.findAll())...; then GET /v1/concepts over real HTTP,
+    // and assert against the JSON (a Map), not by deserializing back into Concept.
+}
+```
+
+Why each piece is needed:
+
+- **`transactional = false`** — `@MicronautTest` otherwise wraps each test in a rollback
+  transaction, and *beginning* that transaction opens a JDBC connection (even though the
+  repository is mocked). This is the maintainer-recommended fix.
+- **`environments = "ctslice"`** — the `ctslice` properties file supplies a no-op datasource
+  and, crucially, `test-resources.containers.postgres.enabled=false` so Test Resources does
+  **not** start a Postgres container. It also stops Hikari connecting eagerly and Hibernate
+  probing JDBC metadata at boot, so the context starts with no database at all.
+- **Assert on the wire format, not the entity** — `Concept` is `@Getter`-only (no setters),
+  so deserializing the response back into `Concept` leaves fields null. Retrieve into a
+  `Map`/`String` and assert the JSON, which is what the endpoint actually returns.
+
+Test bodies are scaffolded with `fail("not yet implemented")` so unwritten coverage shows
+red rather than a misleading green.
+
+**Known limitations / TODO**
+
+- **`test` still needs Docker.** Component tests no longer start a Postgres container, but
+  the Micronaut Gradle plugin attaches the Test Resources *service* to every `Test` task, so
+  `test` still spins up a `ryuk` container. Making `test` fully Docker-free needs the Test
+  Resources service detached from it — likely a dedicated `integrationTest` source set so
+  only `*IT` pulls it. Tracked as `TODO(test-resources)` in `build.gradle.kts`.
+- **Component-test boilerplate.** The `@MicronautTest(transactional = false, environments =
+  "ctslice")` combo will repeat on every `*CT`. Fold it into a custom `@ComponentTest`
+  meta-annotation. Tracked as `TODO(component-test)` in `ConceptControllerCT`.
+
+`*IT` tests use a real Postgres 16 via Micronaut Test Resources, so Docker must be available
+for `integrationTest`.
 
 ## Micronaut 4.10.16 Documentation
 
