@@ -5,29 +5,35 @@ import com.practiq.repository.ConceptRepository;
 import com.practiq.test.ComponentTest;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.test.annotation.MockBean;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static com.practiq.test.TestReflection.setField;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ComponentTest
 class ConceptControllerCT {
 
-    @Inject
-    @Client("/")
-    HttpClient client;
+    private static final String CONCEPTS_PATH = "/v1/concepts";
 
     @Inject
-    ConceptRepository conceptRepository;
+    @Client("/")
+    private HttpClient client;
+
+    @Inject
+    private ConceptRepository conceptRepository;
 
     @MockBean(ConceptRepository.class)
     ConceptRepository conceptRepository() {
@@ -36,29 +42,58 @@ class ConceptControllerCT {
 
     @Test
     void getConceptsSerializesRepositoryResults() {
+        long diffractionId = 1L;
+        String diffractionName = "Diffraction";
+        String diffractionDescription = "The spreading of waves through a gap or around an obstacle.";
+        Instant diffractionCreatedAt = Instant.parse("2026-01-01T00:00:00Z");
+        Concept diffraction = new Concept(diffractionName, diffractionDescription);
+        setField(diffraction, "id", diffractionId);
+        setField(diffraction, "createdAt", diffractionCreatedAt);
 
-        when(conceptRepository.findAll()).thenReturn(List.of(
-                new Concept("Diffraction", "The spreading of waves through a gap or around an obstacle."),
-                new Concept("Acceleration", "How the velocity of an object changes over time.")
-        ));
+        long accelerationId = 2L;
+        String accelerationName = "Acceleration";
+        String accelerationDescription = "How the velocity of an object changes over time.";
+        Instant accelerationCreatedAt = Instant.parse("2026-01-02T00:00:00Z");
+        Concept acceleration = new Concept(accelerationName, accelerationDescription);
+        setField(acceleration, "id", accelerationId);
+        setField(acceleration, "createdAt", accelerationCreatedAt);
 
-        // Assert against the JSON structure, not by deserializing back into Concept:
-        // the entity is @Getter-only (no setters), so a round-trip into Concept can't
-        // repopulate its fields. The wire format is what the endpoint actually returns.
-        List<Map<String, Object>> body = client.toBlocking().retrieve(
-                HttpRequest.GET("/v1/concepts"),
+        when(conceptRepository.findAll()).thenReturn(List.of(diffraction, acceleration));
+
+        HttpResponse<List<Map<String, Object>>> response = client.toBlocking().exchange(
+                HttpRequest.GET(CONCEPTS_PATH),
                 Argument.listOf(Argument.mapOf(String.class, Object.class)));
 
-        //TODO - HTTP CHeck etc?
-
+        assertEquals(HttpStatus.OK, response.getStatus());
+        List<Map<String, Object>> body = response.body();
         assertEquals(2, body.size());
-        assertEquals("Diffraction", body.get(0).get("name"));
-        assertEquals("Acceleration", body.get(1).get("name"));
+
+        assertConcept(body.get(0), diffractionId, diffractionName, diffractionDescription, diffractionCreatedAt);
+        assertConcept(body.get(1), accelerationId, accelerationName, accelerationDescription, accelerationCreatedAt);
     }
 
     @Test
     void getConceptsReturnsEmptyArrayWhenRepositoryEmpty() {
-        // TODO: stub findAll() -> empty, GET /v1/concepts, assert 200 + []
-        fail("not yet implemented");
+        when(conceptRepository.findAll()).thenReturn(List.of());
+
+        HttpResponse<List<Map<String, Object>>> response = client.toBlocking().exchange(
+                HttpRequest.GET(CONCEPTS_PATH),
+                Argument.listOf(Argument.mapOf(String.class, Object.class)));
+
+        assertEquals(HttpStatus.OK, response.getStatus());
+        List<Map<String, Object>> body = response.body();
+
+        assertEquals(0, body.size());
+    }
+
+    // Asserts a serialized concept exposes exactly these fields, by these names, with these
+    // values. id arrives as a JSON number; createdAt as its ISO-8601 string.
+    private static void assertConcept(Map<String, Object> actual, long id, String name,
+                                      String description, Instant createdAt) {
+        assertEquals(Set.of("id", "name", "description", "createdAt"), actual.keySet());
+        assertEquals(id, ((Number) actual.get("id")).longValue());
+        assertEquals(name, actual.get("name"));
+        assertEquals(description, actual.get("description"));
+        assertEquals(createdAt.toString(), actual.get("createdAt"));
     }
 }

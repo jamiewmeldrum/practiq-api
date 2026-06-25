@@ -15,10 +15,10 @@ class ConceptControllerIT {
 
     @Inject
     @Client("/")
-    HttpClient client;
+    private HttpClient client;
 
     @Inject
-    ConceptRepository conceptRepository;
+    private ConceptRepository conceptRepository;
 
     @BeforeEach
     void setUp() {

@@ -10,7 +10,7 @@ import java.util.List;
 public class ConceptService {
     private final ConceptRepository conceptRepository;
 
-    ConceptService(ConceptRepository conceptRepository) {
+    public ConceptService(ConceptRepository conceptRepository) {
         this.conceptRepository = conceptRepository;
     }
 
