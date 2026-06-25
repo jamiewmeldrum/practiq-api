@@ -112,10 +112,12 @@ tasks.named<JavaExec>("run") {
 
 // Unit (*Test) + component (*CT) tests: the every-change loop. Excludes *IT.
 // Component tests are DB-free (no Postgres container — see ConceptControllerCT / README),
-// but the Micronaut plugin still attaches the Test Resources service to every Test task,
-// so this task currently still starts a ryuk container and needs Docker.
-// TODO(test-resources): make `test` fully Docker-free — detach the Test Resources service
-//   from this task (likely a dedicated integrationTest source set so only *IT pulls it).
+// but the Micronaut plugin attaches the Test Resources service to every Test task, so this
+// task still starts a ryuk container and needs Docker. The plugin's `enabled` flag is
+// project-wide (no per-task toggle), so a source set alone can't fix this.
+// TODO(test-resources): for a fully Docker-free `test`, isolate Test Resources into a
+//   separate integration module (or a shared convention plugin once there are multiple
+//   services). Deliberately deferred — see the "deliberate compromise" section in README.md.
 tasks.test {
     useJUnitPlatform()
     exclude("**/*IT.class")

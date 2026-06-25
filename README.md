@@ -128,16 +128,42 @@ Why each piece is needed:
 Test bodies are scaffolded with `fail("not yet implemented")` so unwritten coverage shows
 red rather than a misleading green.
 
-**Known limitations / TODO**
+### `test` still needs Docker — a deliberate compromise
 
-- **`test` still needs Docker.** Component tests no longer start a Postgres container, but
-  the Micronaut Gradle plugin attaches the Test Resources *service* to every `Test` task, so
-  `test` still spins up a `ryuk` container. Making `test` fully Docker-free needs the Test
-  Resources service detached from it — likely a dedicated `integrationTest` source set so
-  only `*IT` pulls it. Tracked as `TODO(test-resources)` in `build.gradle.kts`.
-- **Component-test boilerplate.** The `@MicronautTest(transactional = false, environments =
-  "ctslice")` combo will repeat on every `*CT`. Fold it into a custom `@ComponentTest`
-  meta-annotation. Tracked as `TODO(component-test)` in `ConceptControllerCT`.
+Component tests no longer start a Postgres container (the `ctslice` env disables it), but
+`./gradlew test` **still requires Docker**. This is a conscious trade-off, not an oversight,
+so the reasoning is recorded here.
+
+**Why it can't be fully removed cheaply.** The Micronaut Gradle plugin attaches the Test
+Resources *service* to **every** `Test` task. That service is a separate JVM that connects
+to Docker and starts a `ryuk` reaper container as soon as it boots — before any test runs,
+regardless of whether a test needs a resource. The plugin's `enabled` flag is *project-wide*
+([there is no per-task toggle](https://github.com/micronaut-projects/micronaut-test-resources/issues/766)),
+so you can't disable it for `test` while keeping it for `integrationTest` within one module.
+Our `ctslice` trick removes the *Postgres* container; it cannot remove the service + ryuk.
+
+**Why we keep Test Resources anyway.** It's the part that *scales*. It provisions containers
+declaratively, supports a shared server, and ships modules for the resources we'll add next
+(LocalStack/S3 in Sprint 1.2) and across future services. Hand-rolling Testcontainers per
+`*IT` (or per service) to win a Docker-free `test` would trade a small, well-understood cost
+for boilerplate that grows with every new IT class, resource type, and microservice. That's
+optimising the wrong axis.
+
+**The real fix, when it's worth it.** A genuinely Docker-free fast loop needs Test Resources
+*isolated to an integration module* (a separate Gradle module — or a shared convention plugin
+once there are multiple services — that applies the plugin, while the unit/component module
+does not). A separate source set alone is not enough, because the plugin is project-global.
+
+**Decision: deferred.** With a single `*IT` and ~1s of ryuk startup, the module split is
+premature and cuts against the monolith-first stance in `CLAUDE.md` §3. Revisit when the
+weight justifies it — **any of**: several `*IT` classes, LocalStack/S3 arriving (Sprint 1.2),
+or the first real service extraction (Phase 4, where shared build conventions get set up
+anyway). Tracked as `TODO(test-resources)` in `build.gradle.kts`.
+
+What the `ctslice` + `@ComponentTest` machinery buys us today is still real: component tests
+do no DB work and express the intended boundary (web layer in, persistence mocked). We keep
+it as the design statement, and the module split later turns "no Postgres container" into
+"no Docker at all" without changing how the tests are written.
 
 `*IT` tests use a real Postgres 16 via Micronaut Test Resources, so Docker must be available
 for `integrationTest`.
