@@ -3,41 +3,45 @@ package com.practiq.controller;
 import com.practiq.domain.Concept;
 import com.practiq.repository.ConceptRepository;
 import com.practiq.test.ComponentTest;
-import io.micronaut.core.type.Argument;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
+import io.micronaut.runtime.server.EmbeddedServer;
 import io.micronaut.test.annotation.MockBean;
+import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import static com.practiq.test.TestReflection.setField;
-import static org.junit.jupiter.api.Assertions.*;
+import static io.micronaut.http.HttpStatus.OK;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ComponentTest
 class ConceptControllerCT {
 
-    private static final String CONCEPTS_PATH = "/v1/concepts";
-
-    @Inject
-    @Client("/")
-    private HttpClient client;
+    private static final String CONCEPTS_PATH = "/api/v1/concepts";
 
     @Inject
     private ConceptRepository conceptRepository;
 
+    @Inject
+    private EmbeddedServer embeddedServer;
+
     @MockBean(ConceptRepository.class)
     ConceptRepository conceptRepository() {
         return mock(ConceptRepository.class);
+    }
+
+    @BeforeEach
+    void setUp() {
+        RestAssured.port = embeddedServer.getPort();
     }
 
     @Test
@@ -60,40 +64,32 @@ class ConceptControllerCT {
 
         when(conceptRepository.findAll()).thenReturn(List.of(diffraction, acceleration));
 
-        HttpResponse<List<Map<String, Object>>> response = client.toBlocking().exchange(
-                HttpRequest.GET(CONCEPTS_PATH),
-                Argument.listOf(Argument.mapOf(String.class, Object.class)));
-
-        assertEquals(HttpStatus.OK, response.getStatus());
-        List<Map<String, Object>> body = response.body();
-        assertEquals(2, body.size());
-
-        assertConcept(body.get(0), diffractionId, diffractionName, diffractionDescription, diffractionCreatedAt);
-        assertConcept(body.get(1), accelerationId, accelerationName, accelerationDescription, accelerationCreatedAt);
+        given()
+            .when()
+            .get(CONCEPTS_PATH)
+            .then()
+            .statusCode(OK.getCode())
+            .contentType(ContentType.JSON)
+            .body("name", containsInAnyOrder(diffractionName, accelerationName))
+            .body("[0].keySet()", containsInAnyOrder("id", "name", "description", "createdAt"))
+            .body("find { it.name == '" + diffractionName + "' }.id", equalTo((int) diffractionId))
+            .body("find { it.name == '" + diffractionName + "' }.description", equalTo(diffractionDescription))
+            .body("find { it.name == '" + diffractionName + "' }.createdAt", equalTo(diffractionCreatedAt.toString()))
+            .body("find { it.name == '" + accelerationName + "' }.description", equalTo(accelerationDescription))
+            .body("find { it.name == '" + accelerationName + "' }.createdAt", equalTo(accelerationCreatedAt.toString()))
+            .body("find { it.name == '" + accelerationName + "' }.id", equalTo((int) accelerationId));
     }
 
     @Test
     void getConceptsReturnsEmptyArrayWhenRepositoryEmpty() {
         when(conceptRepository.findAll()).thenReturn(List.of());
 
-        HttpResponse<List<Map<String, Object>>> response = client.toBlocking().exchange(
-                HttpRequest.GET(CONCEPTS_PATH),
-                Argument.listOf(Argument.mapOf(String.class, Object.class)));
-
-        assertEquals(HttpStatus.OK, response.getStatus());
-        List<Map<String, Object>> body = response.body();
-
-        assertEquals(0, body.size());
-    }
-
-    // Asserts a serialized concept exposes exactly these fields, by these names, with these
-    // values. id arrives as a JSON number; createdAt as its ISO-8601 string.
-    private static void assertConcept(Map<String, Object> actual, long id, String name,
-                                      String description, Instant createdAt) {
-        assertEquals(Set.of("id", "name", "description", "createdAt"), actual.keySet());
-        assertEquals(id, ((Number) actual.get("id")).longValue());
-        assertEquals(name, actual.get("name"));
-        assertEquals(description, actual.get("description"));
-        assertEquals(createdAt.toString(), actual.get("createdAt"));
+        given()
+            .when()
+            .get(CONCEPTS_PATH)
+            .then()
+            .statusCode(OK.getCode())
+            .contentType(ContentType.JSON)
+            .body("$", empty());
     }
 }

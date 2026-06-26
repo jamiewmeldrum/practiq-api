@@ -10,7 +10,7 @@ import io.micronaut.scheduling.annotation.ExecuteOn;
 import java.util.List;
 
 @ExecuteOn(TaskExecutors.BLOCKING)
-@Controller("v1/concepts")
+@Controller("api/v1/concepts")
 public class ConceptController {
 
     private final ConceptService conceptService;
