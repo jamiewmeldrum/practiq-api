@@ -39,13 +39,13 @@ TARGET (Phase 4+ only): API → SQS → practiq-processor → extractor Lambda �
 ## 4. Stack & project config
 
 - Java 21 · **Micronaut 4.10.x (pinned)** · Gradle **Kotlin DSL** · package root `com.practiq`
-    - Micronaut 5.0 GA'd May 2026 and moved its baseline to Java 25. This project stays on 4.x/21 deliberately — 4.x continues full support on Java 17/21, and there's no reason to chase a one-month-old major release mid-build. Do not suggest upgrading to 5.0.
+  - Micronaut 5.0 GA'd May 2026 and moved its baseline to Java 25. This project stays on 4.x/21 deliberately. Do not suggest upgrading to 5.0.
 - PostgreSQL 16 (Docker Compose) · Micronaut Data **JPA** · Flyway (hbm2ddl off, always)
-    - **JPA wiring is intentionally NOT in the build yet.** Micronaut eagerly builds a Hibernate `SessionFactory` at startup, which fails hard (`Entities not found for JPA configuration`) if zero `@Entity` classes exist — and none do until Sprint 0.2. The Hibernate dependencies (`micronaut-data-hibernate-jpa`, `micronaut-hibernate-jpa`, the `micronaut-data-processor` annotation processor) are commented out in `build.gradle.kts`, marked `// re-add Sprint 0.2`. Datasource + Flyway are active and don't need Hibernate. Don't suggest adding a placeholder entity to work around this — wait for real entities in 0.2.
-- Config format is **`application.properties`**, not YAML — this is Micronaut 4's default (it dropped the bundled SnakeYAML dependency). Don't convert to `.yml` without good reason; it just adds a dependency for no benefit here.
+- Config format is **`application.properties`**, not YAML — Micronaut 4's default. Don't convert to `.yml`.
+- Environment profiles: `local` for dev loop (compose Postgres), `test` activated by `@MicronautTest`. Base `application.properties` contains no datasource URL — environments provide it. This prevents tests accidentally hitting the dev database.
+- Docker: **native Docker Engine (`docker-ce`) in WSL2** — not Docker Desktop. Docker Desktop Home on Windows Home doesn't expose its Engine API as a Unix socket into WSL2. Native `docker-ce` is installed directly in Ubuntu and auto-starts via systemd. Testcontainers connects via `/run/docker.sock`.
 - Lombok · Bean Validation on DTOs
 - LocalStack for S3 (added Sprint 1.2) — same SDK, endpoint override in local profile
-- Profiles: `local` is the dev default (stub AI, local DB, LocalStack). Real AI only when explicitly switched.
 - **App AI key env var: `PRACTIQ_ANTHROPIC_API_KEY`** — deliberately NOT `ANTHROPIC_API_KEY`, to avoid colliding with Claude Code's own credentials. Never committed, never in application config.
 - Local DB: `jdbc:postgresql://localhost:5432/practiq`, user/pass `practiq`/`practiq_local`.
 
@@ -90,14 +90,21 @@ attempt:   id, question_id, session_token, answer_text,
 
 -- Phase 6 only: app_user, topic_progress
 ```
+
+**Flyway conventions:**
+- Migrations live in `src/main/resources/db/migration/`, named `V<n>__description.sql`
+- Never edit a migration that has already been applied — add a new one
+- Flyway owns the schema; it never owns content data
+- `src/main/resources/db/seed_local.sql` exists for manual local data loading only — it is intentionally outside `db/migration/` so Flyway ignores it. Load it manually via `docker exec`. It will eventually move to a dedicated cross-cutting demo-data repository.
+
 Principles: questions are tagged with concepts; spec sections map to concepts; one question serves any board/spec/level sharing the concept. Spec revisions = new specification version + new mappings; questions untouched. Synoptic questions = multiple concepts. Prefer **explicit join entities** over @ManyToMany for the junctions. **Students only ever see status=approved.**
 
 ## 7. API surface
 
 ```
 GET  /health
-GET  /api/v1/concepts
-GET  /api/v1/concepts/{id}
+GET  /api/v1/concepts                     ordered by created_at asc
+GET  /api/v1/concepts/{id}                404 → {"error","status"} envelope
 GET  /api/v1/concepts/{id}/questions      approved only, paginated
 GET  /api/v1/questions/{id}               mark scheme gated until session has attempted
 POST /api/v1/attempts                     X-Session-Token header
@@ -114,23 +121,33 @@ Conventions: versioned routes, validated DTOs, correct status codes (200/201/400
 upload (presigned, browser→S3 direct) → complete notification → async job (Micronaut executor): S3 download → extractor over HTTP (`POST http://localhost:8000/extract`, multipart or S3-key payload — contract agreed in Sprint 1.2) → `AIService.structure(chunks)` → `AIService.suggestConcepts(question)` → write questions status=pending → superuser review → approve.
 Ingestion failures are flagged for the review UI — never student-facing. AI prompts must demand strict JSON; parse defensively; validate before persisting.
 
+**Content data model:** Concepts and other content are NOT seeded via Flyway migrations. Content is AI-generated and human-reviewed through the ingestion pipeline. Flyway owns schema only. Test data is generated on the fly within tests. A separate demo-data repository is planned for manual inspection across environments (deferred).
+
 ## 9. Testing (first-class, written alongside features)
 
-- **Unit:** JUnit 5 + Mockito. Service layer, all deps mocked, no context, fast. Naming `*Test`.
-- **Integration:** `@MicronautTest` + **Testcontainers real PostgreSQL — never H2**. Naming `*IT`. Real migrations, real SQL, real HTTP.
-- Gradle split:
-```kotlin
-tasks.test { useJUnitPlatform(); exclude("**/*IT*") }
-tasks.register<Test>("integrationTest") { useJUnitPlatform(); include("**/*IT*") }
-```
-- StubAIService is the test default. Every service method: happy path + meaningful edge cases. Tests must be independent and readable.
+Three-tier model — put each test where it can actually observe the behaviour it claims to verify:
+
+| Tier | Naming | Wires | Boundary | Gradle task | Run cadence |
+|------|--------|-------|----------|-------------|-------------|
+| Unit | `*Test` | one class, no context | all deps mocked (JUnit 5 + Mockito) | `test` | every change |
+| Component | `*CT` | real web layer (routing, binding, validation, serialisation) | `@MockBean` — **no DB** | `test` | every change |
+| Integration | `*IT` | full stack | real Postgres via Testcontainers | `integrationTest` | pre-merge / CI |
+
+- **Unit:** service logic; non-trivial validation rule correctness via a bare `jakarta.validation.Validator`.
+- **Component:** controller behaviour — that routes map correctly, body binding works, `@Valid` is actually wired (bad payload → 400), serialisation produces the right JSON shape. Persistence boundary mocked. This is the tier that keeps ITs thin and avoids IT bloat. Cover *representative* shape/value, not exhaustive field nuance — e.g. a read endpoint gets ~2 tests (a few entities returned with the expected fields by shape and/or value, plus an empty case), not one per field.
+- **Integration:** only what needs a real DB — repository queries, `@Query`, migration correctness, transactional behaviour. Kept deliberately few.
+- **Responsibility & overlap (honeycomb, not strict pyramid):** higher tiers are deliberately multi-responsibility. A unit test isolates one behaviour; an IT verifies whole paths (routing + mapping + serialisation + SQL + schema at once); the CT is the middle that carries application behaviour *without* a DB. "One reason to fail" is a unit heuristic — do not impose it on CT/IT. Overlap is defense in depth, not waste: a CT may assert serialisation even when a unit test also does. Verify behaviour at the cheapest tier that can still see it — push checks down from IT to CT (faster, more reliable, sharper failure localisation) so ITs stay few and cover only what genuinely needs Postgres. Exhaustive per-field serialisation nuance (formats, nulls, edge cases) lives in small unit tests, and only when there is real nuance — don't manufacture it.
+- Component tests run in the everyday `test` task alongside unit tests. They must not require Docker. `integrationTest` is the Docker-gated task.
+- **Micronaut caveat:** no `@WebMvcTest`-style slice exists; the context is fairly fully wired. Component tests must disable the persistence layer (Flyway/datasource/JPA) to prevent Testcontainers pulling in a Postgres container and losing the speed benefit. Exact disable mechanism still being confirmed in practice.
+- **Scaffolding convention:** test stubs use `fail("not yet implemented")`, never empty bodies — unwritten coverage shows red, not misleading green.
+- StubAIService is the default for all tiers. Tests must be independent and readable.
 
 ## 10. Hard rules
 
 - Constructor injection only — never field `@Inject`.
 - No business logic in controllers or repositories.
 - No AI calls outside the `ai/` package / AIService interface.
-- Flyway only — never hbm2ddl create/update.
+- Flyway only — never hbm2ddl create/update. Flyway owns schema, never content.
 - No secrets in code, config, or commits.
 - **No copyrighted material committed — ever.** Real past papers may be used privately for local testing; all committed fixtures/seed content are self-written. Seed concept lists may mirror the published spec's topic structure (facts), not its prose.
 - Commit small and often, meaningful messages — the public history is CV evidence.
@@ -138,10 +155,10 @@ tasks.register<Test>("integrationTest") { useJUnitPlatform(); include("**/*IT*")
 
 ## 11. Plan & current position
 
-Sprint sequence: **0.1** skeleton+CI → **0.2** schema+read API+seed script → **0.3** attempts → **1.1** extractor (separate repo) → **1.2** upload+pipeline (stub AI) → **1.3** review API → **2.1** student UI → **2.2** superuser UI → **2.3** demo hardening = **interview-ready cut** → (bonus) 3 AI marking → 4 service extraction → 5 AWS → 6 accounts/progress/generation.
+Sprint sequence: **0.1** skeleton + Concept endpoint + CI → **0.2** full schema + read API + attempts → **0.3** ingestion (stub AI) → **1.1** extractor (separate repo) → **1.2** upload + pipeline → **1.3** review API → **2.1** student UI → **2.2** superuser UI → **2.3** demo hardening = **interview-ready cut** → (bonus) 3 AI marking → 4 service extraction → 5 AWS → 6 accounts/progress/generation.
 
-> **Current sprint: 0.1 — Skeleton + CI** *(update this line as sprints complete)*
+> **Current sprint: 0.1 — Skeleton + Concept endpoint + CI** *(update this line as sprints complete)*
 >
-> Sprint 0.1 DoD: build green local+CI · compose Postgres healthy · /health UP · Flyway baseline runs · 1 unit test green · 1 Testcontainers IT green (timebox WSL2/Docker issues ~1h; defer to 0.2 with TODO if stuck) · README with badge + run instructions.
+> Sprint 0.1 DoD: `./gradlew build` green locally and in CI · compose Postgres healthy · `/health` UP · Flyway baseline runs · `GET /api/v1/concepts` returns data from real Postgres · 1 unit test green · 1 Testcontainers IT green · README with badge + run instructions.
 
 Full sprint briefs live in PRACTIQ_MASTER.md (the planning doc, kept outside the repo). If a sprint brief is pasted, it governs the session's scope.
