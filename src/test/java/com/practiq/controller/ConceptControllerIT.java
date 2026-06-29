@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.time.OffsetDateTime;
 import java.util.Map;
 
+import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static io.micronaut.http.HttpStatus.OK;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
@@ -22,7 +23,7 @@ class ConceptControllerIT {
 
     private static final String CONCEPT_TABLE = "concept";
 
-    private static final String CONCEPTS_PATH = "api/v1/concepts";
+    private static final String CONCEPTS_PATH = "/api/v1/concepts";
 
     @Inject
     private TestDatabase testDatabase;
@@ -147,5 +148,49 @@ class ConceptControllerIT {
                 .statusCode(OK.getCode())
                 .contentType(ContentType.JSON)
                 .body("$", empty());
+    }
+
+    @Test
+    void getConceptsReturnsSeededConceptById() {
+        long id = 45;
+        String name = "Diffraction";
+        String description = "The spreading of waves through a gap or around an obstacle.";
+
+        testDatabase.insert(
+                CONCEPT_TABLE,
+                Map.of(
+                        "id", id,
+                        "name", name,
+                        "description", description
+                )
+        );
+
+        given()
+                .when()
+                .get(CONCEPTS_PATH + "/" + id)
+                .then()
+                .statusCode(OK.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("id", "name", "description", "createdAt"))
+                .body("id", equalTo((int) id))
+                .body("name", equalTo(name))
+                .body("description", equalTo(description))
+                .body("createdAt", matchesPattern("\\d{4}-\\d{2}-\\d{2}T.*Z"));
+    }
+
+    @Test
+    void getConceptsReturnsSeededConceptByIdNotFound() {
+        long id = 46;
+
+        String path = CONCEPTS_PATH + "/" + id;
+        given()
+                .when()
+                .get(path)
+                .then()
+                .statusCode(NOT_FOUND.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("Could not find resource for path: " + path))
+                .body("status", equalTo(404));
     }
 }

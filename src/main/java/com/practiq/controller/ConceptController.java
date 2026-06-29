@@ -1,10 +1,10 @@
 package com.practiq.controller;
 
-import com.practiq.domain.Concept;
 import com.practiq.dto.ConceptDto;
 import com.practiq.service.ConceptService;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
+import io.micronaut.http.server.exceptions.NotFoundException;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 
@@ -23,5 +23,11 @@ public class ConceptController {
     @Get()
     public List<ConceptDto> get() {
         return conceptService.get();
+    }
+
+    @Get("/{id}")
+    public ConceptDto getById(long id) {
+        return conceptService.get(id)
+                .orElseThrow(NotFoundException::new);
     }
 }

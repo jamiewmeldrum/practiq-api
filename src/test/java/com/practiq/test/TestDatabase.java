@@ -47,7 +47,7 @@ public class TestDatabase {
             values.add(column.getValue());
         }
 
-        String sql = "INSERT INTO " + table + " (" + String.join(", ", names) + ") VALUES ("
+        String sql = "INSERT INTO " + table + " (" + String.join(", ", names) + ") OVERRIDING SYSTEM VALUE VALUES ("
                 + String.join(", ", Collections.nCopies(names.size(), "?")) + ")";
 
         try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
