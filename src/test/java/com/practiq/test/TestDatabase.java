@@ -50,8 +50,7 @@ public class TestDatabase {
         String sql = "INSERT INTO " + table + " (" + String.join(", ", names) + ") VALUES ("
                 + String.join(", ", Collections.nCopies(names.size(), "?")) + ")";
 
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
             connection.setAutoCommit(true);
             for (int i = 0; i < values.size(); i++) {
                 statement.setObject(i + 1, values.get(i));
@@ -59,6 +58,26 @@ public class TestDatabase {
             statement.executeUpdate();
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to insert into " + table + ": " + sql, e);
+        }
+    }
+
+    /**
+     * Updates a single row. Must specify table name and id for unique identification
+     */
+    public void update(String table, long id, String column, Object value) {
+        String sql = """
+        UPDATE %s
+        SET %s = ?
+        WHERE id = ?;
+        """.formatted(table, column);
+
+        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
+            connection.setAutoCommit(true);
+            statement.setObject(1, value);
+            statement.setLong(2, id);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new IllegalStateException("Failed to update " + table + ": " + sql, e);
         }
     }
 

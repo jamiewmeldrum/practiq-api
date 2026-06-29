@@ -17,7 +17,7 @@ public class ConceptService {
     }
 
     public List<ConceptDto> get() {
-        return conceptRepository.findAll().stream()
+        return conceptRepository.listOrderByCreatedAtAsc().stream()
                 .map(concept -> new ConceptDto(
                         concept.getId(),
                         concept.getName(),

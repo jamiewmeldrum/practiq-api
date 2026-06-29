@@ -52,7 +52,7 @@ class ConceptServiceTest {
         when(acceleration.getDescription()).thenReturn(accelerationDescription);
         when(acceleration.getCreatedAt()).thenReturn(accelerationCreatedAt);
 
-        when(conceptRepository.findAll()).thenReturn(List.of(
+        when(conceptRepository.listOrderByCreatedAtAsc()).thenReturn(List.of(
                 diffraction,
                 acceleration
         ));
@@ -76,7 +76,7 @@ class ConceptServiceTest {
 
     @Test
     void getReturnsEmptyListWhenNoneExist() {
-        when(conceptRepository.findAll()).thenReturn(List.of());
+        when(conceptRepository.listOrderByCreatedAtAsc()).thenReturn(List.of());
 
         List<ConceptDto> concepts = conceptService.get();
         assertEquals(0, concepts.size());

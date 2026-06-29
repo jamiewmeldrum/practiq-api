@@ -62,7 +62,7 @@ class ConceptControllerCT {
         setField(acceleration, "id", accelerationId);
         setField(acceleration, "createdAt", accelerationCreatedAt);
 
-        when(conceptRepository.findAll()).thenReturn(List.of(diffraction, acceleration));
+        when(conceptRepository.listOrderByCreatedAtAsc()).thenReturn(List.of(diffraction, acceleration));
 
         given()
             .when()
@@ -82,7 +82,7 @@ class ConceptControllerCT {
 
     @Test
     void getConceptsReturnsEmptyArrayWhenRepositoryEmpty() {
-        when(conceptRepository.findAll()).thenReturn(List.of());
+        when(conceptRepository.listOrderByCreatedAtAsc()).thenReturn(List.of());
 
         given()
             .when()
