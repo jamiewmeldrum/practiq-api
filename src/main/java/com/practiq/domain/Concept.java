@@ -13,35 +13,35 @@ import static jakarta.persistence.GenerationType.IDENTITY;
 @Getter
 public class Concept {
 
-        @Id
-        @GeneratedValue(strategy = IDENTITY)
-        private long id;
+    @Id
+    @GeneratedValue(strategy = IDENTITY)
+    private long id;
 
-        @NotNull
-        @Column(name = "name", nullable = false, unique = true)
-        private String name;
+    @NotNull
+    @Column(name = "name", nullable = false, unique = true)
+    private String name;
 
-        @NotNull
-        @Column(name = "description", nullable = false)
-        private String description;
+    @NotNull
+    @Column(name = "description", nullable = false)
+    private String description;
 
-        @Column(name = "created_at", insertable = false, updatable = false)
-        private Instant createdAt;
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private Instant createdAt;
 
-        public Concept() {}
+    public Concept() {}
 
-        public Concept(@NotNull String name, @NotNull String description) {
-            this.name = name;
-            this.description = description;
-        }
+    public Concept(@NotNull String name, @NotNull String description) {
+        this.name = name;
+        this.description = description;
+    }
 
-        @Override
-        public String toString() {
-            return "Concept{" +
-                    "id=" + id +
-                    ", name='" + name + '\'' +
-                    ", description='" + description + '\'' +
-                    ", created_at='" + createdAt + '\'' +
-                    '}';
-        }
+    @Override
+    public String toString() {
+        return "Concept{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", description='" + description + '\'' +
+                ", created_at='" + createdAt + '\'' +
+                '}';
+    }
 }

@@ -11,6 +11,9 @@ import jakarta.inject.Singleton;
 
 import static io.micronaut.http.HttpStatus.NOT_FOUND;
 
+// TODO: this only covers 404. Other failures (400 binding/conversion, 422 validation, 500)
+// still return Micronaut's default error body, not the {error, status} envelope. Add a generic
+// fallback ExceptionHandler so the whole API shares one error contract — see CLAUDE.md §7.
 @Produces
 @Singleton
 @Requires(classes = {NotFoundException.class, ExceptionHandler.class})

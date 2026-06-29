@@ -103,8 +103,8 @@ Principles: questions are tagged with concepts; spec sections map to concepts; o
 
 ```
 GET  /health
-GET  /api/v1/concepts
-GET  /api/v1/concepts/{id}
+GET  /api/v1/concepts                     ordered by created_at asc
+GET  /api/v1/concepts/{id}                404 → {"error","status"} envelope
 GET  /api/v1/concepts/{id}/questions      approved only, paginated
 GET  /api/v1/questions/{id}               mark scheme gated until session has attempted
 POST /api/v1/attempts                     X-Session-Token header

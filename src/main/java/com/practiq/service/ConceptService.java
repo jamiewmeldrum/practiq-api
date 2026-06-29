@@ -7,7 +7,6 @@ import jakarta.inject.Singleton;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Singleton
@@ -20,17 +19,16 @@ public class ConceptService {
 
     public List<ConceptDto> get() {
         return conceptRepository.listOrderByCreatedAtAsc().stream()
-                .map(mapConceptToConceptDto())
+                .map(ConceptService::toConceptDto)
                 .collect(Collectors.toList());
     }
 
     public Optional<ConceptDto> get(long id) {
-        return conceptRepository.findById(id).map(
-                mapConceptToConceptDto());
+        return conceptRepository.findById(id).map(ConceptService::toConceptDto);
     }
 
-    private static Function<Concept, ConceptDto> mapConceptToConceptDto() {
-        return concept -> new ConceptDto(
+    private static ConceptDto toConceptDto(Concept concept) {
+        return new ConceptDto(
                 concept.getId(),
                 concept.getName(),
                 concept.getDescription(),

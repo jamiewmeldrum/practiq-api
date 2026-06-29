@@ -94,8 +94,7 @@ class ConceptControllerCT {
     }
 
     @Test
-    void getConceptById() {
-
+    void getConceptByIdSerializesResult() {
         long id = 17L;
         String name = "Diffraction";
         String description = "The spreading of waves through a gap or around an obstacle.";
@@ -120,8 +119,7 @@ class ConceptControllerCT {
     }
 
     @Test
-    void getConceptByIdNotFound() {
-
+    void getConceptByIdReturnsNotFoundEnvelope() {
         long id = 17L;
 
         when(conceptRepository.findById(id)).thenReturn(Optional.empty());

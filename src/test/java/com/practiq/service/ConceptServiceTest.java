@@ -30,7 +30,6 @@ class ConceptServiceTest {
 
     @Test
     void getReturnsAllConcepts() {
-
         long diffractionId = 42L;
         String diffractionName = "Diffraction";
         String diffractionDescription = "The spreading of waves through a gap or around an obstacle.";
@@ -85,7 +84,6 @@ class ConceptServiceTest {
 
     @Test
     void getReturnsConceptById() {
-
         long id = 42L;
         String name = "Diffraction";
         String description = "The spreading of waves through a gap or around an obstacle.";
@@ -112,7 +110,6 @@ class ConceptServiceTest {
 
     @Test
     void getReturnsConceptByIdNotFound() {
-
         long id = 42L;
         when(conceptRepository.findById(id)).thenReturn(Optional.empty());
 

@@ -26,7 +26,7 @@ class ErrorHandlingCT {
     }
 
     @Test
-    void getInvalidResourceResultsInNotFound() {
+    void unmappedRouteReturnsNotFoundEnvelope() {
         given()
                 .when()
                 .get(INVALID_RESOURCES_PATH)
