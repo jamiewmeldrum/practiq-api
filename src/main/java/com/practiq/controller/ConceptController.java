@@ -1,6 +1,7 @@
 package com.practiq.controller;
 
 import com.practiq.domain.Concept;
+import com.practiq.dto.ConceptDto;
 import com.practiq.service.ConceptService;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
@@ -20,7 +21,7 @@ public class ConceptController {
     }
 
     @Get()
-    public List<Concept> get() {
+    public List<ConceptDto> get() {
         return conceptService.get();
     }
 }

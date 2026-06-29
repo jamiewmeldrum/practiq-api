@@ -1,6 +1,5 @@
 package com.practiq.domain;
 
-import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -9,7 +8,6 @@ import java.time.Instant;
 
 import static jakarta.persistence.GenerationType.IDENTITY;
 
-@Serdeable
 @Entity
 @Table(name = "concept")
 @Getter
