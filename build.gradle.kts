@@ -131,6 +131,10 @@ tasks.test {
 
 // Integration tests (*IT): real Postgres via Testcontainers. Slower — run pre-merge/CI.
 val integrationTest = tasks.register<Test>("integrationTest") {
+    // ITs share the `test` source set, so wire the classpath explicitly. Gradle 8 deprecated
+    // (and 9 removes) the convention that auto-populated these for custom Test tasks.
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform()
     include("**/*IT.class")
     shouldRunAfter(tasks.test)
