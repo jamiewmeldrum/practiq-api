@@ -1,5 +1,7 @@
 # practiq-api
 
+![CI](https://github.com/jamiewmeldrum/practiq-api/actions/workflows/ci.yml/badge.svg)
+
 Adaptive learning/practice platform API (Java 21 · Micronaut 4.10 · PostgreSQL 16).
 
 ## Running locally
