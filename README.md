@@ -67,6 +67,101 @@ first, then reload:
 docker exec -i practiq-api-postgres-1 psql -U practiq -d practiq -c 'TRUNCATE concept CASCADE;'
 ```
 
+## Logging
+
+Logging runs through **SLF4J** (the API called in code) backed by **Logback** (the
+implementation). Both ship with Micronaut — nothing to add. Two concerns live in two
+places:
+
+- **Format and destination** — `src/main/resources/logback.xml`: one console appender,
+  `root level="info"`. This is where the line pattern and appenders are defined.
+- **Levels** — set per environment in `application*.properties` via
+  `logger.levels.<name>=<level>`. Micronaut applies these to Logback at startup, so the
+  local dev loop can be noisy while tests stay quiet, without touching the XML.
+
+### Adding a logger in code
+
+With Lombok, annotate the class with `@Slf4j` and use the generated `log` field:
+
+```java
+@Slf4j
+@Singleton
+public class ConceptService {
+    public Concept findById(UUID id) {
+        log.debug("looking up concept {}", id);   // parameterised — never string concat
+        ...
+    }
+}
+```
+
+The logger's name is the fully-qualified class name
+(`com.practiq.service.ConceptService`), which is what the level config below targets.
+
+### Changing levels
+
+A level switches on that severity **and everything above it**:
+`TRACE < DEBUG < INFO < WARN < ERROR`. Setting a package to `DEBUG` shows
+DEBUG/INFO/WARN/ERROR from it.
+
+Global floor — change the root in `logback.xml`:
+
+```xml
+<root level="info">          <!-- debug for a firehose, warn for near-silence -->
+```
+
+Per-package, per-environment — add to the relevant properties file. To see `DEBUG`
+from your own code **in the local dev loop only**, add to `application-local.properties`:
+
+```properties
+logger.levels.com.practiq=DEBUG
+```
+
+Tests and every other environment inherit the root `info`, so this doesn't make test
+output noisy. Scope it tighter when chasing one thing —
+`logger.levels.com.practiq.service.ConceptService=TRACE` targets a single class.
+
+### Switching on framework logging
+
+The same `logger.levels.*` keys turn on framework internals while diagnosing. Add them
+to `application-local.properties` while you need them, then remove:
+
+```properties
+logger.levels.org.hibernate.SQL=DEBUG               # generated SQL statements
+logger.levels.org.hibernate.orm.jdbc.bind=TRACE     # bound parameter values
+logger.levels.io.micronaut.http.client=DEBUG        # outbound HTTP (extractor client, later)
+logger.levels.org.flywaydb=DEBUG                    # migration execution
+```
+
+Inbound request access logging is separate (handled by Netty, not a logger level) —
+enable with `micronaut.server.netty.access-logger.enabled=true` when needed.
+
+Levels can also be set via environment variable for a one-off run without editing files
+(dots become underscores, uppercased):
+
+```bash
+LOGGER_LEVELS_COM_PRACTIQ=DEBUG ./gradlew run
+```
+
+## Error handling
+
+All errors aim to return one envelope: `{"error": "...", "status": <code>}` (see
+`dto/ErrorResponse`). Each case is an `ExceptionHandler` in `exception/`; Micronaut
+routes a thrown exception to the **most specific** handler registered for its type.
+
+Current coverage:
+
+- **404** — `NotFoundExceptionHandler` (unmatched route / missing resource).
+- **500** — `GenericExceptionHandler` catches any otherwise-unhandled `Exception` as a
+  last-resort safety net: consistent envelope, logged at `ERROR`, no internals leaked.
+
+> **TODO — envelope is not yet universal.** 400 (binding/conversion) and 422
+> (bean-validation) currently fall through to Micronaut's default error body, *not* this
+> envelope, because Micronaut's own handlers for those exceptions are more specific than
+> the 500 fallback. Add dedicated handlers when the first validated/`POST` endpoint
+> lands (Sprint 0.2 attempts / admin): `ConstraintViolationException → 422` and
+> `UnsatisfiedRouteException`/`ConversionErrorException → 400`, each CT-tested with a bad
+> payload. See CLAUDE.md §7.
+
 ## Testing
 
 Three tiers, split by how much of the app is wired and where the boundary is cut.
