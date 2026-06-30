@@ -7,9 +7,11 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.server.exceptions.NotFoundException;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 
+@Slf4j
 @ExecuteOn(TaskExecutors.BLOCKING)
 @Controller("api/v1/concepts")
 public class ConceptController {
@@ -22,11 +24,13 @@ public class ConceptController {
 
     @Get()
     public List<ConceptDto> get() {
+        log.debug("Requested to GET all concepts");
         return conceptService.get();
     }
 
     @Get("/{id}")
     public ConceptDto getById(long id) {
+        log.debug("Requested to GET concept by id: {}", id);
         return conceptService.get(id)
                 .orElseThrow(NotFoundException::new);
     }
