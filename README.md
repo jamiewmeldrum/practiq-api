@@ -4,6 +4,40 @@
 
 Adaptive learning/practice platform API (Java 21 · Micronaut 4.10 · PostgreSQL 16).
 
+## Local workflow (from cold)
+
+The full loop from nothing running to a seeded, queryable app:
+
+```bash
+docker compose up -d                       # 1. Postgres 16 on localhost:5432
+./gradlew run                              # 2. start the app — Flyway applies migrations at boot
+docker exec -i practiq-api-postgres-1 \
+  psql -U practiq -d practiq < src/main/resources/db/seed_local.sql   # 3. load sample data
+```
+
+Then hit the app:
+
+```bash
+curl http://localhost:8080/health
+curl http://localhost:8080/api/v1/concepts
+```
+
+**Order matters between steps 2 and 3.** Flyway runs the migrations at *application
+startup*, not during the build — so the tables don't exist until the app has booted at
+least once against the Compose DB. Seeding before the first `./gradlew run` fails with
+"relation does not exist". After that first boot the schema persists in the Compose
+volume, so on later loops you can seed anytime the container is up.
+
+`./gradlew run` holds the terminal (it runs the server in the foreground), so run the
+seed and `curl` commands from a second terminal — or start the app from IntelliJ instead
+(see [Running/debugging from IntelliJ](#runningdebugging-from-intellij), and remember the
+`MICRONAUT_ENVIRONMENTS=local` it requires). Stop the app with `Ctrl+C`; stop Postgres
+with `docker compose down` (add `-v` to also wipe the data + schema for a clean replay).
+
+The sections below expand each step: [Running locally](#running-locally) for the app,
+[Local development data](#local-development-data) for seeding, and
+[Querying the local database](#querying-the-local-database) for inspecting it.
+
 ## Running locally
 
 Start the Compose Postgres, then run the app:
@@ -66,6 +100,35 @@ first, then reload:
 ```bash
 docker exec -i practiq-api-postgres-1 psql -U practiq -d practiq -c 'TRUNCATE concept CASCADE;'
 ```
+
+## Querying the local database
+
+To inspect the Compose Postgres directly — checking what a migration produced, eyeballing
+seed data, confirming the `status=approved` filter has rows to filter — run `psql` inside
+the container. No local Postgres client needed; the image already ships one.
+
+One-off query with `-c` (runs, prints, exits):
+
+```bash
+docker exec -it practiq-api-postgres-1 psql -U practiq -d practiq \
+  -c "select status, count(*) from question group by status;"
+```
+
+Interactive shell for a poking-around session:
+
+```bash
+docker exec -it practiq-api-postgres-1 psql -U practiq -d practiq
+```
+
+Inside the shell, the usual psql meta-commands help: `\dt` lists tables, `\d question`
+describes one, `\x` toggles expanded (row-per-line) output for wide rows, `\q` quits.
+`select * from flyway_schema_history;` shows which migrations have been applied.
+
+The `-U practiq -d practiq` flags are the local user and database from
+`docker-compose.yml`; `practiq-api-postgres-1` is the container name Compose generates
+(`docker ps` if yours differs). Use `-it` for the interactive shell and for `-c` queries
+you want to read in the terminal; `-i` alone is enough when piping SQL in from a file, as
+the seed-load command above does.
 
 ## Logging
 
