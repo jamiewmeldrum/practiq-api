@@ -157,8 +157,8 @@ Three-tier model — put each test where it can actually observe the behaviour i
 
 Sprint sequence: **0.1** skeleton + Concept endpoint + CI → **0.2** full schema + read API + attempts → **0.3** ingestion (stub AI) → **1.1** extractor (separate repo) → **1.2** upload + pipeline → **1.3** review API → **2.1** student UI → **2.2** superuser UI → **2.3** demo hardening = **interview-ready cut** → (bonus) 3 AI marking → 4 service extraction → 5 AWS → 6 accounts/progress/generation.
 
-> **Current sprint: 0.1 — Skeleton + Concept endpoint + CI** *(update this line as sprints complete)*
+> **Current sprint: 0.2 — Full schema + read API + attempts** *(update this line as sprints complete)*
 >
-> Sprint 0.1 DoD: `./gradlew build` green locally and in CI · compose Postgres healthy · `/health` UP · Flyway baseline runs · `GET /api/v1/concepts` returns data from real Postgres · 1 unit test green · 1 Testcontainers IT green · README with badge + run instructions.
+> Sprint 0.2 DoD: see PRACTIQ_MASTER.md for the brief. (0.1 — skeleton + Concept endpoint + CI — complete.)
 
 Full sprint briefs live in PRACTIQ_MASTER.md (the planning doc, kept outside the repo). If a sprint brief is pasted, it governs the session's scope.
