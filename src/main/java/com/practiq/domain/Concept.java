@@ -3,14 +3,18 @@ package com.practiq.domain;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
+import lombok.ToString;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 
 import static jakarta.persistence.GenerationType.IDENTITY;
 
 @Entity
 @Table(name = "concept")
 @Getter
+@ToString
 public class Concept {
 
     @Id
@@ -35,13 +39,6 @@ public class Concept {
         this.description = description;
     }
 
-    @Override
-    public String toString() {
-        return "Concept{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", description='" + description + '\'' +
-                ", created_at='" + createdAt + '\'' +
-                '}';
-    }
+    @ManyToMany(mappedBy = "concepts")
+    private Set<Question> questions = new HashSet<>();
 }

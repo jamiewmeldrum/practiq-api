@@ -2,11 +2,14 @@ package com.practiq.dto;
 
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Getter;
+import lombok.ToString;
 
 import java.time.Instant;
+import java.util.Set;
 
 @Serdeable
 @Getter
+@ToString
 public class ConceptDto {
 
     private final long id;
@@ -24,15 +27,5 @@ public class ConceptDto {
         this.name = name;
         this.description = description;
         this.createdAt = createdAt;
-    }
-
-    @Override
-    public String toString() {
-        return "ConceptDto{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", description='" + description + '\'' +
-                ", created_at='" + createdAt + '\'' +
-                '}';
     }
 }
