@@ -7,18 +7,18 @@ import jakarta.persistence.Converter;
 import java.util.Optional;
 
 @Converter
-public class QuestionDifficultyAttributeConverter implements AttributeConverter<QuestionDifficulty, String> {
+public class QuestionDifficultyAttributeConverter implements AttributeConverter<QuestionDifficulty, Integer> {
 
     @Override
-    public String convertToDatabaseColumn(QuestionDifficulty attribute) {
-        return String.valueOf(attribute.value());
+    public Integer convertToDatabaseColumn(QuestionDifficulty attribute) {
+        return attribute == null ? null : attribute.value();
     }
 
     @Override
-    public QuestionDifficulty convertToEntityAttribute(String db) {
+    public QuestionDifficulty convertToEntityAttribute(Integer db) {
         if (db == null) return null;
 
-        return Optional.ofNullable(QuestionDifficulty.forValue(Integer.parseInt(db)))
+        return Optional.ofNullable(QuestionDifficulty.forValue(db))
                 .orElseThrow(() -> new IllegalArgumentException("Unknown difficulty: " + db));
     }
 }
