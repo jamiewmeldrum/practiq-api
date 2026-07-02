@@ -25,6 +25,8 @@ class ConceptControllerIT {
 
     private static final String CONCEPTS_PATH = "/api/v1/concepts";
 
+    private static final String CREATED_AT_PATTERN = "\\d{4}-\\d{2}-\\d{2}T.*Z";
+
     @Inject
     private TestDatabase testDatabase;
 
@@ -69,7 +71,7 @@ class ConceptControllerIT {
                 .body("[0].keySet()", containsInAnyOrder("id", "name", "description", "createdAt"))
                 .body("name", containsInAnyOrder(diffractionName, accelerationName))
                 .body("id", everyItem(greaterThan(0)))
-                .body("createdAt", everyItem(matchesPattern("\\d{4}-\\d{2}-\\d{2}T.*Z")))
+                .body("createdAt", everyItem(matchesPattern(CREATED_AT_PATTERN)))
                 .body("find { it.name == '" + diffractionName + "' }.description", equalTo(diffractionDescription))
                 .body("find { it.name == '" + accelerationName + "' }.description", equalTo(accelerationDescription));
     }
@@ -175,7 +177,7 @@ class ConceptControllerIT {
                 .body("id", equalTo((int) id))
                 .body("name", equalTo(name))
                 .body("description", equalTo(description))
-                .body("createdAt", matchesPattern("\\d{4}-\\d{2}-\\d{2}T.*Z"));
+                .body("createdAt", matchesPattern(CREATED_AT_PATTERN));
     }
 
     @Test
