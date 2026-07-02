@@ -29,7 +29,7 @@ import static org.hamcrest.Matchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-//TODO - pagination, filtering on conceptId, restrict to pending, serilization test, service test
+//TODO - pagination, filtering on conceptId, restrict to pending
 @ComponentTest
 public class QuestionControllerCT {
     private static final String QUESTIONS_PATH = "/api/v1/questions";
