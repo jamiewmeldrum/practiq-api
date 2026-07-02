@@ -1,6 +1,5 @@
 package com.practiq.dto;
 
-import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
@@ -17,8 +16,7 @@ import java.util.Set;
 public class QuestionDto {
     private final long id;
     private final String body;
-    private final String markScheme;
-    private final QuestionDifficulty difficulty;
+    private final QuestionDifficultyDto difficulty;
     private final QuestionType type;
     private final QuestionSource source;
     private final QuestionStatus status;
@@ -29,8 +27,7 @@ public class QuestionDto {
     public QuestionDto(
             long id,
             String body,
-            String markScheme,
-            QuestionDifficulty difficulty,
+            QuestionDifficultyDto difficulty,
             QuestionType type,
             QuestionSource source,
             QuestionStatus status,
@@ -40,8 +37,7 @@ public class QuestionDto {
     ) {
         this.id = id;
         this.body = body;
-        this.markScheme = markScheme;
-        this.difficulty = difficulty;
+        this.difficulty =  difficulty;
         this.type = type;
         this.source = source;
         this.status = status;

@@ -32,13 +32,10 @@ public class Concept {
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 
-    public Concept() {}
+    protected Concept() {}
 
     public Concept(@NotNull String name, @NotNull String description) {
         this.name = name;
         this.description = description;
     }
-
-    @ManyToMany(mappedBy = "concepts")
-    private Set<Question> questions = new HashSet<>();
 }
