@@ -75,11 +75,15 @@ spec_section_concept: spec_section_id, concept_id          -- "AQA 6.2 covers Di
 question_concept:     question_id, concept_id
 note_concept:         note_id, concept_id
 
-question:  id, body, mark_scheme, difficulty int (1-5),
-           type (short_answer|extended|mcq), level (gcse|a_level|both),
-           source (seed|generated), status (pending|approved|rejected),
-           content jsonb,                                   -- type-specific: MCQ choices, hints
+question:  id, body (TEXT, not null — Markdown, images via {{s3:key}}, MCQ via - [ ]/- [x]),
+           mark_scheme (TEXT, nullable), difficulty int (nullable, 1-5),
+           type (nullable — SHORT_ANSWER|EXTENDED|MCQ),
+           source (not null — SEED|EXTRACTED|GENERATED, see D-014),
+           status (not null, default PENDING — PENDING|APPROVED|REJECTED),
+           source_spec (VARCHAR, nullable — provenance stopgap, see D-010),
            created_at
+           -- no level column (see D-010) · no content jsonb (see D-009)
+           -- source_document_id FK deferred to Sprint 0.3 (see D-014)
 
 note:      id, title, s3_key, level, status, created_at
 
@@ -104,9 +108,9 @@ Principles: questions are tagged with concepts; spec sections map to concepts; o
 ```
 GET  /health
 GET  /api/v1/concepts                     ordered by created_at asc
-GET  /api/v1/concepts/{id}                404 → {"error","status"} envelope
-GET  /api/v1/concepts/{id}/questions      approved only, paginated
-GET  /api/v1/questions/{id}               mark scheme gated until session has attempted
+GET  /api/v1/concepts/{id}                404 → {"error":"...","status":404} envelope
+GET  /api/v1/questions?conceptId={id}     approved only, paginated (flat collection, not nested — see D-015)
+GET  /api/v1/questions/{id}               question detail; never carries mark_scheme (removed from Question — where it lives is open, see D-018)
 POST /api/v1/attempts                     X-Session-Token header
 --- admin: static API key header (X-Admin-Key) until Phase 6 ---
 POST /api/v1/admin/documents              → presigned S3 URL
@@ -114,7 +118,9 @@ POST /api/v1/admin/documents/{id}/complete → triggers async ingestion job
 GET  /api/v1/admin/questions/pending
 PUT  /api/v1/admin/questions/{id}/approve | /reject | /concepts
 ```
-Conventions: versioned routes, validated DTOs, correct status codes (200/201/400/404/422/500), structured error body `{"error": "...", "status": n}`, never leak internals. Anonymous sessions = client-generated UUID via `X-Session-Token`; no server session state.
+Conventions: versioned routes, validated DTOs, correct status codes (200/201/400/404/422/500), structured error body `{"error": "...", "status": n}` on **all** failure paths, never leak internals. Anonymous sessions = client-generated UUID via `X-Session-Token`; no server session state.
+
+**Outstanding (Sprint 0.1):** only 404 currently returns the structured envelope. 400/422/500 need a global exception handler before the DoD is met.
 
 ## 8. Ingestion pipeline (in-process for now)
 
@@ -134,11 +140,11 @@ Three-tier model — put each test where it can actually observe the behaviour i
 | Integration | `*IT` | full stack | real Postgres via Testcontainers | `integrationTest` | pre-merge / CI |
 
 - **Unit:** service logic; non-trivial validation rule correctness via a bare `jakarta.validation.Validator`.
-- **Component:** controller behaviour — that routes map correctly, body binding works, `@Valid` is actually wired (bad payload → 400), serialisation produces the right JSON shape. Persistence boundary mocked. This is the tier that keeps ITs thin and avoids IT bloat. Cover *representative* shape/value, not exhaustive field nuance — e.g. a read endpoint gets ~2 tests (a few entities returned with the expected fields by shape and/or value, plus an empty case), not one per field.
+- **Component:** controller behaviour — that routes map correctly, body binding works, `@Valid` is actually wired (bad payload → 400), serialisation produces the right JSON shape. Persistence boundary mocked. Cover *representative* shape/value, not exhaustive field nuance — a read endpoint gets ~2 tests (a few entities with expected fields, plus an empty case), not one per field.
 - **Integration:** only what needs a real DB — repository queries, `@Query`, migration correctness, transactional behaviour. Kept deliberately few.
-- **Responsibility & overlap (honeycomb, not strict pyramid):** higher tiers are deliberately multi-responsibility. A unit test isolates one behaviour; an IT verifies whole paths (routing + mapping + serialisation + SQL + schema at once); the CT is the middle that carries application behaviour *without* a DB. "One reason to fail" is a unit heuristic — do not impose it on CT/IT. Overlap is defense in depth, not waste: a CT may assert serialisation even when a unit test also does. Verify behaviour at the cheapest tier that can still see it — push checks down from IT to CT (faster, more reliable, sharper failure localisation) so ITs stay few and cover only what genuinely needs Postgres. Exhaustive per-field serialisation nuance (formats, nulls, edge cases) lives in small unit tests, and only when there is real nuance — don't manufacture it.
+- **Responsibility & overlap (honeycomb, not strict pyramid):** higher tiers are deliberately multi-responsibility. "One reason to fail" is a unit heuristic — do not impose it on CT/IT. Overlap is defence in depth, not waste. Push checks down from IT to CT (faster, sharper failure localisation) so ITs stay few and cover only what genuinely needs Postgres. Exhaustive per-field serialisation nuance lives in small unit tests, and only when there is real nuance — don't manufacture it.
 - Component tests run in the everyday `test` task alongside unit tests. They must not require Docker. `integrationTest` is the Docker-gated task.
-- **Micronaut caveat:** no `@WebMvcTest`-style slice exists; the context is fairly fully wired. Component tests must disable the persistence layer (Flyway/datasource/JPA) to prevent Testcontainers pulling in a Postgres container and losing the speed benefit. Exact disable mechanism still being confirmed in practice.
+- **Micronaut caveat:** no `@WebMvcTest`-style slice exists; the context is fairly fully wired. Component tests must disable the persistence layer (Flyway/datasource/JPA) to prevent Testcontainers pulling in a Postgres container and losing the speed benefit. Exact disable mechanism to be formally recorded as a sub-decision in Sprint 0.2.
 - **Scaffolding convention:** test stubs use `fail("not yet implemented")`, never empty bodies — unwritten coverage shows red, not misleading green.
 - StubAIService is the default for all tiers. Tests must be independent and readable.
 
@@ -148,6 +154,8 @@ Three-tier model — put each test where it can actually observe the behaviour i
 - No business logic in controllers or repositories.
 - No AI calls outside the `ai/` package / AIService interface.
 - Flyway only — never hbm2ddl create/update. Flyway owns schema, never content.
+- **Enum-backed columns are stored upper-case** (e.g. `'PENDING'`, `'APPROVED'`), matching Java enum constant names exactly, so `@Enumerated(EnumType.STRING)` works with no custom `AttributeConverter`. Applies to every enum-backed column project-wide, not case-by-case. Free-text columns (e.g. `source_spec`) are unaffected.
+- **Path nesting only for genuine ownership** (child meaningless outside a specific parent). **Many-to-many relationships or multi-dimension-filterable resources use a flat first-order collection with query-parameter filters**, not path nesting under one relationship. Controllers map to one entity each. See D-015.
 - No secrets in code, config, or commits.
 - **No copyrighted material committed — ever.** Real past papers may be used privately for local testing; all committed fixtures/seed content are self-written. Seed concept lists may mirror the published spec's topic structure (facts), not its prose.
 - Commit small and often, meaningful messages — the public history is CV evidence.
@@ -157,8 +165,10 @@ Three-tier model — put each test where it can actually observe the behaviour i
 
 Sprint sequence: **0.1** skeleton + Concept endpoint + CI → **0.2** full schema + read API + attempts → **0.3** ingestion (stub AI) → **1.1** extractor (separate repo) → **1.2** upload + pipeline → **1.3** review API → **2.1** student UI → **2.2** superuser UI → **2.3** demo hardening = **interview-ready cut** → (bonus) 3 AI marking → 4 service extraction → 5 AWS → 6 accounts/progress/generation.
 
-> **Current sprint: 0.2 — Full schema + read API + attempts** *(update this line as sprints complete)*
+> **Current sprint: 0.1 — Skeleton + Concept endpoint + CI** *(update this line as sprints complete)*
 >
-> Sprint 0.2 DoD: see PRACTIQ_MASTER.md for the brief. (0.1 — skeleton + Concept endpoint + CI — complete.)
+> Sprint 0.1 DoD: `./gradlew build` green locally and in CI · compose Postgres healthy · `/health` UP · Flyway migration runs · `GET /api/v1/concepts` returns data ordered by `created_at asc` · `GET /api/v1/concepts/{id}` returns concept or structured 404 · **all failure paths (400/422/500) return consistent `{"error","status"}` envelope** · 1 unit test green · 1 CT green · 1 IT green · README with CI badge.
+>
+> **Outstanding before DoD is met:** (1) global error handler for 400/422/500; (2) CI workflow `.github/workflows/ci.yml`; (3) remove dead TODO comment from `Application.java`.
 
 Full sprint briefs live in PRACTIQ_MASTER.md (the planning doc, kept outside the repo). If a sprint brief is pasted, it governs the session's scope.

@@ -2,10 +2,11 @@ package com.practiq.service;
 
 import com.practiq.domain.Concept;
 import com.practiq.domain.Question;
+import com.practiq.domain.types.QuestionDifficulty;
+import com.practiq.dto.QuestionDifficultyDto;
 import com.practiq.dto.QuestionDto;
 import com.practiq.repository.QuestionRepository;
 import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -21,10 +22,6 @@ public class QuestionService {
         this.questionRepository = questionRepository;
     }
 
-    /**
-     * Transactional to allow mapping to concept ids to be mapped without having the load them eagerly
-     */
-    @Transactional
     public List<QuestionDto> get() {
         log.debug("Getting all questions");
         return questionRepository.findAll().stream()
@@ -34,15 +31,16 @@ public class QuestionService {
 
     private static QuestionDto toQuestionDto(Question question) {
         log.trace("Converting question to QuestionDto: {}", question.getId());
-        Set<Long> conceptIds = question.getConcepts().stream()
-                .map(Concept::getId)
+
+        QuestionDifficulty difficulty = question.getDifficulty();
+        Set<Long> conceptIds = question.getConceptLinks().stream()
+                .map(link -> link.getId().getConceptId())
                 .collect(Collectors.toSet());
 
         return new QuestionDto(
                 question.getId(),
                 question.getBody(),
-                question.getMarkScheme(),
-                question.getDifficulty(),
+                difficulty == null ? null : new QuestionDifficultyDto(difficulty.value(), difficulty.name()),
                 question.getType(),
                 question.getSource(),
                 question.getStatus(),

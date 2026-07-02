@@ -49,151 +49,119 @@ values ('Scalars and Vectors',
 on conflict (name) do nothing;
 
 -- ── Questions ──────────────────────────────────────────────────────────────
--- No natural unique key exists on question (unlike concept.name), so this
--- section is idempotent by a different mechanism: delete all source='seed'
--- rows, then re-insert. Safe to re-run; never touches AI-generated content,
--- which uses source='generated'. question_concept has ON DELETE CASCADE
--- (see migration), so deleting the question rows cleans up their links
--- automatically — no separate delete step needed for question_concept.
--- ── Questions ──────────────────────────────────────────────────────────────
--- No natural unique key exists on question (unlike concept.name), so this
--- section is idempotent by a different mechanism: delete all source='SEED'
--- rows, then re-insert. Safe to re-run; never touches AI-generated content,
--- which uses source='GENERATED'. question_concept has ON DELETE CASCADE
--- (see migration), so deleting the question rows cleans up their links
--- automatically — no separate delete step needed for question_concept.
-delete
-from question
-where source = 'SEED';
-
-insert into question (body, mark_scheme, difficulty, type, source, status, source_spec)
-values ('Which of the following is a vector quantity?
+-- Body text and its concept links are authored together, once, in the staging
+-- table below — not as two separately hand-maintained lists matched by a
+-- fragile text-prefix key (that drift was the actual cause of a previous
+-- version of this script silently linking nothing).
+--
+-- source is deliberately NOT all 'SEED' — see D-016 for why a mixed
+-- SEED/EXTRACTED/GENERATED spread with nulls is more representative for
+-- local dev than uniformly-complete hand-authored content.
+--
+-- No mark_scheme column — see D-018. Not reintroduced here until the
+-- replacement design is settled.
+create temporary table seed_questions as
+select *
+from (values ('Which of the following is a vector quantity?
 
 - [ ] Speed
 - [ ] Mass
 - [x] Velocity
 - [ ] Time',
-        'Velocity is a vector because it has both magnitude and direction; the others are scalars.',
-        1, 'MCQ', 'SEED', 'APPROVED', 'AQA GCSE Physics'),
+              1, 'MCQ', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Scalars and Vectors']),
 
-       ('A cyclist travels 300 m north in 60 s, then 300 m south in 60 s, returning to her start point. Calculate her average speed and her average velocity for the whole journey, and explain why they are different.',
-        'Average speed = total distance / total time = 600 / 120 = 5 m/s. Average velocity = total displacement / total time = 0 / 120 = 0 m/s. They differ because speed depends on distance travelled while velocity depends on displacement, which is zero here since she returns to her starting point.',
-        2, 'SHORT_ANSWER', 'SEED', 'APPROVED', 'AQA GCSE Physics'),
+             ('A car travels 150 m in 10 s. Calculate its average speed.',
+              null, 'SHORT_ANSWER', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Speed and Velocity']),
 
-       ('A 900 kg car accelerates uniformly from rest to 24 m/s in 8 s. (a) Calculate the car''s acceleration. (b) Calculate the resultant force needed to produce this acceleration. (c) State one reason the force needed in practice would be greater than your answer to (b).',
-        '(a) a = delta-v / t = 24/8 = 3 m/s squared. (b) F = ma = 900 x 3 = 2700 N. (c) Any valid reason, e.g. friction/air resistance/drag must also be overcome, so the engine must provide extra force beyond that needed for acceleration alone.',
-        3, 'EXTENDED', 'SEED', 'APPROVED', 'AQA GCSE Physics'),
+             ('A 900 kg car accelerates uniformly from rest to 24 m/s in 8 s. (a) Calculate the car''s acceleration. (b) Calculate the resultant force needed to produce this acceleration. (c) State one reason the force needed in practice would be greater than your answer to (b).',
+              null, 'EXTENDED', 'EXTRACTED', 'PENDING', 'AQA GCSE Physics',
+              array ['Acceleration', 'Newton''s Second Law']),
 
-       ('A book rests on a table and remains stationary. State Newton''s First Law and use it to explain why the book does not accelerate.',
-        'Newton''s First Law: an object stays at rest, or moves at a constant velocity, unless acted on by a resultant (unbalanced) force. The book does not accelerate because the weight of the book acting downward is balanced by the normal contact force from the table acting upward, so the resultant force is zero.',
-        2, 'SHORT_ANSWER', 'SEED', 'APPROVED', 'AQA GCSE Physics'),
+             ('State Newton''s First Law.',
+              2, 'SHORT_ANSWER', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Newton''s First Law']),
 
-       ('Two students investigate the relationship between force and acceleration for a trolley of constant mass. They apply increasing force to the trolley and measure its acceleration each time. (a) Sketch the shape of the graph you would expect if acceleration is plotted against force. (b) State the relationship between force and acceleration shown by this graph. (c) The trolley has a mass of 1.5 kg. Calculate the force needed to accelerate it at 4 m/s squared.',
-        '(a) A straight line through the origin. (b) Acceleration is directly proportional to the resultant force, for a constant mass. (c) F = ma = 1.5 x 4 = 6 N.',
-        4, 'EXTENDED', 'SEED', 'APPROVED', 'AQA GCSE Physics'),
+             ('Two students investigate the relationship between force and acceleration for a trolley of constant mass. They apply increasing force to the trolley and measure its acceleration each time. (a) Sketch the shape of the graph you would expect if acceleration is plotted against force. (b) State the relationship between force and acceleration shown by this graph. (c) The trolley has a mass of 1.5 kg. Calculate the force needed to accelerate it at 4 m/s squared.',
+              null, null, 'GENERATED', 'PENDING', null, array ['Newton''s Second Law', 'Acceleration']),
 
-       ('A resultant force of 10 N acts on an object of mass 2 kg. What is the object''s acceleration?
+             ('A resultant force of 10 N acts on an object of mass 2 kg. What is the object''s acceleration?
 
 - [ ] 0.2 m/s squared
 - [ ] 2.5 m/s squared
 - [x] 5 m/s squared
 - [ ] 20 m/s squared',
-        'a = F/m = 10/2 = 5 m/s squared.',
-        2, 'MCQ', 'SEED', 'APPROVED', 'AQA GCSE Physics'),
+              2, 'MCQ', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Newton''s Second Law']),
 
-       ('A spring has a natural length of 12 cm. When a 2 N force is applied, it stretches to 15 cm. Calculate the spring constant, stating the correct unit.',
-        'Extension = 15 - 12 = 3 cm = 0.03 m. k = F/e = 2/0.03 = 66.7 N/m (3 s.f.).',
-        2, 'SHORT_ANSWER', 'SEED', 'PENDING', 'AQA GCSE Physics'),
+             ('A spring has a natural length of 12 cm. When a 2 N force is applied, it stretches to 15 cm. Calculate the spring constant, stating the correct unit.',
+              null, 'SHORT_ANSWER', 'EXTRACTED', 'PENDING', 'AQA GCSE Physics', array ['Hooke''s Law']),
 
-       ('A student stretches a spring within its limit of proportionality by applying a force and measuring the extension. (a) State Hooke''s Law. (b) The spring has a spring constant of 40 N/m and is extended by 0.05 m. Calculate the elastic potential energy stored in the spring. (c) State what happens to this stored energy if the spring is released and allowed to return to its natural length with nothing attached.',
-        '(a) The extension of an elastic object is directly proportional to the force applied, provided the limit of proportionality is not exceeded. (b) E = half x k x e squared = 0.5 x 40 x 0.05 squared = 0.05 J. (c) The elastic potential energy is transferred to the kinetic energy store of the spring as it moves, and eventually to the surroundings (e.g. as heat/sound) as the spring''s motion is damped.',
-        3, 'EXTENDED', 'SEED', 'APPROVED', 'AQA GCSE Physics'),
+             ('A student stretches a spring within its limit of proportionality by applying a force and measuring the extension. (a) State Hooke''s Law. (b) The spring has a spring constant of 40 N/m and is extended by 0.05 m. Calculate the elastic potential energy stored in the spring. (c) State what happens to this stored energy if the spring is released and allowed to return to its natural length with nothing attached.',
+              3, 'EXTENDED', 'SEED', 'APPROVED', 'AQA GCSE Physics',
+              array ['Hooke''s Law', 'Energy Stores and Transfers']),
 
-       ('A ball is thrown upwards and reaches its highest point. Which energy store increased as the ball rose?
+             ('A ball is thrown upwards and reaches its highest point. Which energy store increased as the ball rose?
 
 - [ ] Kinetic
 - [x] Gravitational potential
 - [ ] Chemical
 - [ ] Thermal',
-        'As the ball rises its height increases, so the gravitational potential energy store increases while the kinetic energy store decreases.',
-        1, 'MCQ', 'SEED', 'APPROVED', 'AQA GCSE Physics'),
+              1, 'MCQ', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Energy Stores and Transfers']),
 
-       ('A skier of mass 60 kg starts from rest at the top of a slope 20 m high and reaches the bottom with a speed of 18 m/s. (a) Calculate the gravitational potential energy the skier had at the top of the slope, taking g = 10 N/kg. (b) Calculate the kinetic energy the skier has at the bottom. (c) Use the principle of conservation of energy to explain why your answers to (a) and (b) are not equal, and state where the missing energy has gone.',
-        '(a) GPE = mgh = 60 x 10 x 20 = 12000 J. (b) KE = half x m x v squared = 0.5 x 60 x 18 squared = 9720 J. (c) Energy is conserved overall - it cannot be created or destroyed. The difference (12000 - 9720 = 2280 J) has been transferred to the thermal energy store of the skis, snow and surrounding air due to friction and air resistance, rather than remaining in the kinetic store.',
-        4, 'EXTENDED', 'SEED', 'APPROVED', 'AQA GCSE Physics'),
+             ('A skier of mass 60 kg starts from rest at the top of a slope 20 m high and reaches the bottom with a speed of 18 m/s. (a) Calculate the gravitational potential energy the skier had at the top of the slope, taking g = 10 N/kg. (b) Calculate the kinetic energy the skier has at the bottom. (c) Use the principle of conservation of energy to explain why your answers to (a) and (b) are not equal, and state where the missing energy has gone.',
+              4, 'EXTENDED', 'GENERATED', 'APPROVED', null,
+              array ['Conservation of Energy', 'Energy Stores and Transfers']),
 
-       ('A charge of 15 C flows past a point in a wire in 5 s. Calculate the current in the wire.',
-        'I = Q/t = 15/5 = 3 A.',
-        2, 'SHORT_ANSWER', 'SEED', 'APPROVED', 'AQA GCSE Physics'),
+             ('A charge of 15 C flows past a point in a wire in 5 s. Calculate the current in the wire.',
+              2, 'SHORT_ANSWER', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Electrical Charge and Current']),
 
-       ('What is the unit of electric current?
+             ('What is the unit of electric current?
 
 - [ ] Ampere
 - [x] Ampere
 - [ ] Volt
 - [ ] Watt',
-        'Current is measured in amperes (A).',
-        1, 'MCQ', 'SEED', 'REJECTED', 'AQA GCSE Physics'),
+              1, 'MCQ', 'EXTRACTED', 'REJECTED', 'AQA GCSE Physics', array ['Electrical Charge and Current']),
 
-       ('A battery transfers 24 J of energy to 4 C of charge as it flows through a circuit. (a) Define potential difference. (b) Calculate the potential difference of the battery. (c) Explain, in terms of energy, what a voltmeter placed across a component in the circuit is measuring.',
-        '(a) Potential difference is the energy transferred per unit charge passing between two points in a circuit. (b) V = E/Q = 24/4 = 6 V. (c) The voltmeter measures the energy transferred per unit charge to that component specifically - i.e. how much electrical energy is converted to other forms (e.g. thermal, light) as each coulomb of charge passes through it.',
-        3, 'EXTENDED', 'SEED', 'APPROVED', 'AQA GCSE Physics'),
+             ('A battery transfers 24 J of energy to 4 C of charge as it flows through a circuit. (a) Define potential difference. (b) Calculate the potential difference of the battery. (c) Explain, in terms of energy, what a voltmeter placed across a component in the circuit is measuring.',
+              3, 'EXTENDED', 'SEED', 'APPROVED', 'AQA GCSE Physics',
+              array ['Potential Difference', 'Electrical Charge and Current']),
 
-       ('The diagram below shows a transverse wave.
+             ('The diagram below shows a transverse wave.
 
 {{s3:diagrams/transverse-wave.svg}}
 
 (a) Use the diagram to state the amplitude of the wave in the units shown. (b) State the wavelength of the wave in the units shown.',
-        '(a) The amplitude is the distance from the midline to the peak (or trough) of the wave, as labelled. (b) The wavelength is the distance between two adjacent, equivalent points on the wave (e.g. peak to peak), as labelled.',
-        2, 'SHORT_ANSWER', 'SEED', 'APPROVED', 'AQA GCSE Physics'),
+              2, 'SHORT_ANSWER', 'EXTRACTED', 'APPROVED', 'AQA GCSE Physics', array ['Wave Properties']),
 
-       ('A wave has a frequency of 50 Hz and a wavelength of 4 m. What is its wave speed?
+             ('A wave has a frequency of 50 Hz and a wavelength of 4 m. What is its wave speed?
 
 - [ ] 12.5 m/s
 - [x] 200 m/s
 - [ ] 0.08 m/s
 - [ ] 54 m/s',
-        'v = f x lambda = 50 x 4 = 200 m/s.',
-        2, 'MCQ', 'SEED', 'APPROVED', 'AQA GCSE Physics'),
+              2, 'MCQ', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Wave Properties']),
 
-       ('The diagram below shows plane waves approaching a barrier with a narrow gap.
+             ('The diagram below shows plane waves approaching a barrier with a narrow gap.
 
 {{s3:diagrams/diffraction-gap.svg}}
 
 (a) Describe what happens to the waves as they pass through the gap. (b) State how the amount of diffraction would change if the gap were made narrower, relative to the wavelength of the waves.',
-        '(a) The waves spread out (diffract) after passing through the gap, becoming curved/circular wavefronts rather than continuing as straight parallel wavefronts. (b) The amount of diffraction increases as the gap is made narrower relative to the wavelength - diffraction is most pronounced when the gap width is similar to the wavelength.',
-        4, 'EXTENDED', 'SEED', 'APPROVED', 'AQA GCSE Physics');
+              null, 'EXTENDED', 'EXTRACTED', 'PENDING', 'AQA GCSE Physics',
+              array ['Diffraction', 'Wave Properties'])) as t(body, difficulty, type, source, status, source_spec, concept_names);
 
--- ── Question ↔ Concept links ──────────────────────────────────────────────
--- Matched by the first 40 characters of body (unique per question here) rather
--- than repeating full question text. Several questions are deliberately
--- synoptic (linked to more than one concept). ON CONFLICT is defensive only —
--- a fresh insert following the delete above means no conflicts are possible,
--- but it costs nothing to leave in.
-insert into question_concept (question_id, concept_id)
-select q.id, c.id
-from (values ('Which of the following is a vector qua', 'Scalars and Vectors'),
-             ('A cyclist travels 300 m north in 60 s,', 'Speed and Velocity'),
-             ('A 900 kg car accelerates uniformly fro', 'Acceleration'),
-             ('A 900 kg car accelerates uniformly fro', 'Newton''s Second Law'),
-             ('A book rests on a table and remains st', 'Newton''s First Law'),
-             ('Two students investigate the relations', 'Newton''s Second Law'),
-             ('Two students investigate the relations', 'Acceleration'),
-             ('A resultant force of 10 N acts on an o', 'Newton''s Second Law'),
-             ('A spring has a natural length of 12 cm', 'Hooke''s Law'),
-             ('A student stretches a spring within it', 'Hooke''s Law'),
-             ('A student stretches a spring within it', 'Energy Stores and Transfers'),
-             ('A ball is thrown upwards and reaches i', 'Energy Stores and Transfers'),
-             ('A skier of mass 60 kg starts from rest', 'Conservation of Energy'),
-             ('A skier of mass 60 kg starts from rest', 'Energy Stores and Transfers'),
-             ('A charge of 15 C flows past a point in', 'Electrical Charge and Current'),
-             ('What is the unit of electric current?', 'Electrical Charge and Current'),
-             ('A battery transfers 24 J of energy to ', 'Potential Difference'),
-             ('A battery transfers 24 J of energy to ', 'Electrical Charge and Current'),
-             ('The diagram below shows a transverse w', 'Wave Properties'),
-             ('A wave has a frequency of 50 Hz and a ', 'Wave Properties'),
-             ('The diagram below shows plane waves ap', 'Diffraction'),
-             ('The diagram below shows plane waves ap', 'Wave Properties')) as links(body_key, concept_name)
-         join question q on left(q.body, 40) = links.body_key and q.source = 'SEED'
-         join concept c on c.name = links.concept_name
+delete
+from question
+where body in (select body from seed_questions);
+
+with inserted as (
+    insert into question (body, difficulty, type, source, status, source_spec)
+        select body, difficulty, type, source, status, source_spec from seed_questions
+        returning id, body)
+insert
+into question_concept (question_id, concept_id)
+select i.id, c.id
+from inserted i
+         join seed_questions sq on sq.body = i.body
+         join concept c on c.name = any (sq.concept_names)
 on conflict do nothing;
+
+drop table seed_questions;
