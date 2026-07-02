@@ -97,7 +97,7 @@ attempt:   id, question_id, session_token, answer_text,
 
 **Flyway conventions:**
 - Migrations live in `src/main/resources/db/migration/`, named `V<n>__description.sql`
-- Never edit a migration that has already been applied — add a new one
+- Never edit a migration once it's been merged (i.e. in shared history) — add a new one. Editing an unmerged migration during local development is fine and normal; just `flyway clean`/recreate the local DB to clear the checksum mismatch.
 - Flyway owns the schema; it never owns content data
 - `src/main/resources/db/seed_local.sql` exists for manual local data loading only — it is intentionally outside `db/migration/` so Flyway ignores it. Load it manually via `docker exec`. It will eventually move to a dedicated cross-cutting demo-data repository.
 
