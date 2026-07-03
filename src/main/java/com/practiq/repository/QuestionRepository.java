@@ -1,16 +1,10 @@
 package com.practiq.repository;
 
 import com.practiq.domain.Question;
-import io.micronaut.data.annotation.Join;
 import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.repository.CrudRepository;
-
-import java.util.List;
+import io.micronaut.data.repository.jpa.JpaSpecificationExecutor;
 
 @Repository
-public interface QuestionRepository extends CrudRepository<Question, Long> {
-
-    @Join(value = "conceptLinks", type = Join.Type.LEFT_FETCH)
-    @Override
-    List<Question> findAll();
+public interface QuestionRepository extends CrudRepository<Question, Long>, JpaSpecificationExecutor<Question> {
 }

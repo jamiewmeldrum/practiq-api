@@ -1,4 +1,4 @@
-package com.practiq.dto;
+package com.practiq.dto.response;
 
 import io.micronaut.serde.ObjectMapper;
 import org.junit.jupiter.api.Test;

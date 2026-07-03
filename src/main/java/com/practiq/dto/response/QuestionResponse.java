@@ -1,4 +1,4 @@
-package com.practiq.dto;
+package com.practiq.dto.response;
 
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
@@ -13,10 +13,10 @@ import java.util.Set;
 @Serdeable
 @Getter
 @ToString
-public class QuestionDto {
+public class QuestionResponse {
     private final long id;
     private final String body;
-    private final QuestionDifficultyDto difficulty;
+    private final QuestionDifficultyResponse difficulty;
     private final QuestionType type;
     private final QuestionSource source;
     private final QuestionStatus status;
@@ -24,10 +24,10 @@ public class QuestionDto {
     private final Instant createdAt;
     private final Set<Long> linkedConceptIds;
 
-    public QuestionDto(
+    public QuestionResponse(
             long id,
             String body,
-            QuestionDifficultyDto difficulty,
+            QuestionDifficultyResponse difficulty,
             QuestionType type,
             QuestionSource source,
             QuestionStatus status,

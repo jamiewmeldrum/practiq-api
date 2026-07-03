@@ -3,12 +3,15 @@ package com.practiq.service;
 import com.practiq.domain.Concept;
 import com.practiq.domain.Question;
 import com.practiq.domain.QuestionConcept;
+import com.practiq.domain.query.QuestionQuery;
+import com.practiq.domain.query.QuestionSpecificationFactory;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
-import com.practiq.dto.QuestionDto;
+import com.practiq.dto.response.QuestionResponse;
 import com.practiq.repository.QuestionRepository;
+import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -23,24 +26,39 @@ import static com.practiq.test.TestReflection.setField;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class QuestionServiceTest {
 
+    // Sentinel handed back by the mocked factory so we can assert this exact instance reaches the repo.
+    // Never executed — the repo is mocked — so the body is irrelevant.
+    private static final QuerySpecification<Question> SPEC = (root, query, cb) -> null;
+
     @Mock
     private QuestionRepository questionRepository;
+
+    @Mock
+    private QuestionSpecificationFactory questionSpecificationFactory;
 
     @InjectMocks
     private QuestionService questionService;
 
     @Test
-    void getReturnsEmptyListWhenNoQuestions() {
-        when(questionRepository.findAll()).thenReturn(List.of());
+    void getForcesApprovedStatusAndRunsTheBuiltSpec() {
+        QuestionQuery approvedOnly = new QuestionQuery(QuestionStatus.APPROVED);
+        when(questionSpecificationFactory.from(approvedOnly)).thenReturn(SPEC);
+        when(questionRepository.findAll(SPEC)).thenReturn(List.of());
 
-        List<QuestionDto> questions = questionService.get();
+        List<QuestionResponse> questions = questionService.get();
 
         assertEquals(0, questions.size());
+
+        // Status pinned to APPROVED, and the exact spec the factory produced is what gets executed.
+        verify(questionSpecificationFactory).from(approvedOnly);
+        verify(questionRepository).findAll(SPEC);
     }
 
     @Test
@@ -79,13 +97,14 @@ class QuestionServiceTest {
         setField(bareQuestion, "id", bareId);
         setField(bareQuestion, "createdAt", bareCreatedAt);
 
-        when(questionRepository.findAll()).thenReturn(List.of(linkedQuestion, bareQuestion));
+        when(questionSpecificationFactory.from(any())).thenReturn(SPEC);
+        when(questionRepository.findAll(SPEC)).thenReturn(List.of(linkedQuestion, bareQuestion));
 
-        List<QuestionDto> questions = questionService.get();
+        List<QuestionResponse> questions = questionService.get();
 
         assertEquals(2, questions.size());
 
-        QuestionDto linked = questionById(questions, linkedId);
+        QuestionResponse linked = questionById(questions, linkedId);
         assertEquals(linkedBody, linked.getBody());
         assertThat(linked.getDifficulty(), is(notNullValue()));
         assertEquals(linkedDifficulty.value(), linked.getDifficulty().getValue());
@@ -97,7 +116,7 @@ class QuestionServiceTest {
         assertEquals(linkedCreatedAt, linked.getCreatedAt());
         assertThat(linked.getLinkedConceptIds(), containsInAnyOrder(conceptIdOne, conceptIdTwo));
 
-        QuestionDto bare = questionById(questions, bareId);
+        QuestionResponse bare = questionById(questions, bareId);
         assertEquals(bareBody, bare.getBody());
         assertThat(bare.getDifficulty(), is(nullValue()));
         assertEquals(bareType, bare.getType());
@@ -108,7 +127,7 @@ class QuestionServiceTest {
         assertThat(bare.getLinkedConceptIds(), is(empty()));
     }
 
-    private static QuestionDto questionById(List<QuestionDto> questions, long id) {
+    private static QuestionResponse questionById(List<QuestionResponse> questions, long id) {
         return questions.stream()
                 .filter(question -> question.getId() == id)
                 .findFirst()

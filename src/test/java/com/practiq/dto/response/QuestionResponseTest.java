@@ -1,4 +1,4 @@
-package com.practiq.dto;
+package com.practiq.dto.response;
 
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
@@ -18,7 +18,7 @@ import java.util.Set;
 // the real application.properties serialization config — including inclusion=always. That makes the
 // null/empty test a genuine guard: drop that config line and it fails here, without needing Docker.
 @ComponentTest
-class QuestionDtoTest {
+class QuestionResponseTest {
 
     @Inject
     private ObjectMapper objectMapper;
@@ -27,10 +27,10 @@ class QuestionDtoTest {
     void questionDtoSerializesFull() throws IOException {
         Set<Long> linkedConceptIds = Set.of(10L, 11L);
 
-        QuestionDto question = new QuestionDto(
+        QuestionResponse question = new QuestionResponse(
                 7,
                 "State Newton's first law.",
-                new QuestionDifficultyDto(3, "MEDIUM"),
+                new QuestionDifficultyResponse(3, "MEDIUM"),
                 QuestionType.EXTENDED,
                 QuestionSource.SEED,
                 QuestionStatus.APPROVED,
@@ -61,7 +61,7 @@ class QuestionDtoTest {
 
     @Test
     void questionDtoIncludesNullAndEmptyFields() throws IOException {
-        QuestionDto question = new QuestionDto(
+        QuestionResponse question = new QuestionResponse(
                 0,
                 null,
                 null,

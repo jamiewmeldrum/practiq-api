@@ -1,6 +1,6 @@
 package com.practiq.controller;
 
-import com.practiq.dto.QuestionDto;
+import com.practiq.dto.response.QuestionResponse;
 import com.practiq.service.QuestionService;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
@@ -21,9 +21,14 @@ public class QuestionController {
         this.questionService = questionService;
     }
 
+    //    @Get()
+//    public List<QuestionResponse> get(@RequestBean QuestionRequest request) {
+//        log.debug("Requested to GET all questions");
+//        return questionService.get(request);
+//    }
     @Get()
-    public List<QuestionDto> get() {
-        log.debug("Requested to GET all questions");
+    public List<QuestionResponse> get() {
+        log.debug("Requested to GET all approved questions");
         return questionService.get();
     }
 }

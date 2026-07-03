@@ -1,23 +1,22 @@
-package com.practiq.dto;
+package com.practiq.dto.response;
 
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Getter;
 import lombok.ToString;
 
 import java.time.Instant;
-import java.util.Set;
 
 @Serdeable
 @Getter
 @ToString
-public class ConceptDto {
+public class ConceptResponse {
 
     private final long id;
     private final String name;
     private final String description;
     private final Instant createdAt;
 
-    public ConceptDto(
+    public ConceptResponse(
             long id,
             String name,
             String description,
