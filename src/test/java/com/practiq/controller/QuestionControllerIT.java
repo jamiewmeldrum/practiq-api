@@ -4,7 +4,7 @@ import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
-import com.practiq.test.TestDatabase;
+import com.practiq.test.QuestionTestData;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import io.restassured.RestAssured;
@@ -13,9 +13,6 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import static io.micronaut.http.HttpStatus.OK;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
@@ -23,26 +20,19 @@ import static org.hamcrest.Matchers.*;
 @MicronautTest(transactional = false)
 class QuestionControllerIT {
 
-    private static final String QUESTION_TABLE = "question";
-    private static final String QUESTION_CONCEPT_TABLE = "question_concept";
-    private static final String CONCEPT_TABLE = "concept";
-
     private static final String QUESTIONS_PATH = "/api/v1/questions";
 
     private static final String CREATED_AT_PATTERN = "\\d{4}-\\d{2}-\\d{2}T.*Z";
 
     @Inject
-    private TestDatabase testDatabase;
+    private QuestionTestData data;
 
     @Inject
     private EmbeddedServer embeddedServer;
 
     @BeforeEach
     void setUp() {
-        // Truncate the link table first so its rows go before the questions/concepts they reference.
-        testDatabase.clear(QUESTION_CONCEPT_TABLE);
-        testDatabase.clear(QUESTION_TABLE);
-        testDatabase.clear(CONCEPT_TABLE);
+        data.clear();
         RestAssured.port = embeddedServer.getPort();
     }
 
@@ -63,13 +53,12 @@ class QuestionControllerIT {
         String bodyTwo = "Define displacement.";
         String bodyThree = "What is a longitudinal wave?";
         // source is the only NOT NULL enum column with no default, so it must be set; everything
-        // else nullable (difficulty, type, source_spec) is omitted so the DB leaves it NULL, and
-        // status is omitted so the DB default (PENDING) applies.
+        // else nullable (difficulty, type, source_spec) is omitted so the DB leaves it NULL.
         QuestionSource source = QuestionSource.SEED;
 
-        question(1L, bodyOne, source).insert();
-        question(2L, bodyTwo, source).insert();
-        question(3L, bodyThree, source).insert();
+        data.question(1L).body(bodyOne).source(source).status(QuestionStatus.APPROVED).insert();
+        data.question(2L).body(bodyTwo).source(source).status(QuestionStatus.APPROVED).insert();
+        data.question(3L).body(bodyThree).source(source).status(QuestionStatus.APPROVED).insert();
 
         given()
                 .when()
@@ -83,7 +72,7 @@ class QuestionControllerIT {
                 .body("body", containsInAnyOrder(bodyOne, bodyTwo, bodyThree))
                 .body("id", everyItem(greaterThan(0)))
                 .body("source", everyItem(equalTo(source.name())))
-                .body("status", everyItem(equalTo(QuestionStatus.PENDING.name())))
+                .body("status", everyItem(equalTo(QuestionStatus.APPROVED.name())))
                 .body("createdAt", everyItem(matchesPattern(CREATED_AT_PATTERN)))
                 .body("difficulty", everyItem(nullValue()))
                 .body("type", everyItem(nullValue()))
@@ -95,8 +84,8 @@ class QuestionControllerIT {
     void getQuestionsReturnsPopulatedFieldsWithConceptLinks() {
         long diffractionId = 10L;
         long accelerationId = 11L;
-        insertConcept(diffractionId, "Diffraction", "The spreading of waves through a gap or around an obstacle.");
-        insertConcept(accelerationId, "Acceleration", "How the velocity of an object changes over time.");
+        data.concept(diffractionId, "Diffraction", "The spreading of waves through a gap or around an obstacle.");
+        data.concept(accelerationId, "Acceleration", "How the velocity of an object changes over time.");
 
         // Unlinked question.
         long unlinkedId = 1L;
@@ -106,7 +95,9 @@ class QuestionControllerIT {
         QuestionSource unlinkedSource = QuestionSource.SEED;
         QuestionStatus unlinkedStatus = QuestionStatus.APPROVED;
         String unlinkedSourceSpec = "AQA GCSE Physics";
-        question(unlinkedId, unlinkedBody, unlinkedSource)
+        data.question(unlinkedId)
+                .body(unlinkedBody)
+                .source(unlinkedSource)
                 .difficulty(unlinkedDifficulty)
                 .type(unlinkedType)
                 .status(unlinkedStatus)
@@ -121,13 +112,15 @@ class QuestionControllerIT {
         QuestionSource singleLinkSource = QuestionSource.EXTRACTED;
         QuestionStatus singleLinkStatus = QuestionStatus.APPROVED;
         String singleLinkSourceSpec = "AQA GCSE Physics";
-        question(singleLinkId, singleLinkBody, singleLinkSource)
+        data.question(singleLinkId)
+                .body(singleLinkBody)
+                .source(singleLinkSource)
                 .difficulty(singleLinkDifficulty)
                 .type(singleLinkType)
                 .status(singleLinkStatus)
                 .sourceSpec(singleLinkSourceSpec)
                 .insert();
-        linkConcept(singleLinkId, accelerationId);
+        data.link(singleLinkId, accelerationId);
 
         // Synoptic question linked to two concepts.
         long doubleLinkId = 3L;
@@ -135,16 +128,18 @@ class QuestionControllerIT {
         QuestionDifficulty doubleLinkDifficulty = QuestionDifficulty.VERY_HARD;
         QuestionType doubleLinkType = QuestionType.MCQ;
         QuestionSource doubleLinkSource = QuestionSource.GENERATED;
-        QuestionStatus doubleLinkStatus = QuestionStatus.PENDING;
+        QuestionStatus doubleLinkStatus = QuestionStatus.APPROVED;
         String doubleLinkSourceSpec = "OCR A-Level Physics";
-        question(doubleLinkId, doubleLinkBody, doubleLinkSource)
+        data.question(doubleLinkId)
+                .body(doubleLinkBody)
+                .source(doubleLinkSource)
                 .difficulty(doubleLinkDifficulty)
                 .type(doubleLinkType)
                 .status(doubleLinkStatus)
                 .sourceSpec(doubleLinkSourceSpec)
                 .insert();
-        linkConcept(doubleLinkId, diffractionId);
-        linkConcept(doubleLinkId, accelerationId);
+        data.link(doubleLinkId, diffractionId);
+        data.link(doubleLinkId, accelerationId);
 
         given()
                 .when()
@@ -189,68 +184,36 @@ class QuestionControllerIT {
                         containsInAnyOrder((int) diffractionId, (int) accelerationId));
     }
 
-    private void insertConcept(long id, String name, String description) {
-        testDatabase.insert(
-                CONCEPT_TABLE,
-                Map.of(
-                        "id", id,
-                        "name", name,
-                        "description", description
-                )
-        );
-    }
+    @Test
+    void getQuestionsReturnsOnlyApprovedQuestions() {
+        String bodyOne = "State Newton's first law.";
+        String bodyTwo = "Define displacement.";
+        String bodyThree = "What is a longitudinal wave?";
+        String bodyFour = "What is a transverse wave?";
+        QuestionSource source = QuestionSource.SEED;
 
-    // Starts a question row. id, body and source are required (source is NOT NULL with no default);
-    // the optional columns are added only when their setter is called, so an unset field means the
-    // column is omitted and the DB applies NULL or its default — no nulls at the call site.
-    private QuestionRow question(long id, String body, QuestionSource source) {
-        return new QuestionRow(id, body, source);
-    }
+        data.question(1L).body(bodyOne).source(source).status(QuestionStatus.APPROVED).insert();
+        data.question(2L).body(bodyTwo).source(source).status(QuestionStatus.APPROVED).insert();
+        data.question(3L).body(bodyThree).source(source).status(QuestionStatus.REJECTED).insert();
+        data.question(4L).body(bodyFour).source(source).status(QuestionStatus.PENDING).insert();
 
-    // Accumulates the columns for one question row, then writes it. Enum-backed columns are stored
-    // as the constant name (upper-case, per project convention); difficulty is stored as its integer
-    // value, matching the app's QuestionDifficultyAttributeConverter.
-    private final class QuestionRow {
-        private final Map<String, Object> columns = new HashMap<>();
-
-        private QuestionRow(long id, String body, QuestionSource source) {
-            columns.put("id", id);
-            columns.put("body", body);
-            columns.put("source", source.name());
-        }
-
-        private QuestionRow difficulty(QuestionDifficulty difficulty) {
-            columns.put("difficulty", difficulty.value());
-            return this;
-        }
-
-        private QuestionRow type(QuestionType type) {
-            columns.put("type", type.name());
-            return this;
-        }
-
-        private QuestionRow status(QuestionStatus status) {
-            columns.put("status", status.name());
-            return this;
-        }
-
-        private QuestionRow sourceSpec(String sourceSpec) {
-            columns.put("source_spec", sourceSpec);
-            return this;
-        }
-
-        private void insert() {
-            testDatabase.insert(QUESTION_TABLE, columns);
-        }
-    }
-
-    private void linkConcept(long questionId, long conceptId) {
-        testDatabase.insert(
-                QUESTION_CONCEPT_TABLE,
-                Map.of(
-                        "question_id", questionId,
-                        "concept_id", conceptId
-                )
-        );
+        given()
+                .when()
+                .get(QUESTIONS_PATH)
+                .then()
+                .statusCode(OK.getCode())
+                .contentType(ContentType.JSON)
+                .body("size()", equalTo(2))
+                .body("[0].keySet()", containsInAnyOrder(
+                        "id", "body", "difficulty", "type", "source", "status", "sourceSpec", "createdAt", "linkedConceptIds"))
+                .body("body", containsInAnyOrder(bodyOne, bodyTwo))
+                .body("id", everyItem(greaterThan(0)))
+                .body("source", everyItem(equalTo(source.name())))
+                .body("status", everyItem(equalTo(QuestionStatus.APPROVED.name())))
+                .body("createdAt", everyItem(matchesPattern(CREATED_AT_PATTERN)))
+                .body("difficulty", everyItem(nullValue()))
+                .body("type", everyItem(nullValue()))
+                .body("sourceSpec", everyItem(nullValue()))
+                .body("linkedConceptIds", everyItem(empty()));
     }
 }

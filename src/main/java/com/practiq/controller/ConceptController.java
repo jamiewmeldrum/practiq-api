@@ -1,6 +1,6 @@
 package com.practiq.controller;
 
-import com.practiq.dto.ConceptDto;
+import com.practiq.dto.response.ConceptResponse;
 import com.practiq.service.ConceptService;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
@@ -23,13 +23,13 @@ public class ConceptController {
     }
 
     @Get()
-    public List<ConceptDto> get() {
+    public List<ConceptResponse> get() {
         log.debug("Requested to GET all concepts");
         return conceptService.get();
     }
 
     @Get("/{id}")
-    public ConceptDto getById(long id) {
+    public ConceptResponse getById(long id) {
         log.debug("Requested to GET concept by id: {}", id);
         return conceptService.get(id)
                 .orElseThrow(NotFoundException::new);

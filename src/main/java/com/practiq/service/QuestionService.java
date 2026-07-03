@@ -1,11 +1,14 @@
 package com.practiq.service;
 
-import com.practiq.domain.Concept;
 import com.practiq.domain.Question;
+import com.practiq.domain.query.QuestionQuery;
+import com.practiq.domain.query.QuestionSpecificationFactory;
 import com.practiq.domain.types.QuestionDifficulty;
-import com.practiq.dto.QuestionDifficultyDto;
-import com.practiq.dto.QuestionDto;
+import com.practiq.domain.types.QuestionStatus;
+import com.practiq.dto.response.QuestionDifficultyResponse;
+import com.practiq.dto.response.QuestionResponse;
 import com.practiq.repository.QuestionRepository;
+import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
@@ -17,19 +20,25 @@ import java.util.stream.Collectors;
 @Singleton
 public class QuestionService {
     private final QuestionRepository questionRepository;
+    private final QuestionSpecificationFactory questionSpecificationFactory;
 
-    public QuestionService(QuestionRepository questionRepository) {
+    public QuestionService(QuestionRepository questionRepository, QuestionSpecificationFactory questionSpecificationFactory) {
         this.questionRepository = questionRepository;
+        this.questionSpecificationFactory = questionSpecificationFactory;
     }
 
-    public List<QuestionDto> get() {
-        log.debug("Getting all questions");
-        return questionRepository.findAll().stream()
+    public List<QuestionResponse> get() {
+        log.debug("Getting all approved questions");
+
+        QuestionQuery query = QuestionQuery.from(QuestionStatus.APPROVED);
+        QuerySpecification<Question> spec = questionSpecificationFactory.from(query);
+
+        return questionRepository.findAll(spec).stream()
                 .map(QuestionService::toQuestionDto)
                 .collect(Collectors.toList());
     }
 
-    private static QuestionDto toQuestionDto(Question question) {
+    private static QuestionResponse toQuestionDto(Question question) {
         log.trace("Converting question to QuestionDto: {}", question.getId());
 
         QuestionDifficulty difficulty = question.getDifficulty();
@@ -37,10 +46,10 @@ public class QuestionService {
                 .map(link -> link.getId().getConceptId())
                 .collect(Collectors.toSet());
 
-        return new QuestionDto(
+        return new QuestionResponse(
                 question.getId(),
                 question.getBody(),
-                difficulty == null ? null : new QuestionDifficultyDto(difficulty.value(), difficulty.name()),
+                difficulty == null ? null : new QuestionDifficultyResponse(difficulty.value(), difficulty.name()),
                 question.getType(),
                 question.getSource(),
                 question.getStatus(),

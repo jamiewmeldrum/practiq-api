@@ -9,6 +9,7 @@ import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import com.practiq.repository.QuestionRepository;
 import com.practiq.test.ComponentTest;
+import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.micronaut.test.annotation.MockBean;
 import io.restassured.RestAssured;
@@ -16,6 +17,7 @@ import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.time.Instant;
 import java.util.Collections;
@@ -26,10 +28,9 @@ import static com.practiq.test.TestReflection.setField;
 import static io.micronaut.http.HttpStatus.OK;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
-//TODO - pagination, filtering on conceptId, restrict to pending
+//TODO - pagination, filtering on conceptId
 @ComponentTest
 public class QuestionControllerCT {
     private static final String QUESTIONS_PATH = "/api/v1/questions";
@@ -105,7 +106,7 @@ public class QuestionControllerCT {
         Set<QuestionConcept> conceptLinks = Set.of(conceptLinkB1, conceptLinkB2);
         setField(questionB, "conceptLinks", conceptLinks);
 
-        when(questionRepository.findAll()).thenReturn(List.of(questionA, questionB));
+        when(questionRepository.findAll(Mockito.any(QuerySpecification.class))).thenReturn(List.of(questionA, questionB));
 
         given()
                 .when()
@@ -133,12 +134,14 @@ public class QuestionControllerCT {
                 .body("find { it.id == " + idB + " }.sourceSpec", equalTo(sourceSpecB))
                 .body("find { it.id == " + idB + " }.createdAt", equalTo(createdAtB.toString()))
                 .body("find { it.id == " + idB + " }.linkedConceptIds", containsInAnyOrder((int) conceptIdB1, (int) conceptIdB2));
+
+        verify(questionRepository).findAll(Mockito.any(QuerySpecification.class));
     }
 
     @Test
     void getQuestionsReturnsEmptyArrayWhenRepositoryEmpty() {
 
-        when(questionRepository.findAll()).thenReturn(Collections.emptyList());
+        when(questionRepository.findAll(Mockito.any(QuerySpecification.class))).thenReturn(Collections.emptyList());
 
         given()
                 .when()
@@ -146,6 +149,8 @@ public class QuestionControllerCT {
                 .then()
                 .statusCode(OK.getCode())
                 .contentType(ContentType.JSON)
-                .body("$", empty());;
+                .body("$", empty());
+
+        verify(questionRepository).findAll(Mockito.any(QuerySpecification.class));
     }
 }

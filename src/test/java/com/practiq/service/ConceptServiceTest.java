@@ -1,7 +1,7 @@
 package com.practiq.service;
 
 import com.practiq.domain.Concept;
-import com.practiq.dto.ConceptDto;
+import com.practiq.dto.response.ConceptResponse;
 import com.practiq.repository.ConceptRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,8 +16,7 @@ import java.util.Optional;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ConceptServiceTest {
@@ -57,8 +56,8 @@ class ConceptServiceTest {
                 acceleration
         ));
 
-        List<ConceptDto> conceptDtos = conceptService.get();
-        assertThat(conceptDtos, containsInAnyOrder(
+        List<ConceptResponse> conceptResponses = conceptService.get();
+        assertThat(conceptResponses, containsInAnyOrder(
                 allOf(
                         hasProperty("id", equalTo(diffractionId)),
                         hasProperty("name", equalTo(diffractionName)),
@@ -72,14 +71,18 @@ class ConceptServiceTest {
                         hasProperty("createdAt", equalTo(accelerationCreatedAt))
                 )
         ));
+
+        verify(conceptRepository).listOrderByCreatedAtAsc();
     }
 
     @Test
     void getReturnsEmptyListWhenNoneExist() {
         when(conceptRepository.listOrderByCreatedAtAsc()).thenReturn(List.of());
 
-        List<ConceptDto> concepts = conceptService.get();
+        List<ConceptResponse> concepts = conceptService.get();
         assertEquals(0, concepts.size());
+
+        verify(conceptRepository).listOrderByCreatedAtAsc();
     }
 
     @Test
@@ -97,7 +100,7 @@ class ConceptServiceTest {
 
         when(conceptRepository.findById(id)).thenReturn(Optional.of(concept));
 
-        Optional<ConceptDto> conceptDto = conceptService.get(id);
+        Optional<ConceptResponse> conceptDto = conceptService.get(id);
         assertThat(conceptDto.isPresent(), is(true));
         assertThat(conceptDto.get(), allOf(
                         hasProperty("id", equalTo(id)),
@@ -106,6 +109,8 @@ class ConceptServiceTest {
                         hasProperty("createdAt", equalTo(createdAt))
                 )
         );
+
+        verify(conceptRepository).findById(id);
     }
 
     @Test
@@ -113,7 +118,9 @@ class ConceptServiceTest {
         long id = 42L;
         when(conceptRepository.findById(id)).thenReturn(Optional.empty());
 
-        Optional<ConceptDto> conceptDto = conceptService.get(id);
+        Optional<ConceptResponse> conceptDto = conceptService.get(id);
         assertThat(conceptDto.isPresent(), is(false));
+
+        verify(conceptRepository).findById(id);
     }
 }
