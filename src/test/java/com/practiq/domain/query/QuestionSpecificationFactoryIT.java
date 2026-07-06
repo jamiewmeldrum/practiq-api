@@ -2,6 +2,7 @@ package com.practiq.domain.query;
 
 import com.practiq.domain.Question;
 import com.practiq.domain.types.QuestionStatus;
+import com.practiq.domain.types.QuestionType;
 import com.practiq.repository.QuestionRepository;
 import com.practiq.test.QuestionTestData;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -53,17 +54,54 @@ class QuestionSpecificationFactoryIT {
 
         // Each status returns only its own rows — proving the filter is driven by the query's
         // status value, not a hard-coded one.
-        QuestionQuery approvedQuery = new QuestionQuery(QuestionStatus.APPROVED);
+        QuestionQuery approvedQuery = new QuestionQuery(List.of(), QuestionStatus.APPROVED);
         List<Question> approvedQuestions = findQuestions(approvedQuery);
         assertThat(ids(approvedQuestions), containsInAnyOrder(approvedOneId, approvedTwoId));
 
-        QuestionQuery pendingQuery = new QuestionQuery(QuestionStatus.PENDING);
+        QuestionQuery pendingQuery = new QuestionQuery(List.of(), QuestionStatus.PENDING);
         List<Question> pendingQuestion = findQuestions(pendingQuery);
         assertThat(ids(pendingQuestion), containsInAnyOrder(pendingId));
 
-        QuestionQuery rejectedQuery = new QuestionQuery(QuestionStatus.REJECTED);
+        QuestionQuery rejectedQuery = new QuestionQuery(List.of(), QuestionStatus.REJECTED);
         List<Question> rejectedQuestions = findQuestions(rejectedQuery);
         assertThat(ids(rejectedQuestions), containsInAnyOrder(rejectedId));
+    }
+
+    @Test
+    void fromFiltersToTheTypesOnTheQuery() {
+        long shortAnswerId = 1L;
+        long extendedId = 2L;
+        long mcqId = 3L;
+        // All APPROVED so status can't be what narrows the result — only the type filter can.
+        data.question(shortAnswerId).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).insert();
+        data.question(extendedId).status(QuestionStatus.APPROVED).type(QuestionType.EXTENDED).insert();
+        data.question(mcqId).status(QuestionStatus.APPROVED).type(QuestionType.MCQ).insert();
+
+        QuestionQuery query = new QuestionQuery(
+                List.of(QuestionType.SHORT_ANSWER, QuestionType.EXTENDED), QuestionStatus.APPROVED);
+        List<Question> results = findQuestions(query);
+
+        // Only the two requested types come back; the MCQ row is excluded.
+        assertThat(ids(results), containsInAnyOrder(shortAnswerId, extendedId));
+    }
+
+    @Test
+    void fromAppliesAllFiltersConjunctively() {
+        // Each row is excluded by exactly one filter, so the sole survivor proves every filter is
+        // applied AND-ed together. A row leaking in means the filter that should have dropped it is
+        // no longer being applied. Extend this by adding a row a new filter is the only one to exclude.
+        long matches = 1L;
+        long wrongType = 2L;
+        long wrongStatus = 3L;
+        data.question(matches).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).insert();
+        data.question(wrongType).status(QuestionStatus.APPROVED).type(QuestionType.MCQ).insert();
+        data.question(wrongStatus).status(QuestionStatus.PENDING).type(QuestionType.SHORT_ANSWER).insert();
+
+        QuestionQuery query = new QuestionQuery(
+                List.of(QuestionType.SHORT_ANSWER), QuestionStatus.APPROVED);
+        List<Question> results = findQuestions(query);
+
+        assertThat(ids(results), containsInAnyOrder(matches));
     }
 
     @Test
@@ -80,7 +118,7 @@ class QuestionSpecificationFactoryIT {
         data.link(linkedId, diffractionId);
         data.link(linkedId, accelerationId);
 
-        QuestionQuery approvedQuery = new QuestionQuery(QuestionStatus.APPROVED);
+        QuestionQuery approvedQuery = new QuestionQuery(List.of(), QuestionStatus.APPROVED);
         List<Question> results = findQuestions(approvedQuery);
 
         // LEFT join: the question with no concept links is still returned, not dropped by the join.

@@ -1,11 +1,14 @@
 package com.practiq.controller;
 
+import com.practiq.dto.request.QuestionRequest;
 import com.practiq.dto.response.QuestionResponse;
 import com.practiq.service.QuestionService;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.RequestBean;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -21,14 +24,9 @@ public class QuestionController {
         this.questionService = questionService;
     }
 
-    //    @Get()
-//    public List<QuestionResponse> get(@RequestBean QuestionRequest request) {
-//        log.debug("Requested to GET all questions");
-//        return questionService.get(request);
-//    }
     @Get()
-    public List<QuestionResponse> get() {
+    public List<QuestionResponse> get(@Valid @RequestBean QuestionRequest request) {
         log.debug("Requested to GET all approved questions");
-        return questionService.get();
+        return questionService.get(request);
     }
 }
