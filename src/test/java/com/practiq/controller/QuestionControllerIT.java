@@ -216,4 +216,28 @@ class QuestionControllerIT {
                 .body("sourceSpec", everyItem(nullValue()))
                 .body("linkedConceptIds", everyItem(empty()));
     }
+
+    @Test
+    void getQuestionsReturnsQuestionsFilteredByTypes() {
+        String bodyOne = "State Newton's first law.";
+        String bodyTwo = "Define displacement.";
+        String bodyThree = "What is a longitudinal wave?";
+        String bodyFour = "What is a transverse wave?";
+        QuestionSource source = QuestionSource.SEED;
+
+        data.question(1L).body(bodyOne).source(source).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).insert();
+        data.question(2L).body(bodyTwo).source(source).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).insert();
+        data.question(3L).body(bodyThree).source(source).status(QuestionStatus.APPROVED).type(QuestionType.EXTENDED).insert();
+        data.question(4L).body(bodyFour).source(source).status(QuestionStatus.APPROVED).type(QuestionType.MCQ).insert();
+
+        given()
+                .when()
+                .get(QUESTIONS_PATH + "?types=SHORT_ANSWER,EXTENDED")
+                .then()
+                .statusCode(OK.getCode())
+                .contentType(ContentType.JSON)
+                .body("size()", equalTo(3))
+                .body("body", containsInAnyOrder(bodyOne, bodyTwo, bodyThree))
+                .body("type", containsInAnyOrder("SHORT_ANSWER", "SHORT_ANSWER", "EXTENDED"));
+    }
 }

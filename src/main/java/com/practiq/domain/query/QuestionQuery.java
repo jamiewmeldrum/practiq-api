@@ -1,13 +1,15 @@
 package com.practiq.domain.query;
 
 import com.practiq.domain.types.QuestionStatus;
+import com.practiq.domain.types.QuestionType;
 
-public record QuestionQuery(QuestionStatus status) {
+import java.util.List;
 
-    // Status is passed in by the caller, never taken from a request — the service hard-codes
-    // APPROVED so an incoming request can never widen what students see. Other filters will
-    // come from the request as they're added.
-    public static QuestionQuery from(QuestionStatus status) {
-        return new QuestionQuery(status);
+// The web-agnostic, translated form of a question query. Holds domain values only — no request DTO —
+// so this package never depends on dto/request. The service maps an incoming request into one of these.
+public record QuestionQuery(List<QuestionType> types, QuestionStatus status) {
+
+    public QuestionQuery {
+        types = types == null ? List.of() : types;
     }
 }

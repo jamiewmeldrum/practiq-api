@@ -5,6 +5,7 @@ import com.practiq.domain.query.QuestionQuery;
 import com.practiq.domain.query.QuestionSpecificationFactory;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionStatus;
+import com.practiq.dto.request.QuestionRequest;
 import com.practiq.dto.response.QuestionDifficultyResponse;
 import com.practiq.dto.response.QuestionResponse;
 import com.practiq.repository.QuestionRepository;
@@ -27,10 +28,12 @@ public class QuestionService {
         this.questionSpecificationFactory = questionSpecificationFactory;
     }
 
-    public List<QuestionResponse> get() {
+    public List<QuestionResponse> get(QuestionRequest request) {
         log.debug("Getting all approved questions");
 
-        QuestionQuery query = QuestionQuery.from(QuestionStatus.APPROVED);
+        // Status is hard-coded to APPROVED here, never taken from the request, so an incoming
+        // request can never widen what students see. Other filters come off the request.
+        QuestionQuery query = new QuestionQuery(request.getTypes(), QuestionStatus.APPROVED);
         QuerySpecification<Question> spec = questionSpecificationFactory.from(query);
 
         return questionRepository.findAll(spec).stream()

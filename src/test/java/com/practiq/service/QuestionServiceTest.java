@@ -9,6 +9,7 @@ import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
+import com.practiq.dto.request.QuestionRequest;
 import com.practiq.dto.response.QuestionResponse;
 import com.practiq.repository.QuestionRepository;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
@@ -48,16 +49,35 @@ class QuestionServiceTest {
 
     @Test
     void getForcesApprovedStatusAndRunsTheBuiltSpec() {
-        QuestionQuery approvedOnly = new QuestionQuery(QuestionStatus.APPROVED);
+        QuestionRequest request = new QuestionRequest();
+        QuestionQuery approvedOnly = new QuestionQuery(List.of(), QuestionStatus.APPROVED);
         when(questionSpecificationFactory.from(approvedOnly)).thenReturn(SPEC);
         when(questionRepository.findAll(SPEC)).thenReturn(List.of());
 
-        List<QuestionResponse> questions = questionService.get();
+        List<QuestionResponse> questions = questionService.get(request);
 
         assertEquals(0, questions.size());
 
         // Status pinned to APPROVED, and the exact spec the factory produced is what gets executed.
         verify(questionSpecificationFactory).from(approvedOnly);
+        verify(questionRepository).findAll(SPEC);
+    }
+
+    @Test
+    void getBuildsQueryFromRequestTypesAndForcesApprovedStatus() {
+        QuestionRequest request = new QuestionRequest();
+        request.setTypes(List.of(QuestionType.SHORT_ANSWER, QuestionType.MCQ));
+
+        // The request's types must reach the factory verbatim, paired with the hard-coded APPROVED
+        // status. Exact-arg stub-then-verify: QuestionQuery is a record, so equality checks every field.
+        QuestionQuery expectedQuery = new QuestionQuery(
+                List.of(QuestionType.SHORT_ANSWER, QuestionType.MCQ), QuestionStatus.APPROVED);
+        when(questionSpecificationFactory.from(expectedQuery)).thenReturn(SPEC);
+        when(questionRepository.findAll(SPEC)).thenReturn(List.of());
+
+        questionService.get(request);
+
+        verify(questionSpecificationFactory).from(expectedQuery);
         verify(questionRepository).findAll(SPEC);
     }
 
@@ -100,7 +120,8 @@ class QuestionServiceTest {
         when(questionSpecificationFactory.from(any())).thenReturn(SPEC);
         when(questionRepository.findAll(SPEC)).thenReturn(List.of(linkedQuestion, bareQuestion));
 
-        List<QuestionResponse> questions = questionService.get();
+        QuestionRequest request = new QuestionRequest();
+        List<QuestionResponse> questions = questionService.get(request);
 
         assertEquals(2, questions.size());
 
