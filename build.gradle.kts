@@ -1,4 +1,5 @@
 plugins {
+    idea
     id("io.micronaut.application") version "4.6.2"
     id("com.gradleup.shadow") version "8.3.9"
     id("io.micronaut.test-resources") version "4.6.2"
@@ -15,7 +16,11 @@ repositories {
 }
 
 dependencies {
+    // Lombok first: it generates entity accessors before the other processors run.
     annotationProcessor("org.projectlombok:lombok")
+    // Generates the JPA static metamodel (Question_, QuestionConcept_, ...) so criteria specs use
+    // typed attribute references instead of stringly-typed get("field") calls.
+    annotationProcessor("org.hibernate.orm:hibernate-jpamodelgen")
     annotationProcessor("io.micronaut.data:micronaut-data-processor")
     annotationProcessor("io.micronaut:micronaut-http-validation")
     annotationProcessor("io.micronaut.serde:micronaut-serde-processor")
@@ -137,6 +142,21 @@ tasks.check { dependsOn(integrationTest) }
 
 tasks.named<io.micronaut.gradle.docker.NativeImageDockerfile>("dockerfileNative") {
     jdkVersion = "21"
+}
+
+// IntelliJ's Gradle import intermittently fails to register the annotation-processor output
+// (the JPA static metamodel — Question_, QuestionConcept_, ...) as a source root, leaving those
+// *_ classes unresolved in the editor even though Gradle compiles fine. Declaring the dirs on the
+// idea module makes every Gradle sync mark them as generated source roots authoritatively, so the
+// fix survives re-syncs (a manual "Mark as Generated Sources Root" does not).
+idea {
+    module {
+        val apMain = file("build/generated/sources/annotationProcessor/java/main")
+        val apTest = file("build/generated/sources/annotationProcessor/java/test")
+        sourceDirs = sourceDirs + apMain
+        testSources.from(apTest)
+        generatedSourceDirs = generatedSourceDirs + apMain + apTest
+    }
 }
 
 

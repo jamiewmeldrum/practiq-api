@@ -73,7 +73,7 @@ Postgres container instead of connecting to your Compose DB.
 
 ## Local development data
 
-`src/main/resources/db/seed_local.sql` holds sample rows (concepts, and more data
+`src/main/resources/db/seed_local.sql` holds sample DBRows (concepts, and more data
 types as they're added) for manually inspecting the app and exercising endpoints
 like `GET /api/v1/concepts`.
 
@@ -90,11 +90,11 @@ docker exec -i practiq-api-postgres-1 psql -U practiq -d practiq < src/main/reso
 
 The script is **idempotent** — every insert uses `ON CONFLICT DO NOTHING`, so you can
 run it as often as you like (after migrations, after a rebuild, whenever) without
-duplicate-key errors. Re-running picks up newly added rows and leaves existing ones
+duplicate-key errors. Re-running picks up newly added DBRows and leaves existing ones
 untouched. New data types get their own section in the same file following the same
 pattern, so loading everything stays a single command.
 
-If you want a clean slate — e.g. to drop rows that are no longer in the file — reset
+If you want a clean slate — e.g. to drop DBRows that are no longer in the file — reset
 first, then reload:
 
 ```bash
@@ -104,7 +104,7 @@ docker exec -i practiq-api-postgres-1 psql -U practiq -d practiq -c 'TRUNCATE co
 ## Querying the local database
 
 To inspect the Compose Postgres directly — checking what a migration produced, eyeballing
-seed data, confirming the `status=approved` filter has rows to filter — run `psql` inside
+seed data, confirming the `status=approved` filter has DBRows to filter — run `psql` inside
 the container. No local Postgres client needed; the image already ships one.
 
 One-off query with `-c` (runs, prints, exits):
@@ -121,7 +121,7 @@ docker exec -it practiq-api-postgres-1 psql -U practiq -d practiq
 ```
 
 Inside the shell, the usual psql meta-commands help: `\dt` lists tables, `\d question`
-describes one, `\x` toggles expanded (row-per-line) output for wide rows, `\q` quits.
+describes one, `\x` toggles expanded (row-per-line) output for wide DBRows, `\q` quits.
 `select * from flyway_schema_history;` shows which migrations have been applied.
 
 The `-U practiq -d practiq` flags are the local user and database from
@@ -205,6 +205,57 @@ Levels can also be set via environment variable for a one-off run without editin
 LOGGER_LEVELS_COM_PRACTIQ=DEBUG ./gradlew run
 ```
 
+## API
+
+All routes are versioned under `/api/v1`. Responses are JSON with nulls included
+(`micronaut.serde.serialization.inclusion=always`), so a field's absence is a contract
+change, not a data artefact.
+
+| Endpoint | Returns |
+|----------|---------|
+| `GET /health` | liveness |
+| `GET /api/v1/concepts` | all concepts, `created_at` ascending — bare array (deliberately unpaged) |
+| `GET /api/v1/concepts/{id}` | one concept, or the 404 envelope |
+| `GET /api/v1/questions` | paginated, filterable question catalogue — see below |
+
+### `GET /api/v1/questions`
+
+Serves the **student catalogue**: only `APPROVED` questions that are linked to at least
+one concept (an unlinked question is unprocessed and never student-visible). Query params:
+
+- `types` — CSV of `SHORT_ANSWER|EXTENDED|MCQ`
+- `difficulties` — CSV of numeric codes `1..5` (`1(TRIVIAL)` … `5(VERY_HARD)`)
+- `conceptId` — questions linked to that concept
+- `page` / `size` — zero-indexed page and page size (default 10, capped at 50)
+
+Filters only ever *narrow* the result; status is not a parameter. Ordering is a
+server-enforced total order (`created_at`, then `id` as tiebreak) so pages are stable
+and rows can't repeat or vanish across a page boundary.
+
+Paged responses use an envelope; unpaged collections (concepts) deliberately don't:
+
+```json
+{
+  "content": [
+    {
+      "id": 7,
+      "body": "State Newton's first law.",
+      "difficulty": { "value": 3, "code": "MEDIUM" },
+      "type": "EXTENDED",
+      "createdAt": "2026-06-29T10:15:30Z",
+      "linkedConceptIds": [10, 11]
+    }
+  ],
+  "page": 0,
+  "size": 10,
+  "totalCount": 1
+}
+```
+
+`difficulty` serialises as `{value, code}` (whole object `null` when unrated); nominal
+enums (`type`) serialise as their bare code. Provenance fields (`source`, `status`,
+`source_spec`) are deliberately not exposed to students.
+
 ## Error handling
 
 All errors aim to return one envelope: `{"error": "...", "status": <code>}` (see
@@ -213,17 +264,24 @@ routes a thrown exception to the **most specific** handler registered for its ty
 
 Current coverage:
 
+- **400** — `ConversionErrorExceptionHandler` (binding/conversion failures; replaces
+  Micronaut's default). For enum-typed params it enumerates the legal values, e.g.
+  `?types=BAD` → `"types: must be one of SHORT_ANSWER, EXTENDED, MCQ"` and
+  `?difficulties=9` → `"difficulties: must be one of 1(TRIVIAL), 2(EASY), …"`.
 - **404** — `NotFoundExceptionHandler` (unmatched route / missing resource).
+- **422** — `ConstraintViolationExceptionHandler` (bean-validation failures on an
+  otherwise-parseable request, e.g. `@UniqueElements` duplicates), one message per
+  violation, sorted and joined.
 - **500** — `GenericExceptionHandler` catches any otherwise-unhandled `Exception` as a
   last-resort safety net: consistent envelope, logged at `ERROR`, no internals leaked.
+  (An escaping `OptimisticLockException` currently lands here too — pinned by a CT; the
+  first write endpoint should introduce a dedicated `409 Conflict` handler.)
 
-> **TODO — envelope is not yet universal.** 400 (binding/conversion) and 422
-> (bean-validation) currently fall through to Micronaut's default error body, *not* this
-> envelope, because Micronaut's own handlers for those exceptions are more specific than
-> the 500 fallback. Add dedicated handlers when the first validated/`POST` endpoint
-> lands (Sprint 0.2 attempts / admin): `ConstraintViolationException → 422` and
-> `UnsatisfiedRouteException`/`ConversionErrorException → 400`, each CT-tested with a bad
-> payload. See CLAUDE.md §7.
+One deliberate asymmetry, pinned by CTs: **`Pageable` params never 400.** Micronaut's
+binder is lenient — `?page=abc` or `?size=0` silently fall back to the defaults, and
+`?size=500` is capped at the configured maximum (50) — whereas filter params
+(`?conceptId=abc`) fail loudly with the 400 envelope. Making paging params strict would
+need a custom `Pageable` binder; not worth the machinery yet.
 
 ## Testing
 
@@ -251,7 +309,9 @@ claims to verify.** Mocking everything around a thin layer just tests a tautolog
   *wired* (bad payload → 400), JSON serialization. The repository boundary is mocked, so no
   SQL runs. This is the layer that keeps the slow integration tier thin.
 - **Integration** — only what genuinely needs a real database: repository queries, `@Query`,
-  migrations, transactional behaviour. Kept deliberately few.
+  migrations, transactional behaviour. Kept deliberately few. Organised by what they exercise:
+  `integration/db` (schema/constraint behaviour via raw SQL), `integration/repository`
+  (repository queries and specifications), `integration/e2e` (full HTTP → DB slices).
 
 **Writing a component test.** Micronaut has no `@WebMvcTest`-style slice annotation, so a
 few things have to be arranged by hand to test the web layer without a database. The pattern
@@ -292,11 +352,11 @@ red rather than a misleading green.
 real Postgres, and arrange their data with **raw SQL**, not the repositories — so a failure
 points at the code under test, not at the persistence code used to set it up (and we avoid
 adding production methods like `deleteAll` purely for tests). The helper is
-`com.practiq.test.TestDatabase` (`insert(table, Map<col,value>)` / `update(table, id, col,
+`utils.data.TestDatabase` (`insert(table, Map<col,value>)` / `update(table, id, col,
 value)` / `clear(table)`); the pattern lives in `ConceptControllerIT`:
 
 ```java
-@MicronautTest(transactional = false)
+@IntegrationTest                                // bundles @MicronautTest(transactional = false)
 class ConceptControllerIT {
 
     @Inject TestDatabase testDatabase;
@@ -329,7 +389,7 @@ wrapper, not a raw pool:
 
 Because `id` and `created_at` are generated by the database, the *shape* tests assert their
 shape (`everyItem(greaterThan(0))`, an ISO-8601 pattern) rather than fixed values, and look
-rows up by name (`find { it.name == … }`) instead of by position — see [Integration tests share
+DBRows up by name (`find { it.name == … }`) instead of by position — see [Integration tests share
 one database](#integration-tests-share-one-database--keep-them-sequential) for why position
 isn't assumed there.
 
@@ -384,14 +444,14 @@ for `integrationTest`.
 Test Resources starts **one** Postgres container for the whole build, and every `*IT`
 connects to it. Each test resets state itself (truncate + insert its own fixtures in
 `@BeforeEach`), and that reset is **global** — it clears the whole table, not just the
-calling test's rows.
+calling test's DBRows.
 
 That means `*IT` tests **must run sequentially**, which they do by default: Gradle's
 `maxParallelForks` is `1` and JUnit 5 parallel execution is off. **Don't enable either**
 for `integrationTest`. If you do, tests race on the shared table — one test's truncate
-wipes the rows another just inserted and is about to read. And because read endpoints
+wipes the DBRows another just inserted and is about to read. And because read endpoints
 return the whole table and assertions pin the *exact* set returned (`containsInAnyOrder`),
-a concurrent writer's rows break the assertion no matter how surgical the cleanup is.
+a concurrent writer's DBRows break the assertion no matter how surgical the cleanup is.
 Whole-table read + exact-set assertion is fundamentally incompatible with concurrent
 writers on the same table.
 

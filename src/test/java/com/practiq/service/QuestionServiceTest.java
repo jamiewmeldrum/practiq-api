@@ -1,8 +1,6 @@
 package com.practiq.service;
 
-import com.practiq.domain.Concept;
 import com.practiq.domain.Question;
-import com.practiq.domain.QuestionConcept;
 import com.practiq.domain.query.QuestionQuery;
 import com.practiq.domain.query.QuestionSpecificationFactory;
 import com.practiq.domain.types.QuestionDifficulty;
@@ -10,8 +8,14 @@ import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import com.practiq.dto.request.QuestionRequest;
+import com.practiq.dto.response.PageResponse;
 import com.practiq.dto.response.QuestionResponse;
+import com.practiq.domain.projection.QuestionConceptLink;
+import com.practiq.repository.QuestionConceptRepository;
 import com.practiq.repository.QuestionRepository;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
+import io.micronaut.data.model.Sort;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,13 +27,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 
-import static com.practiq.test.TestReflection.setField;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static utils.TestReflection.setField;
 
 @ExtendWith(MockitoExtension.class)
 class QuestionServiceTest {
@@ -37,9 +39,13 @@ class QuestionServiceTest {
     // Sentinel handed back by the mocked factory so we can assert this exact instance reaches the repo.
     // Never executed — the repo is mocked — so the body is irrelevant.
     private static final QuerySpecification<Question> SPEC = (root, query, cb) -> null;
+    private static final Sort STABLE_ORDER = Sort.of(Sort.Order.asc("createdAt"), Sort.Order.asc("id"));
 
     @Mock
     private QuestionRepository questionRepository;
+
+    @Mock
+    private QuestionConceptRepository questionConceptRepository;
 
     @Mock
     private QuestionSpecificationFactory questionSpecificationFactory;
@@ -48,119 +54,120 @@ class QuestionServiceTest {
     private QuestionService questionService;
 
     @Test
-    void getForcesApprovedStatusAndRunsTheBuiltSpec() {
+    void getForcesApprovedStatusAndRunsTheBuiltSpecOnASortedPage() {
         QuestionRequest request = new QuestionRequest();
-        QuestionQuery approvedOnly = new QuestionQuery(List.of(), QuestionStatus.APPROVED);
-        when(questionSpecificationFactory.from(approvedOnly)).thenReturn(SPEC);
-        when(questionRepository.findAll(SPEC)).thenReturn(List.of());
+        Pageable requested = Pageable.from(0, 20);
+        Pageable ordered = Pageable.from(0, 20, STABLE_ORDER);
 
-        List<QuestionResponse> questions = questionService.get(request);
+        QuestionQuery approvedOnly = QuestionQuery.studentCatalogue(List.of(), List.of(), null);
+        when(questionSpecificationFactory.forQuery(approvedOnly)).thenReturn(SPEC);
+        when(questionRepository.findAll(SPEC, ordered)).thenReturn(Page.of(List.of(), ordered, 0L));
 
-        assertEquals(0, questions.size());
+        PageResponse<QuestionResponse> response = questionService.get(request, requested);
 
-        // Status pinned to APPROVED, and the exact spec the factory produced is what gets executed.
-        verify(questionSpecificationFactory).from(approvedOnly);
-        verify(questionRepository).findAll(SPEC);
+        // The envelope carries the paging metadata off the repository Page: an empty first page still
+        // reports its position, requested size and the (zero) total.
+        assertEquals(0, response.content().size());
+        assertEquals(0, response.page());
+        assertEquals(20, response.size());
+        assertEquals(0L, response.totalCount());
+
+        // Status pinned to APPROVED, the factory's spec is what runs, and it runs against a page carrying
+        // the stable created_at,id order rather than the caller's unsorted page.
+        verify(questionSpecificationFactory).forQuery(approvedOnly);
+        verify(questionRepository).findAll(SPEC, ordered);
     }
 
     @Test
-    void getBuildsQueryFromRequestTypesAndForcesApprovedStatus() {
+    void getBuildsQueryFromRequestFiltersAndForcesApprovedStatus() {
         QuestionRequest request = new QuestionRequest();
-        request.setTypes(List.of(QuestionType.SHORT_ANSWER, QuestionType.MCQ));
 
-        // The request's types must reach the factory verbatim, paired with the hard-coded APPROVED
-        // status. Exact-arg stub-then-verify: QuestionQuery is a record, so equality checks every field.
-        QuestionQuery expectedQuery = new QuestionQuery(
-                List.of(QuestionType.SHORT_ANSWER, QuestionType.MCQ), QuestionStatus.APPROVED);
-        when(questionSpecificationFactory.from(expectedQuery)).thenReturn(SPEC);
-        when(questionRepository.findAll(SPEC)).thenReturn(List.of());
+        List<QuestionType> types = List.of(QuestionType.SHORT_ANSWER, QuestionType.MCQ);
+        request.setTypes(types);
 
-        questionService.get(request);
+        List<QuestionDifficulty> difficulties = List.of(QuestionDifficulty.HARD, QuestionDifficulty.VERY_HARD);
+        request.setDifficulties(difficulties);
 
-        verify(questionSpecificationFactory).from(expectedQuery);
-        verify(questionRepository).findAll(SPEC);
+        request.setConceptId(42L);
+
+        Pageable requested = Pageable.from(0, 20);
+        Pageable ordered = Pageable.from(0, 20, STABLE_ORDER);
+
+        // The request's filters reach the factory verbatim inside a student-catalogue query. Exact-arg
+        // stub-then-verify: QuestionQuery is a record, so equality checks every field, including the
+        // baked-in APPROVED status and concept-link requirement.
+        QuestionQuery expectedQuery = QuestionQuery.studentCatalogue(types, difficulties, 42L);
+        when(questionSpecificationFactory.forQuery(expectedQuery)).thenReturn(SPEC);
+        when(questionRepository.findAll(SPEC, ordered)).thenReturn(Page.of(List.of(), ordered, 0L));
+
+        questionService.get(request, requested);
+
+        verify(questionSpecificationFactory).forQuery(expectedQuery);
+        verify(questionRepository).findAll(SPEC, ordered);
     }
 
     @Test
-    void getMapsQuestionsIncludingDifficultyAndConceptLinks() {
+    void getStitchesConceptIdsFromTheLinkRepositoryOntoTheResponses() {
+        QuestionRequest request = new QuestionRequest();
+        Pageable requested = Pageable.from(0, 20);
+        Pageable ordered = Pageable.from(0, 20, STABLE_ORDER);
+
+        // A fully-populated, linked question and a bare one (null difficulty/type, no links) — so the same
+        // mapping covers the difficulty {value,code} path, the null-difficulty path, and both link shapes.
         long linkedId = 1L;
-        String linkedBody = "Explain what is meant by diffraction.";
-        QuestionDifficulty linkedDifficulty = QuestionDifficulty.MEDIUM;
-        QuestionType linkedType = QuestionType.EXTENDED;
-        QuestionSource linkedSource = QuestionSource.SEED;
-        QuestionStatus linkedStatus = QuestionStatus.APPROVED;
-        String linkedSourceSpec = "AQA GCSE Physics";
-        Instant linkedCreatedAt = Instant.parse("2026-06-29T10:15:30Z");
-        long conceptIdOne = 10L;
-        long conceptIdTwo = 11L;
-
-        Question linkedQuestion = new Question(
-                linkedBody, linkedDifficulty, linkedType, linkedSource, linkedStatus, linkedSourceSpec);
-        setField(linkedQuestion, "id", linkedId);
-        setField(linkedQuestion, "createdAt", linkedCreatedAt);
-        setField(linkedQuestion, "conceptLinks", Set.of(
-                link(linkedQuestion, conceptIdOne),
-                link(linkedQuestion, conceptIdTwo)
-        ));
+        QuestionDifficulty difficulty = QuestionDifficulty.MEDIUM;
+        Instant linkedCreatedAt = Instant.parse("2026-01-01T00:00:00Z");
+        Question linked = new Question(
+                "Linked body", difficulty, QuestionType.EXTENDED,
+                QuestionSource.SEED, QuestionStatus.APPROVED, "AQA GCSE Physics");
+        setField(linked, "id", linkedId);
+        setField(linked, "createdAt", linkedCreatedAt);
 
         long bareId = 2L;
-        String bareBody = "Define displacement.";
-        QuestionType bareType = QuestionType.SHORT_ANSWER;
-        QuestionSource bareSource = QuestionSource.EXTRACTED;
-        QuestionStatus bareStatus = QuestionStatus.PENDING;
-        String bareSourceSpec = "OCR A-Level Physics";
-        Instant bareCreatedAt = Instant.parse("2026-06-30T08:00:00Z");
+        Instant bareCreatedAt = Instant.parse("2026-01-02T00:00:00Z");
+        Question bare = new Question(
+                "Bare body", null, null,
+                QuestionSource.SEED, QuestionStatus.APPROVED, null);
+        setField(bare, "id", bareId);
+        setField(bare, "createdAt", bareCreatedAt);
 
-        // Difficulty deliberately null and no concept links, to cover the null/empty mapping paths.
-        Question bareQuestion = new Question(
-                bareBody, null, bareType, bareSource, bareStatus, bareSourceSpec);
-        setField(bareQuestion, "id", bareId);
-        setField(bareQuestion, "createdAt", bareCreatedAt);
+        QuestionQuery approvedOnly = QuestionQuery.studentCatalogue(List.of(), List.of(), null);
+        when(questionSpecificationFactory.forQuery(approvedOnly)).thenReturn(SPEC);
+        when(questionRepository.findAll(SPEC, ordered)).thenReturn(Page.of(List.of(linked, bare), ordered, 2L));
 
-        when(questionSpecificationFactory.from(any())).thenReturn(SPEC);
-        when(questionRepository.findAll(SPEC)).thenReturn(List.of(linkedQuestion, bareQuestion));
+        // Only the linked question has concept rows; the bare question's id is absent from the result, which
+        // is what drives its linkedConceptIds to an empty set rather than null.
+        long conceptA = 10L;
+        long conceptB = 11L;
+        when(questionConceptRepository.findLinksByQuestionIds(Set.of(linkedId, bareId)))
+                .thenReturn(List.of(new QuestionConceptLink(linkedId, conceptA), new QuestionConceptLink(linkedId, conceptB)));
 
-        QuestionRequest request = new QuestionRequest();
-        List<QuestionResponse> questions = questionService.get(request);
+        PageResponse<QuestionResponse> response = questionService.get(request, requested);
+        List<QuestionResponse> responses = response.content();
 
-        assertEquals(2, questions.size());
+        assertEquals(2, responses.size());
+        assertEquals(2L, response.totalCount());
 
-        QuestionResponse linked = questionById(questions, linkedId);
-        assertEquals(linkedBody, linked.getBody());
-        assertThat(linked.getDifficulty(), is(notNullValue()));
-        assertEquals(linkedDifficulty.value(), linked.getDifficulty().getValue());
-        assertEquals(linkedDifficulty.name(), linked.getDifficulty().getCode());
-        assertEquals(linkedType, linked.getType());
-        assertEquals(linkedSource, linked.getSource());
-        assertEquals(linkedStatus, linked.getStatus());
-        assertEquals(linkedSourceSpec, linked.getSourceSpec());
-        assertEquals(linkedCreatedAt, linked.getCreatedAt());
-        assertThat(linked.getLinkedConceptIds(), containsInAnyOrder(conceptIdOne, conceptIdTwo));
+        QuestionResponse linkedResponse = responseById(responses, linkedId);
+        assertEquals("Linked body", linkedResponse.getBody());
+        assertEquals(difficulty.value(), linkedResponse.getDifficulty().getValue());
+        assertEquals(difficulty.name(), linkedResponse.getDifficulty().getCode());
+        assertEquals(QuestionType.EXTENDED, linkedResponse.getType());
+        assertEquals(linkedCreatedAt, linkedResponse.getCreatedAt());
+        assertEquals(Set.of(conceptA, conceptB), linkedResponse.getLinkedConceptIds());
 
-        QuestionResponse bare = questionById(questions, bareId);
-        assertEquals(bareBody, bare.getBody());
-        assertThat(bare.getDifficulty(), is(nullValue()));
-        assertEquals(bareType, bare.getType());
-        assertEquals(bareSource, bare.getSource());
-        assertEquals(bareStatus, bare.getStatus());
-        assertEquals(bareSourceSpec, bare.getSourceSpec());
-        assertEquals(bareCreatedAt, bare.getCreatedAt());
-        assertThat(bare.getLinkedConceptIds(), is(empty()));
+        QuestionResponse bareResponse = responseById(responses, bareId);
+        assertEquals("Bare body", bareResponse.getBody());
+        assertNull(bareResponse.getDifficulty());
+        assertNull(bareResponse.getType());
+        assertEquals(bareCreatedAt, bareResponse.getCreatedAt());
+        assertEquals(Set.of(), bareResponse.getLinkedConceptIds());
     }
 
-    private static QuestionResponse questionById(List<QuestionResponse> questions, long id) {
-        return questions.stream()
-                .filter(question -> question.getId() == id)
+    private static QuestionResponse responseById(List<QuestionResponse> responses, long id) {
+        return responses.stream()
+                .filter(response -> response.getId() == id)
                 .findFirst()
-                .orElseThrow(() -> new AssertionError("No question with id " + id));
-    }
-
-    // Builds a concept-link row for a question that already has its id set (QuestionConcept reads
-    // both ids on construction). The concept detail is irrelevant to the mapping, which only reads
-    // the concept id back off the link.
-    private static QuestionConcept link(Question question, long conceptId) {
-        Concept concept = new Concept("Concept " + conceptId, "Description " + conceptId);
-        setField(concept, "id", conceptId);
-        return new QuestionConcept(question, concept);
+                .orElseThrow(() -> new AssertionError("No response with id " + id));
     }
 }

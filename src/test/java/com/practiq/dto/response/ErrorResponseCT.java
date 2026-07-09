@@ -1,14 +1,18 @@
 package com.practiq.dto.response;
 
 import io.micronaut.serde.ObjectMapper;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
+import utils.ComponentTest;
 
 import java.io.IOException;
 
-class ErrorResponseTest {
+@ComponentTest
+class ErrorResponseCT {
 
-    private final ObjectMapper objectMapper = ObjectMapper.getDefault();
+    @Inject
+    private ObjectMapper objectMapper;
 
     @Test
     void errorResponseSerializesFull() throws IOException {

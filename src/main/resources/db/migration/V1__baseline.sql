@@ -2,7 +2,8 @@
 -- Questions, notes and spec sections are tagged against concepts via join tables (added later).
 create table concept (
     id          bigint generated always as identity primary key,
+    version     integer not null default 0,
     name        varchar(200) not null unique,
     description text not null,
-    created_at  timestamptz  not null default now()
+    created_at  timestamptz not null default now()
 );

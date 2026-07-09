@@ -1,8 +1,10 @@
 package com.practiq.controller;
 
 import com.practiq.dto.request.QuestionRequest;
+import com.practiq.dto.response.PageResponse;
 import com.practiq.dto.response.QuestionResponse;
 import com.practiq.service.QuestionService;
+import io.micronaut.data.model.Pageable;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.RequestBean;
@@ -10,8 +12,6 @@ import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.List;
 
 @Slf4j
 @ExecuteOn(TaskExecutors.BLOCKING)
@@ -25,8 +25,8 @@ public class QuestionController {
     }
 
     @Get()
-    public List<QuestionResponse> get(@Valid @RequestBean QuestionRequest request) {
-        log.debug("Requested to GET all approved questions");
-        return questionService.get(request);
+    public PageResponse<QuestionResponse> get(@Valid @RequestBean QuestionRequest request, Pageable pageable) {
+        log.debug("Requested to GET approved questions");
+        return questionService.get(request, pageable);
     }
 }

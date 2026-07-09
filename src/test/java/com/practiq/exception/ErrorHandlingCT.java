@@ -1,7 +1,7 @@
 package com.practiq.exception;
 
 import com.practiq.service.ConceptService;
-import com.practiq.test.ComponentTest;
+import utils.ComponentTest;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.micronaut.test.annotation.MockBean;
 import io.restassured.RestAssured;
@@ -10,8 +10,9 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
-import static io.micronaut.http.HttpStatus.NOT_FOUND;
+import jakarta.persistence.OptimisticLockException;
+
+import static io.micronaut.http.HttpStatus.*;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.Mockito.mock;
@@ -54,8 +55,25 @@ class ErrorHandlingCT {
 
     @Test
     void unexpectedRuntimeErrorReturnsInternalServerErrorEnvelope() {
-
         when(conceptService.get()).thenThrow(new RuntimeException("Test Error"));
+        given()
+                .when()
+                .get(CONCEPTS_PATH)
+                .then()
+                .statusCode(INTERNAL_SERVER_ERROR.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("An unspecified error occurred."))
+                .body("status", equalTo(500));
+    }
+
+    // Pins what a caller sees if a stale @Version write escapes to the web layer: the generic 500
+    // envelope, because no OptimisticLockException-specific handler exists. No current endpoint can
+    // trigger this (the API is read-only so far) — when the first write endpoint lands, the right
+    // answer is a 409 Conflict handler, and this test is the tripwire forcing that decision.
+    @Test
+    void optimisticLockFailureCurrentlyReturnsTheGenericErrorEnvelope() {
+        when(conceptService.get()).thenThrow(new OptimisticLockException("stale version"));
         given()
                 .when()
                 .get(CONCEPTS_PATH)

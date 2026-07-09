@@ -1,7 +1,5 @@
 package com.practiq.dto.response;
 
-import com.practiq.domain.types.QuestionSource;
-import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Getter;
@@ -18,9 +16,6 @@ public class QuestionResponse {
     private final String body;
     private final QuestionDifficultyResponse difficulty;
     private final QuestionType type;
-    private final QuestionSource source;
-    private final QuestionStatus status;
-    private final String sourceSpec;
     private final Instant createdAt;
     private final Set<Long> linkedConceptIds;
 
@@ -29,9 +24,6 @@ public class QuestionResponse {
             String body,
             QuestionDifficultyResponse difficulty,
             QuestionType type,
-            QuestionSource source,
-            QuestionStatus status,
-            String sourceSpec,
             Instant createdAt,
             Set<Long> linkedConceptIds
     ) {
@@ -39,9 +31,6 @@ public class QuestionResponse {
         this.body = body;
         this.difficulty =  difficulty;
         this.type = type;
-        this.source = source;
-        this.status = status;
-        this.sourceSpec = sourceSpec;
         this.createdAt = createdAt;
         this.linkedConceptIds = linkedConceptIds;
     }

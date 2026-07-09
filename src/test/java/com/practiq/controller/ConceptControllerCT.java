@@ -2,8 +2,7 @@ package com.practiq.controller;
 
 import com.practiq.domain.Concept;
 import com.practiq.repository.ConceptRepository;
-import com.practiq.test.ComponentTest;
-import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
+import utils.ComponentTest;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.micronaut.test.annotation.MockBean;
 import io.restassured.RestAssured;
@@ -11,13 +10,12 @@ import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-import static com.practiq.test.TestReflection.setField;
+import static utils.TestReflection.setField;
 import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static io.micronaut.http.HttpStatus.OK;
 import static io.restassured.RestAssured.given;
