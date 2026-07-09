@@ -21,6 +21,9 @@ public class Concept {
     @GeneratedValue(strategy = IDENTITY)
     private long id;
 
+    @Version
+    private int version;
+
     @NotNull
     @Column(name = "name", nullable = false, unique = true)
     private String name;

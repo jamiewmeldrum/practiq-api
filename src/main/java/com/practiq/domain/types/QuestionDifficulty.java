@@ -27,4 +27,9 @@ public enum QuestionDifficulty {
             default -> null;
         };
     }
+
+    @Override
+    public String toString() {
+        return this.value + "(" + this.name() + ")";
+    }
 }

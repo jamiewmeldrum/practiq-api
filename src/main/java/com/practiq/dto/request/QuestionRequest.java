@@ -1,5 +1,6 @@
 package com.practiq.dto.request;
 
+import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionType;
 import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.Nullable;
@@ -19,4 +20,11 @@ public class QuestionRequest {
     @Nullable
     @UniqueElements
     private List<QuestionType> types;
+
+    @Nullable
+    @UniqueElements
+    private List<QuestionDifficulty> difficulties;
+
+    @Nullable
+    private Long conceptId;
 }

@@ -87,17 +87,23 @@ question:  id, body (TEXT, not null — Markdown, images via {{s3:key}}, MCQ via
 
 note:      id, title, s3_key, level, status, created_at
 
-attempt:   id, question_id, session_token, answer_text,
-           self_score int NULL, max_score int,
-           marking_method (self|ai), feedback NULL,         -- feedback = AI marking only
-           created_at
+question_attempt:           id, question_id, session_token, attempt_body, created_at
+                           -- NO unique constraint on (question_id, session_token).
+                           -- Repeated attempts are the revision loop, not a duplicate. See D-021.
+
+question_attempt_feedback: id, question_attempt_id, source (SELF|AI),
+                           self_score int NULL, max_score int NULL,   -- SELF only
+                           feedback TEXT NULL,                        -- AI only
+                           created_at
+                           -- One-to-many from attempt, ordered by created_at.
+                           -- Regenerable without touching the attempt. See D-019.
 
 -- Phase 6 only: app_user, topic_progress
 ```
 
 **Flyway conventions:**
 - Migrations live in `src/main/resources/db/migration/`, named `V<n>__description.sql`
-- Never edit a migration once it's been merged (i.e. in shared history) — add a new one. Editing an unmerged migration during local development is fine and normal; just `flyway clean`/recreate the local DB to clear the checksum mismatch.
+- Never edit a migration that has already been applied — add a new one
 - Flyway owns the schema; it never owns content data
 - `src/main/resources/db/seed_local.sql` exists for manual local data loading only — it is intentionally outside `db/migration/` so Flyway ignores it. Load it manually via `docker exec`. It will eventually move to a dedicated cross-cutting demo-data repository.
 
@@ -111,7 +117,8 @@ GET  /api/v1/concepts                     ordered by created_at asc
 GET  /api/v1/concepts/{id}                404 → {"error":"...","status":404} envelope
 GET  /api/v1/questions?conceptId={id}     approved only, paginated (flat collection, not nested — see D-015)
 GET  /api/v1/questions/{id}               question detail; never carries mark_scheme (removed from Question — where it lives is open, see D-018)
-POST /api/v1/attempts                     X-Session-Token header
+POST /api/v1/questions/{id}/attempts      X-Session-Token header (nested: genuine ownership, see D-019)
+GET  /api/v1/questions/{id}/attempts      this session's attempts, newest first, feedback inline, no pagination
 --- admin: static API key header (X-Admin-Key) until Phase 6 ---
 POST /api/v1/admin/documents              → presigned S3 URL
 POST /api/v1/admin/documents/{id}/complete → triggers async ingestion job
@@ -156,6 +163,13 @@ Three-tier model — put each test where it can actually observe the behaviour i
 - Flyway only — never hbm2ddl create/update. Flyway owns schema, never content.
 - **Enum-backed columns are stored upper-case** (e.g. `'PENDING'`, `'APPROVED'`), matching Java enum constant names exactly, so `@Enumerated(EnumType.STRING)` works with no custom `AttributeConverter`. Applies to every enum-backed column project-wide, not case-by-case. Free-text columns (e.g. `source_spec`) are unaffected.
 - **Path nesting only for genuine ownership** (child meaningless outside a specific parent). **Many-to-many relationships or multi-dimension-filterable resources use a flat first-order collection with query-parameter filters**, not path nesting under one relationship. Controllers map to one entity each. See D-015.
+- **`difficulty` serialises as `{value, code}`** — DB column stays a plain integer; `code` is derived at the serialisation layer via `TRIVIAL(1), EASY(2), MEDIUM(3), HARD(4), VERY_HARD(5)`. Whole object is `null` when difficulty is unrated, not partially populated. Nominal enums (`type`/`source`/`status`) serialise as their bare string code — no wrapper. See D-017.
+- **Never add a unique constraint on `(question_id, session_token)`.** Repeated attempts at the same question are the core revision loop. Duplicates from network retries are accepted at this stage — see D-021. Idempotency keys are a hard prerequisite for AI grading, to be built *before* it, never as a follow-up.
+- **Assessment lives in `question_attempt_feedback`, never on the attempt row.** `source` (`SELF`|`AI`) discriminates. Only `SELF` rows are written until Phase 3.
+- **Never fetch-join a to-many collection in a paginated query.** Hibernate silently pages in memory. Use the two-query stitch: paged root query, then a keyed id-pair projection, stitched onto DTOs. See D-025.
+- **Use a correlated `EXISTS` subquery, not a join, to filter on a to-many.** A join multiplies rows and corrupts `totalCount`. See D-026.
+- **The student serving policy is an object invariant, not a filter.** `QuestionQuery.studentCatalogue(...)` bakes in `status=APPROVED` + concept-linked. `status` is never a client parameter. Filters narrow, never widen. See D-024.
+- **Paged endpoints return `PageResponse<T>`; unpaged collections return bare arrays. Nulls always serialise.** See D-023.
 - No secrets in code, config, or commits.
 - **No copyrighted material committed — ever.** Real past papers may be used privately for local testing; all committed fixtures/seed content are self-written. Seed concept lists may mirror the published spec's topic structure (facts), not its prose.
 - Commit small and often, meaningful messages — the public history is CV evidence.
@@ -163,12 +177,14 @@ Three-tier model — put each test where it can actually observe the behaviour i
 
 ## 11. Plan & current position
 
-Sprint sequence: **0.1** skeleton + Concept endpoint + CI → **0.2** full schema + read API + attempts → **0.3** ingestion (stub AI) → **1.1** extractor (separate repo) → **1.2** upload + pipeline → **1.3** review API → **2.1** student UI → **2.2** superuser UI → **2.3** demo hardening = **interview-ready cut** → (bonus) 3 AI marking → 4 service extraction → 5 AWS → 6 accounts/progress/generation.
+Sprint sequence: **0.1** skeleton + Concept endpoint + CI *(complete)* → **0.2** question read API + attempts (self-assessed) → **0.3** ingestion (stub AI) → **1.1** extractor (separate repo) → **1.2** upload + pipeline → **1.3** review API → **2.1** student UI → **2.2** superuser UI → **2.3** demo hardening = **demoable cut** → 3 AI marking → 4 service extraction → 5 AWS → 6 accounts/progress/generation.
 
-> **Current sprint: 0.1 — Skeleton + Concept endpoint + CI** *(update this line as sprints complete)*
+> **Current sprint: 0.2 — Question read API + attempts (self-assessed)** *(update this line as sprints complete)*
 >
-> Sprint 0.1 DoD: `./gradlew build` green locally and in CI · compose Postgres healthy · `/health` UP · Flyway migration runs · `GET /api/v1/concepts` returns data ordered by `created_at asc` · `GET /api/v1/concepts/{id}` returns concept or structured 404 · **all failure paths (400/422/500) return consistent `{"error","status"}` envelope** · 1 unit test green · 1 CT green · 1 IT green · README with CI badge.
+> **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged, filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept stitch · JPA static metamodel.
 >
-> **Outstanding before DoD is met:** (1) global error handler for 400/422/500; (2) CI workflow `.github/workflows/ci.yml`; (3) remove dead TODO comment from `Application.java`.
+> **Remaining:** resolve D-018 (mark scheme location — **blocking**) · `GET /api/v1/questions/{id}` · `question_attempt` + `question_attempt_feedback` · `POST`/`GET /api/v1/questions/{id}/attempts` · **409 handler for `OptimisticLockException`** (owed with the first write endpoint) · `X-Session-Token` handling.
+>
+> **Deliberately out of scope:** idempotency keys (D-021) · unique constraint on attempts (would break the revision loop) · server-issued session tokens (D-020) · async grading / `202` / polling · batch submission · AI feedback rows · strict `Pageable` binder (D-028).
 
 Full sprint briefs live in PRACTIQ_MASTER.md (the planning doc, kept outside the repo). If a sprint brief is pasted, it governs the session's scope.

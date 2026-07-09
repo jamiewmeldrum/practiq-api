@@ -17,6 +17,7 @@
 create table question
 (
     id          bigint generated always as identity primary key,
+    version     integer not null default 0,
     body        text        not null,
     difficulty  integer check (difficulty between 1 and 5),
     type        varchar(20) check (type in ('SHORT_ANSWER', 'EXTENDED', 'MCQ')),
@@ -25,6 +26,10 @@ create table question
     source_spec varchar(255),
     created_at  timestamptz not null default now()
 );
+
+create index idx_question_approved_created
+    on question (created_at asc, id asc)
+    where status = 'APPROVED';
 
 -- Join table linking questions to the concepts they cover. A question can cover
 -- multiple concepts (synoptic questions); a concept can be covered by many questions.

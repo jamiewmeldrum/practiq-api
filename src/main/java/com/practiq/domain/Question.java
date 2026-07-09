@@ -26,6 +26,9 @@ public class Question {
     @GeneratedValue(strategy = IDENTITY)
     private long id;
 
+    @Version
+    private int version;
+
     @NotNull
     @Column(name = "body", nullable = false)
     private String body;

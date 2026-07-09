@@ -1,4 +1,4 @@
-package com.practiq.test;   // a small test-support package
+package utils;   // a small test-support package
 
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 

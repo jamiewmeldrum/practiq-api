@@ -1,7 +1,7 @@
 -- Local development seed data — NOT a Flyway migration.
 --
 -- This file lives outside db/migration/ on purpose, so Flyway never picks it up.
--- It exists only to give a developer some rows to eyeball while poking at the app
+-- It exists only to give a developer some DBRows to eyeball while poking at the app
 -- locally (e.g. GET /api/v1/concepts). It is loaded by hand, never automatically.
 --
 -- Why it isn't a migration: concepts and other content will ultimately be
@@ -23,7 +23,7 @@
 -- Load (idempotent — run it as often as you like):
 --   docker exec -i practiq-api-postgres-1 psql -U practiq -d practiq < src/main/resources/db/seed_local.sql
 --
--- Hard reset (only if you want a clean slate, e.g. to drop rows no longer in this file):
+-- Hard reset (only if you want a clean slate, e.g. to drop DBRows no longer in this file):
 --   docker exec -i practiq-api-postgres-1 psql -U practiq -d practiq -c 'TRUNCATE concept CASCADE;'
 
 -- ---------------------------------------------------------------------------
