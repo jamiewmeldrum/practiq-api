@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.time.OffsetDateTime;
 import java.util.Map;
 
-import static io.micronaut.http.HttpStatus.OK;
+import static io.micronaut.http.HttpStatus.*;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
@@ -248,6 +248,83 @@ class QuestionControllerIT {
                     .contentType(ContentType.JSON)
                     .body("content.id", contains(1, 2, 3));
         }
+    }
+
+    @Test
+    void getQuestionByIdReturns404IfNotFound() {
+        String path = QUESTIONS_PATH + "/123";
+        given()
+                .when()
+                .get(path)
+                .then()
+                .statusCode(NOT_FOUND.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("Could not find resource for path: " + path))
+                .body("status", equalTo(404));
+    }
+
+    @Test
+    void getQuestionByIdReturnsNotFoundIfNoApprovedQuestionExistsForId() {
+        long targetId = 1L;
+        data.question(targetId)
+                .status(QuestionStatus.REJECTED)
+                .body("State Newton's first law.")
+                .source(QuestionSource.SEED)
+                .insert();
+        data.link(targetId, CONCEPT_ID).insert();
+
+        String path = QUESTIONS_PATH + "/" + targetId;
+        given()
+                .when()
+                .get(path)
+                .then()
+                .statusCode(NOT_FOUND.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("Could not find resource for path: " + path))
+                .body("status", equalTo(404));
+    }
+
+    @Test
+    void getQuestionByIdReturnsNotFoundIfNoLinkExistsForId() {
+        long targetId = 1L;
+        data.question(targetId)
+                .status(QuestionStatus.APPROVED)
+                .body("State Newton's first law.")
+                .source(QuestionSource.SEED)
+                .insert();
+
+        String path = QUESTIONS_PATH + "/" + targetId;
+        given()
+                .when()
+                .get(path)
+                .then()
+                .statusCode(NOT_FOUND.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("Could not find resource for path: " + path))
+                .body("status", equalTo(404));
+    }
+
+    @Test
+    void getQuestionByIdReturnsQuestionIfApprovedAndLinkedQuestionExistsForId() {
+        String approvedBody = "State Newton's first law.";
+        long approvedId = 1L;
+        data.question(approvedId)
+                .status(QuestionStatus.APPROVED)
+                .body(approvedBody)
+                .source(QuestionSource.SEED)
+                .insert();
+        data.link(approvedId, CONCEPT_ID).insert();
+
+        given()
+                .when()
+                .get(QUESTIONS_PATH + "/" + approvedId)
+                .then()
+                .statusCode(OK.getCode())
+                .contentType(ContentType.JSON)
+                .body("content[0].body", equalTo(approvedBody));
     }
 
     private void approvedLinkedQuestion(long id, String body, OffsetDateTime createdAt) {
