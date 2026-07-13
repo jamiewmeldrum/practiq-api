@@ -15,9 +15,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import static io.micronaut.http.HttpStatus.*;
 import static utils.TestReflection.setField;
-import static io.micronaut.http.HttpStatus.NOT_FOUND;
-import static io.micronaut.http.HttpStatus.OK;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.Mockito.*;
@@ -119,6 +118,8 @@ class ConceptControllerCT {
                 .body("id", equalTo((int) id))
                 .body("description", equalTo(description))
                 .body("createdAt", equalTo(createdAt.toString()));
+
+        verify(conceptRepository).findById(id);
     }
 
     @Test
@@ -137,5 +138,21 @@ class ConceptControllerCT {
                 .body("keySet()", containsInAnyOrder("error", "status"))
                 .body("error", equalTo("Could not find resource for path: " + path))
                 .body("status", equalTo(404));
+
+        verify(conceptRepository).findById(id);
+    }
+
+    @Test
+    void getConceptByIdReturnsEnvelopeForIdNotBeingNaturalNumber() {
+        String path = CONCEPTS_PATH + "/BAD";
+        given()
+                .when()
+                .get(path)
+                .then()
+                .statusCode(BAD_REQUEST.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("id: invalid value"))
+                .body("status", equalTo(400));
     }
 }
