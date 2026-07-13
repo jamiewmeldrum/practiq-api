@@ -451,7 +451,7 @@ public class QuestionControllerCT {
                 .statusCode(BAD_REQUEST.getCode())
                 .contentType(ContentType.JSON)
                 .body("keySet()", containsInAnyOrder("error", "status"))
-                .body("error", equalTo("id: invalid value "))
+                .body("error", equalTo("id: invalid value"))
                 .body("status", equalTo(400));
     }
 
