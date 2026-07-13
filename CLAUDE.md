@@ -75,28 +75,42 @@ spec_section_concept: spec_section_id, concept_id          -- "AQA 6.2 covers Di
 question_concept:     question_id, concept_id
 note_concept:         note_id, concept_id
 
-question:  id, body (TEXT, not null — Markdown, images via {{s3:key}}, MCQ via - [ ]/- [x]),
-           mark_scheme (TEXT, nullable), difficulty int (nullable, 1-5),
+question:  id, version (optimistic lock), body (TEXT, not null — Markdown, images via {{s3:key}}, MCQ via - [ ]/- [x]),
+           difficulty int (nullable, 1-5),
            type (nullable — SHORT_ANSWER|EXTENDED|MCQ),
            source (not null — SEED|EXTRACTED|GENERATED, see D-014),
            status (not null, default PENDING — PENDING|APPROVED|REJECTED),
            source_spec (VARCHAR, nullable — provenance stopgap, see D-010),
            created_at
+           -- NO mark_scheme column — it's its own entity now (see D-018)
            -- no level column (see D-010) · no content jsonb (see D-009)
            -- source_document_id FK deferred to Sprint 0.3 (see D-014)
+
+mark_scheme: id, question_id (FK, not null, UNIQUE — 1:1), version (optimistic lock),
+             body (TEXT, not null — Markdown, {{s3:key}} refs), created_at
+                           -- Separate entity from question (D-018): different edit lifecycle.
+                           -- Mark schemes get tweaked in normal review; question type/source/
+                           -- status are frozen once set. Don't share a row / lock token /
+                           -- contact surface across two workflows that don't move together.
+                           -- Served via its own endpoint, keyed by question_id. Never inline
+                           -- on the question payload.
 
 note:      id, title, s3_key, level, status, created_at
 
 question_attempt:           id, question_id, session_token, attempt_body, created_at
                            -- NO unique constraint on (question_id, session_token).
                            -- Repeated attempts are the revision loop, not a duplicate. See D-021.
+                           -- Built in Sprint 0.2.
 
 question_attempt_feedback: id, question_attempt_id, source (SELF|AI),
                            self_score int NULL, max_score int NULL,   -- SELF only
                            feedback TEXT NULL,                        -- AI only
                            created_at
-                           -- One-to-many from attempt, ordered by created_at.
-                           -- Regenerable without touching the attempt. See D-019.
+                           -- DESIGN SETTLED, BUILD DEFERRED TO PHASE 3 (D-019 amendment).
+                           -- Storing a self-score and echoing it back has no consumer until
+                           -- AI marking / progress tracking. NOT created in Sprint 0.2.
+                           -- `source` discriminator ⇒ CREATE whole in Phase 3, no migration owed.
+                           -- One-to-many from attempt, ordered by created_at. See D-019.
 
 -- Phase 6 only: app_user, topic_progress
 ```
@@ -116,9 +130,10 @@ GET  /health
 GET  /api/v1/concepts                     ordered by created_at asc
 GET  /api/v1/concepts/{id}                404 → {"error":"...","status":404} envelope
 GET  /api/v1/questions?conceptId={id}     approved only, paginated (flat collection, not nested — see D-015)
-GET  /api/v1/questions/{id}               question detail; never carries mark_scheme (removed from Question — where it lives is open, see D-018)
+GET  /api/v1/questions/{id}               question detail; never carries mark_scheme (own entity now, D-018). Same serving policy as catalogue → 404 (not 403) if not APPROVED+linked
+GET  /api/v1/questions/{id}/mark-scheme   the mark scheme. UNGATED — no attempt required, no 403 (attempt-before-peek is a frontend nudge). Keyed by question_id, never inline on question. 404 if absent. See D-018
 POST /api/v1/questions/{id}/attempts      X-Session-Token header (nested: genuine ownership, see D-019)
-GET  /api/v1/questions/{id}/attempts      this session's attempts, newest first, feedback inline, no pagination
+GET  /api/v1/questions/{id}/attempts      this session's attempts, newest first, no pagination. NO feedback inline in 0.2 — no feedback rows until Phase 3 (D-019 amendment)
 --- admin: static API key header (X-Admin-Key) until Phase 6 ---
 POST /api/v1/admin/documents              → presigned S3 URL
 POST /api/v1/admin/documents/{id}/complete → triggers async ingestion job
@@ -165,11 +180,14 @@ Three-tier model — put each test where it can actually observe the behaviour i
 - **Path nesting only for genuine ownership** (child meaningless outside a specific parent). **Many-to-many relationships or multi-dimension-filterable resources use a flat first-order collection with query-parameter filters**, not path nesting under one relationship. Controllers map to one entity each. See D-015.
 - **`difficulty` serialises as `{value, code}`** — DB column stays a plain integer; `code` is derived at the serialisation layer via `TRIVIAL(1), EASY(2), MEDIUM(3), HARD(4), VERY_HARD(5)`. Whole object is `null` when difficulty is unrated, not partially populated. Nominal enums (`type`/`source`/`status`) serialise as their bare string code — no wrapper. See D-017.
 - **Never add a unique constraint on `(question_id, session_token)`.** Repeated attempts at the same question are the core revision loop. Duplicates from network retries are accepted at this stage — see D-021. Idempotency keys are a hard prerequisite for AI grading, to be built *before* it, never as a follow-up.
-- **Assessment lives in `question_attempt_feedback`, never on the attempt row.** `source` (`SELF`|`AI`) discriminates. Only `SELF` rows are written until Phase 3.
+- **Assessment lives in `question_attempt_feedback`, never on the attempt row.** `source` (`SELF`|`AI`) discriminates. **The whole table's build is deferred to Phase 3** (D-019 amendment) — not created in Sprint 0.2. Self-assessment at MVP is frontend-only against the visible mark scheme; the backend stores no feedback rows yet. When it lands, `CREATE` it whole with both shapes — no migration owed.
+- **Mark scheme is its own entity, served ungated.** Not a column on `question` (D-018). `GET /api/v1/questions/{id}/mark-scheme` never gates on an attempt; the "attempt before you peek" behaviour is a frontend nudge, never a backend 403.
 - **Never fetch-join a to-many collection in a paginated query.** Hibernate silently pages in memory. Use the two-query stitch: paged root query, then a keyed id-pair projection, stitched onto DTOs. See D-025.
 - **Use a correlated `EXISTS` subquery, not a join, to filter on a to-many.** A join multiplies rows and corrupts `totalCount`. See D-026.
 - **The student serving policy is an object invariant, not a filter.** `QuestionQuery.studentCatalogue(...)` bakes in `status=APPROVED` + concept-linked. `status` is never a client parameter. Filters narrow, never widen. See D-024.
 - **Paged endpoints return `PageResponse<T>`; unpaged collections return bare arrays. Nulls always serialise.** See D-023.
+- **Framework paging behaviour is pinned once in `PagingCT`.** A new paginated endpoint adds an *ordering* IT only — never a fresh paging suite. See D-029.
+- **Read projections are distinct types from write entities.** `QuestionConceptLink` (projection) ≠ `QuestionConcept` (entity). Don't reuse the entity where a lean projection is what the read path needs. See D-030.
 - No secrets in code, config, or commits.
 - **No copyrighted material committed — ever.** Real past papers may be used privately for local testing; all committed fixtures/seed content are self-written. Seed concept lists may mirror the published spec's topic structure (facts), not its prose.
 - Commit small and often, meaningful messages — the public history is CV evidence.
@@ -183,8 +201,8 @@ Sprint sequence: **0.1** skeleton + Concept endpoint + CI *(complete)* → **0.2
 >
 > **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged, filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept stitch · JPA static metamodel.
 >
-> **Remaining:** resolve D-018 (mark scheme location — **blocking**) · `GET /api/v1/questions/{id}` · `question_attempt` + `question_attempt_feedback` · `POST`/`GET /api/v1/questions/{id}/attempts` · **409 handler for `OptimisticLockException`** (owed with the first write endpoint) · `X-Session-Token` handling.
+> **Remaining** (D-018 resolved — settled, no longer blocking): `GET /api/v1/questions/{id}` *(next up)* · `mark_scheme` entity/migration + `GET /api/v1/questions/{id}/mark-scheme` (ungated) · `question_attempt` (feedback table deferred) · `POST`/`GET /api/v1/questions/{id}/attempts` · **409 handler for `OptimisticLockException`** (owed with the first write endpoint) · `X-Session-Token` handling · write up CT persistence-disable as a D-007 sub-decision.
 >
-> **Deliberately out of scope:** idempotency keys (D-021) · unique constraint on attempts (would break the revision loop) · server-issued session tokens (D-020) · async grading / `202` / polling · batch submission · AI feedback rows · strict `Pageable` binder (D-028).
+> **Deliberately out of scope:** `question_attempt_feedback` — whole table deferred to Phase 3 (D-019 amendment; no consumer for a self-score yet) · MCQ auto-marking (separate feature, unscheduled) · idempotency keys (D-021) · unique constraint on attempts (would break the revision loop) · server-issued session tokens (D-020) · async grading / `202` / polling · batch submission · strict `Pageable` binder (D-028).
 
 Full sprint briefs live in PRACTIQ_MASTER.md (the planning doc, kept outside the repo). If a sprint brief is pasted, it governs the session's scope.
