@@ -393,7 +393,7 @@ public class QuestionControllerCT {
                 .body("linkedConceptIds", containsInAnyOrder((int) conceptIdA1, (int) conceptIdA2));
 
         verify(questionRepository).findById(id);
-        verify(questionConceptRepository).findLinksByQuestionIds(Mockito.any());
+        verify(questionConceptRepository).findLinksByQuestionIds(List.of(id));
     }
 
     @Test
@@ -418,9 +418,9 @@ public class QuestionControllerCT {
     }
 
     @Test
-    void getQuestionByIdSerialisedErrorResponseIfNFoundForQuestionIdButNoLinks() {
+    void getQuestionByIdSerialisedErrorResponseIfNotFoundForQuestionIdButNoLinks() {
         long id = 1L;
-        Question question = new Question(null, null, null, null, null, null);
+        Question question = new Question(null, null, null, null, QuestionStatus.APPROVED, null);
         setField(question, "id", id);
 
         when(questionRepository.findById(id)).thenReturn(Optional.of(question));
@@ -438,7 +438,7 @@ public class QuestionControllerCT {
                 .body("status", equalTo(404));
 
         verify(questionRepository).findById(id);
-        verify(questionConceptRepository).findLinksByQuestionIds(Mockito.any());
+        verify(questionConceptRepository).findLinksByQuestionIds(List.of(id));
     }
 
     @Test
