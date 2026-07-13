@@ -8,6 +8,7 @@ import io.micronaut.data.model.Pageable;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.RequestBean;
+import io.micronaut.http.server.exceptions.NotFoundException;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.validation.Valid;
@@ -28,5 +29,12 @@ public class QuestionController {
     public PageResponse<QuestionResponse> get(@Valid @RequestBean QuestionRequest request, Pageable pageable) {
         log.debug("Requested to GET approved questions");
         return questionService.get(request, pageable);
+    }
+
+    @Get("/{id}")
+    public QuestionResponse getById(long id) {
+        log.debug("Requested to GET question by id: {}", id);
+        return questionService.get(id)
+                .orElseThrow(NotFoundException::new);
     }
 }

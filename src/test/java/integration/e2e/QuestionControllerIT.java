@@ -324,7 +324,7 @@ class QuestionControllerIT {
                 .then()
                 .statusCode(OK.getCode())
                 .contentType(ContentType.JSON)
-                .body("content[0].body", equalTo(approvedBody));
+                .body("body", equalTo(approvedBody));
     }
 
     private void approvedLinkedQuestion(long id, String body, OffsetDateTime createdAt) {

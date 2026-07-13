@@ -4,6 +4,7 @@ import com.practiq.domain.Question;
 import com.practiq.domain.query.QuestionQuery;
 import com.practiq.domain.query.QuestionSpecificationFactory;
 import com.practiq.domain.types.QuestionDifficulty;
+import com.practiq.domain.types.QuestionStatus;
 import com.practiq.dto.request.QuestionRequest;
 import com.practiq.dto.response.PageResponse;
 import com.practiq.dto.response.QuestionDifficultyResponse;
@@ -11,6 +12,7 @@ import com.practiq.dto.response.QuestionResponse;
 import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.repository.QuestionConceptRepository;
 import com.practiq.repository.QuestionRepository;
+import io.micronaut.core.util.CollectionUtils;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.Sort;
@@ -21,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static java.util.stream.Collectors.groupingBy;
@@ -47,6 +50,32 @@ public class QuestionService {
     }
 
     @Transactional(readOnly = true)
+    public Optional<QuestionResponse> get(long id) {
+        log.debug("Getting question by id: {}", id);
+
+        Optional<Question> optionalQuestion = questionRepository.findById(id);
+        if (optionalQuestion.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Question question = optionalQuestion.get();
+        if (!question.getStatus().equals(QuestionStatus.APPROVED)) {
+            return Optional.empty();
+        }
+
+        List<QuestionConceptLink> links = questionConceptRepository.findLinksByQuestionIds(List.of(id));
+        Set<Long> linkedConceptIds = links.stream()
+                .map(QuestionConceptLink::conceptId)
+                .collect(toSet());
+
+        if (CollectionUtils.isEmpty(linkedConceptIds)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(toQuestionResponse(question, linkedConceptIds));
+    }
+
+    @Transactional(readOnly = true)
     public PageResponse<QuestionResponse> get(QuestionRequest request, Pageable pageable) {
         log.debug("Getting approved questions, page {}", pageable.getNumber());
 
@@ -70,7 +99,7 @@ public class QuestionService {
         Map<Long, Set<Long>> conceptIdsByQuestionId = conceptIdsByQuestionId(questions);
 
         List<QuestionResponse> responses = questions.stream().map(question ->
-                toQuestionDto(
+                toQuestionResponse(
                         question,
                         conceptIdsByQuestionId.getOrDefault(question.getId(), Set.of()))).collect(toList());
 
@@ -86,7 +115,7 @@ public class QuestionService {
                 .collect(groupingBy(QuestionConceptLink::questionId, mapping(QuestionConceptLink::conceptId, toSet())));
     }
 
-    private static QuestionResponse toQuestionDto(Question question, Set<Long> conceptIds) {
+    private static QuestionResponse toQuestionResponse(Question question, Set<Long> conceptIds) {
         log.trace("Converting question to QuestionDto: {}", question.getId());
 
         QuestionDifficulty difficulty = question.getDifficulty();
