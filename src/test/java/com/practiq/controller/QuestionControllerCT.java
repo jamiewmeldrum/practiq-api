@@ -1,6 +1,8 @@
 package com.practiq.controller;
 
+import com.practiq.domain.Concept;
 import com.practiq.domain.Question;
+import com.practiq.domain.QuestionConcept;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
@@ -26,9 +28,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.time.Instant;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static utils.TestReflection.assertAllFieldsSet;
 import static utils.TestReflection.setField;
@@ -370,11 +370,17 @@ public class QuestionControllerCT {
         long conceptIdA1 = 10L;
         long conceptIdA2 = 11L;
 
-        when(questionRepository.findById(id)).thenReturn(Optional.of(question));
-        when(questionConceptRepository.findLinksByQuestionIds(Mockito.any()))
-                .thenReturn(List.of(new QuestionConceptLink(id, conceptIdA1),
-                        new QuestionConceptLink(id, conceptIdA2))
-                );
+        Concept concept1 = new Concept("name1", "description1");
+        setField(concept1, "id", conceptIdA1);
+        Concept concept2 = new Concept("name1", "description1");
+        setField(concept2, "id", conceptIdA2);
+        setField(
+                question,
+                "conceptLinks",
+                Set.of(new QuestionConcept(question, concept1), new QuestionConcept(question, concept2))
+        );
+
+        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.of(question));
 
         String path = QUESTIONS_PATH + "/" + id;
         given()
@@ -392,15 +398,14 @@ public class QuestionControllerCT {
                 .body("createdAt", equalTo(createdAt.toString()))
                 .body("linkedConceptIds", containsInAnyOrder((int) conceptIdA1, (int) conceptIdA2));
 
-        verify(questionRepository).findById(id);
-        verify(questionConceptRepository).findLinksByQuestionIds(List.of(id));
+        verify(questionRepository).findByIdAndStatus(id, QuestionStatus.APPROVED);
     }
 
     @Test
-    void getQuestionByIdSerialisedErrorResponseIfNotFoundForId() {
+    void getQuestionByIdSerialisedErrorResponseIfNotFound() {
         long id = 1L;
 
-        when(questionRepository.findById(id)).thenReturn(Optional.empty());
+        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.empty());
 
         String path = QUESTIONS_PATH + "/" + id;
         given()
@@ -413,18 +418,17 @@ public class QuestionControllerCT {
                 .body("error", equalTo("Could not find resource for path: " + path))
                 .body("status", equalTo(404));
 
-        verify(questionRepository).findById(id);
-        verifyNoInteractions(questionConceptRepository);
+        verify(questionRepository).findByIdAndStatus(id, QuestionStatus.APPROVED);
     }
 
     @Test
-    void getQuestionByIdSerialisedErrorResponseIfNotFoundForQuestionIdButNoLinks() {
+    void getQuestionByIdSerialisedErrorResponseIfFoundForQuestionIdButNoLinks() {
         long id = 1L;
-        Question question = new Question(null, null, null, null, QuestionStatus.APPROVED, null);
+        Question question = new Question(null, null, null, null, null, null);
         setField(question, "id", id);
+        setField(question, "conceptLinks", new HashSet<>());
 
-        when(questionRepository.findById(id)).thenReturn(Optional.of(question));
-        when(questionConceptRepository.findLinksByQuestionIds(Mockito.any())).thenReturn(List.of());
+        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.of(question));
 
         String path = QUESTIONS_PATH + "/" + id;
         given()
@@ -437,8 +441,7 @@ public class QuestionControllerCT {
                 .body("error", equalTo("Could not find resource for path: " + path))
                 .body("status", equalTo(404));
 
-        verify(questionRepository).findById(id);
-        verify(questionConceptRepository).findLinksByQuestionIds(List.of(id));
+        verify(questionRepository).findByIdAndStatus(id, QuestionStatus.APPROVED);
     }
 
     @Test

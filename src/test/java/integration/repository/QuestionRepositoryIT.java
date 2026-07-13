@@ -2,6 +2,7 @@ package integration.repository;
 
 import com.practiq.domain.Question;
 import com.practiq.domain.types.QuestionSource;
+import com.practiq.domain.types.QuestionStatus;
 import com.practiq.repository.QuestionRepository;
 import utils.IntegrationTest;
 import utils.data.QuestionTestData;
@@ -10,6 +11,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import jakarta.persistence.OptimisticLockException;
+
+import java.util.Optional;
 
 import static utils.TestReflection.setField;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -71,5 +74,40 @@ class QuestionRepositoryIT {
         Question survivor = questionRepository.findAll().getFirst();
         assertThat(survivor.getBody(), equalTo("Updated first."));
         assertThat(survivor.getVersion(), equalTo(1));
+    }
+
+    @Test
+    void findByIdAndStatusReturnsOptionalEmptyIfNoMatchOnId() {
+        long id = 1L;
+        QuestionStatus status = QuestionStatus.APPROVED;
+        data.question(id).status(status).insert();
+
+        Optional<Question> question = questionRepository.findByIdAndStatus(2L, status);
+
+        assertThat(question.isPresent(), is(false));
+    }
+
+    @Test
+    void findByIdAndStatusReturnsOptionalEmptyIfNoMatchOnStatus() {
+        long id = 1L;
+        QuestionStatus status = QuestionStatus.APPROVED;
+        data.question(id).status(status).insert();
+
+        Optional<Question> question = questionRepository.findByIdAndStatus(id, QuestionStatus.REJECTED);
+
+        assertThat(question.isPresent(), is(false));
+    }
+
+    @Test
+    void findByIdAndStatusReturnsOptionalQuestionIfMatch() {
+        long id = 1L;
+        QuestionStatus status = QuestionStatus.APPROVED;
+        data.question(id).status(status).insert();
+
+        Optional<Question> question = questionRepository.findByIdAndStatus(id, status);
+
+        assertThat(question.isPresent(), is(true));
+        assertThat(question.get().getId(), is(id));
+        assertThat(question.get().getStatus(), is(status));
     }
 }

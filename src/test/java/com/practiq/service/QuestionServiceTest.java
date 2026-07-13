@@ -1,6 +1,8 @@
 package com.practiq.service;
 
+import com.practiq.domain.Concept;
 import com.practiq.domain.Question;
+import com.practiq.domain.QuestionConcept;
 import com.practiq.domain.query.QuestionQuery;
 import com.practiq.domain.query.QuestionSpecificationFactory;
 import com.practiq.domain.types.QuestionDifficulty;
@@ -25,12 +27,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static utils.TestReflection.setField;
 
 @ExtendWith(MockitoExtension.class)
@@ -162,6 +166,93 @@ class QuestionServiceTest {
         assertNull(bareResponse.getType());
         assertEquals(bareCreatedAt, bareResponse.getCreatedAt());
         assertEquals(Set.of(), bareResponse.getLinkedConceptIds());
+    }
+
+    @Test
+    void getQuestionByIdQueriesDatabaseByIdAndApprovedStatus() {
+        long id = 1L;
+
+        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.empty());
+
+        questionService.get(id);
+
+        verify(questionRepository).findByIdAndStatus(id, QuestionStatus.APPROVED);
+    }
+
+    @Test
+    void getQuestionByIdReturnsOptionalEmptyIfQuestionDoesNotExist() {
+        long id = 1L;
+
+        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.empty());
+
+        Optional<QuestionResponse> questionResponse = questionService.get(id);
+        assertThat(questionResponse.isPresent(), is(false));
+    }
+
+    @Test
+    void getQuestionByIdReturnsOptionalEmptyIfQuestionDoesNotHaveConceptLinks() {
+        long id = 1L;
+
+        Question question = spy(new Question(null, null, null, null, null, null));
+        setField(question, "id", id);
+
+        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.of(question));
+
+        Optional<QuestionResponse> questionResponse = questionService.get(id);
+        assertThat(questionResponse.isPresent(), is(false));
+
+        verify(question).getConceptLinks();
+    }
+
+    @Test
+    void getQuestionByIdReturnsQuestionResponse() {
+        long id = 1L;
+        String body = "Question A";
+        QuestionDifficulty difficulty = QuestionDifficulty.EASY;
+        QuestionType type = QuestionType.EXTENDED;
+        QuestionSource source = QuestionSource.GENERATED;
+        QuestionStatus status = QuestionStatus.APPROVED;
+        String sourceSpec = "GCSE Physics";
+        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+
+        Question question = new Question(
+                body,
+                difficulty,
+                type,
+                source,
+                status,
+                sourceSpec
+        );
+        setField(question, "id", id);
+        setField(question, "createdAt", createdAt);
+
+        // Question is linked to two concepts.
+        long conceptIdA1 = 10L;
+        long conceptIdA2 = 11L;
+
+        Concept concept1 = new Concept("name1", "description1");
+        setField(concept1, "id", conceptIdA1);
+        Concept concept2 = new Concept("name1", "description1");
+        setField(concept2, "id", conceptIdA2);
+        setField(
+                question,
+                "conceptLinks",
+                Set.of(new QuestionConcept(question, concept1), new QuestionConcept(question, concept2))
+        );
+
+        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.of(question));
+
+        Optional<QuestionResponse> questionResponse = questionService.get(id);
+        assertThat(questionResponse.isPresent(), is(true));
+
+        QuestionResponse response = questionResponse.get();
+        assertEquals(id, response.getId());
+        assertEquals(body, response.getBody());
+        assertEquals(difficulty.value(), response.getDifficulty().getValue());
+        assertEquals(difficulty.name(), response.getDifficulty().getCode());
+        assertEquals(type, response.getType());
+        assertEquals(createdAt, response.getCreatedAt());
+        assertEquals(Set.of(conceptIdA1, conceptIdA2), response.getLinkedConceptIds());
     }
 
     private static QuestionResponse responseById(List<QuestionResponse> responses, long id) {

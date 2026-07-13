@@ -53,19 +53,14 @@ public class QuestionService {
     public Optional<QuestionResponse> get(long id) {
         log.debug("Getting question by id: {}", id);
 
-        Optional<Question> optionalQuestion = questionRepository.findById(id);
+        Optional<Question> optionalQuestion = questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED);
         if (optionalQuestion.isEmpty()) {
             return Optional.empty();
         }
 
         Question question = optionalQuestion.get();
-        if (!question.getStatus().equals(QuestionStatus.APPROVED)) {
-            return Optional.empty();
-        }
-
-        List<QuestionConceptLink> links = questionConceptRepository.findLinksByQuestionIds(List.of(id));
-        Set<Long> linkedConceptIds = links.stream()
-                .map(QuestionConceptLink::conceptId)
+        Set<Long> linkedConceptIds = question.getConceptLinks().stream()
+                .map(link -> link.getId().getConceptId())
                 .collect(toSet());
 
         if (CollectionUtils.isEmpty(linkedConceptIds)) {
