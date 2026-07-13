@@ -28,6 +28,7 @@ import org.mockito.Mockito;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static utils.TestReflection.assertAllFieldsSet;
 import static utils.TestReflection.setField;
@@ -155,6 +156,7 @@ public class QuestionControllerCT {
                 .body("content.find { it.id == " + idB + " }.linkedConceptIds", containsInAnyOrder((int) conceptIdB1, (int) conceptIdB2));
 
         verify(questionRepository).findAll(Mockito.any(QuerySpecification.class), Mockito.any(Pageable.class));
+        verify(questionConceptRepository).findLinksByQuestionIds(Mockito.any());
     }
 
     @Test
@@ -174,6 +176,7 @@ public class QuestionControllerCT {
                 .body("totalCount", equalTo(0));
 
         verify(questionRepository).findAll(Mockito.any(QuerySpecification.class), Mockito.any(Pageable.class));
+        verifyNoInteractions(questionConceptRepository);
     }
 
     @Test
@@ -243,6 +246,7 @@ public class QuestionControllerCT {
                 .body("content.find { it.id == " + bareId + " }.linkedConceptIds", empty());
 
         verify(questionRepository).findAll(Mockito.any(QuerySpecification.class), Mockito.any(Pageable.class));
+        verify(questionConceptRepository).findLinksByQuestionIds(Mockito.any());
     }
 
     @Test
@@ -337,6 +341,117 @@ public class QuestionControllerCT {
                 .contentType(ContentType.JSON)
                 .body("keySet()", containsInAnyOrder("error", "status"))
                 .body("error", equalTo("conceptId: invalid value"))
+                .body("status", equalTo(400));
+    }
+
+    @Test
+    void getQuestionByIdSerialisedQuestionResponse() {
+        long id = 1L;
+        String body = "Question A";
+        QuestionDifficulty difficulty = QuestionDifficulty.EASY;
+        QuestionType type = QuestionType.EXTENDED;
+        QuestionSource source = QuestionSource.GENERATED;
+        QuestionStatus status = QuestionStatus.APPROVED;
+        String sourceSpec = "GCSE Physics";
+        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+
+        Question question = new Question(
+                body,
+                difficulty,
+                type,
+                source,
+                status,
+                sourceSpec
+        );
+        setField(question, "id", id);
+        setField(question, "createdAt", createdAt);
+
+        // Question is linked to two concepts.
+        long conceptIdA1 = 10L;
+        long conceptIdA2 = 11L;
+
+        when(questionRepository.findById(id)).thenReturn(Optional.of(question));
+        when(questionConceptRepository.findLinksByQuestionIds(Mockito.any()))
+                .thenReturn(List.of(new QuestionConceptLink(id, conceptIdA1),
+                        new QuestionConceptLink(id, conceptIdA2))
+                );
+
+        String path = QUESTIONS_PATH + "/" + id;
+        given()
+                .when()
+                .get(path)
+                .then()
+                .statusCode(OK.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("id", "body", "difficulty", "type", "createdAt", "linkedConceptIds"))
+                .body("id", equalTo((int) id))
+                .body("body", equalTo(body))
+                .body("difficulty.value", equalTo(difficulty.value()))
+                .body("difficulty.code", equalTo(difficulty.name()))
+                .body("type", equalTo(type.name()))
+                .body("createdAt", equalTo(createdAt.toString()))
+                .body("linkedConceptIds", containsInAnyOrder((int) conceptIdA1, (int) conceptIdA2));
+
+        verify(questionRepository).findById(id);
+        verify(questionConceptRepository).findLinksByQuestionIds(Mockito.any());
+    }
+
+    @Test
+    void getQuestionByIdSerialisedErrorResponseIfNotFoundForId() {
+        long id = 1L;
+
+        when(questionRepository.findById(id)).thenReturn(Optional.empty());
+
+        String path = QUESTIONS_PATH + "/" + id;
+        given()
+                .when()
+                .get(path)
+                .then()
+                .statusCode(NOT_FOUND.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("Could not find resource for path: " + path))
+                .body("status", equalTo(404));
+
+        verify(questionRepository).findById(id);
+        verifyNoInteractions(questionConceptRepository);
+    }
+
+    @Test
+    void getQuestionByIdSerialisedErrorResponseIfNFoundForQuestionIdButNoLinks() {
+        long id = 1L;
+        Question question = new Question(null, null, null, null, null, null);
+        setField(question, "id", id);
+
+        when(questionRepository.findById(id)).thenReturn(Optional.of(question));
+        when(questionConceptRepository.findLinksByQuestionIds(Mockito.any())).thenReturn(List.of());
+
+        String path = QUESTIONS_PATH + "/" + id;
+        given()
+                .when()
+                .get(path)
+                .then()
+                .statusCode(NOT_FOUND.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("Could not find resource for path: " + path))
+                .body("status", equalTo(404));
+
+        verify(questionRepository).findById(id);
+        verify(questionConceptRepository).findLinksByQuestionIds(Mockito.any());
+    }
+
+    @Test
+    void getQuestionByIdReturnsBadRequestIfIdNotNaturalNumber() {
+        String path = QUESTIONS_PATH + "/error";
+        given()
+                .when()
+                .get(path)
+                .then()
+                .statusCode(BAD_REQUEST.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("id: invalid value "))
                 .body("status", equalTo(400));
     }
 
