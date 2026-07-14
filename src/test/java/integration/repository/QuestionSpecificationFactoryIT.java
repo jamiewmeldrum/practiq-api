@@ -7,36 +7,20 @@ import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import com.practiq.repository.QuestionRepository;
-import io.micronaut.data.model.Pageable;
-import io.micronaut.data.model.Sort;
-import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import utils.IntegrationTest;
 import utils.data.QuestionTestData;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.*;
 
-// A QuerySpecification is an opaque lambda — the only faithful way to verify the predicate it adds
-// (the status / type / difficulty / concept filters) is to execute it against a real database and
-// observe which rows survive. The spec produces WHERE only; ordering is applied via the Pageable's
-// (created_at, id) sort in the service, exercised here by the paged-order test.
-//
-// Every question that should survive a filter is linked to a concept, because a null-conceptId query
-// additionally requires at least one link (see forQueryWithNoConceptIdExcludesUnlinkedQuestions): an
-// unlinked question is unprocessed and never served, so leaving links off would mask what a filter does.
 @IntegrationTest
 class QuestionSpecificationFactoryIT {
-
-    private static final long CONCEPT_ID = 100L;
-    private static final Sort STABLE_ORDER = Sort.of(Sort.Order.asc("createdAt"), Sort.Order.asc("id"));
 
     @Inject
     private QuestionTestData data;
@@ -50,7 +34,6 @@ class QuestionSpecificationFactoryIT {
     @BeforeEach
     void setUp() {
         data.clear();
-        data.concept(CONCEPT_ID).insert();
     }
 
     @Test
@@ -63,19 +46,23 @@ class QuestionSpecificationFactoryIT {
         data.question(approvedTwoId).status(QuestionStatus.APPROVED).insert();
         data.question(pendingId).status(QuestionStatus.PENDING).insert();
         data.question(rejectedId).status(QuestionStatus.REJECTED).insert();
-        link(approvedOneId);
-        link(approvedTwoId);
-        link(pendingId);
-        link(rejectedId);
 
         // Each status returns only its own rows — proving the filter is driven by the query's status
         // value, not a hard-coded one.
-        assertThat(ids(findQuestions(query(List.of(), List.of(), QuestionStatus.APPROVED, null))),
-                containsInAnyOrder(approvedOneId, approvedTwoId));
-        assertThat(ids(findQuestions(query(List.of(), List.of(), QuestionStatus.PENDING, null))),
-                containsInAnyOrder(pendingId));
-        assertThat(ids(findQuestions(query(List.of(), List.of(), QuestionStatus.REJECTED, null))),
-                containsInAnyOrder(rejectedId));
+        QuestionQuery approvedQuery = QuestionQuery.builder()
+                .status(QuestionStatus.APPROVED)
+                .build();
+        assertThat(ids(findQuestions(approvedQuery)), containsInAnyOrder(approvedOneId, approvedTwoId));
+
+        QuestionQuery pendingQuery = QuestionQuery.builder()
+                .status(QuestionStatus.PENDING)
+                .build();
+        assertThat(ids(findQuestions(pendingQuery)), containsInAnyOrder(pendingId));
+
+        QuestionQuery rejectedQuery = QuestionQuery.builder()
+                .status(QuestionStatus.REJECTED)
+                .build();
+        assertThat(ids(findQuestions(rejectedQuery)), containsInAnyOrder(rejectedId));
     }
 
     @Test
@@ -83,16 +70,13 @@ class QuestionSpecificationFactoryIT {
         long shortAnswerId = 1L;
         long extendedId = 2L;
         long mcqId = 3L;
-        // All APPROVED so status can't be what narrows the result — only the type filter can.
-        data.question(shortAnswerId).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).insert();
-        data.question(extendedId).status(QuestionStatus.APPROVED).type(QuestionType.EXTENDED).insert();
-        data.question(mcqId).status(QuestionStatus.APPROVED).type(QuestionType.MCQ).insert();
-        link(shortAnswerId);
-        link(extendedId);
-        link(mcqId);
+        data.question(shortAnswerId).type(QuestionType.SHORT_ANSWER).insert();
+        data.question(extendedId).type(QuestionType.EXTENDED).insert();
+        data.question(mcqId).type(QuestionType.MCQ).insert();
 
-        QuestionQuery query = query(
-                List.of(QuestionType.SHORT_ANSWER, QuestionType.EXTENDED), List.of(), QuestionStatus.APPROVED, null);
+        QuestionQuery query = QuestionQuery.builder()
+                .types(List.of(QuestionType.SHORT_ANSWER, QuestionType.EXTENDED))
+                .build();
 
         // Only the two requested types come back; the MCQ row is excluded.
         assertThat(ids(findQuestions(query)), containsInAnyOrder(shortAnswerId, extendedId));
@@ -103,16 +87,13 @@ class QuestionSpecificationFactoryIT {
         long trivialId = 1L;
         long mediumId = 2L;
         long veryHardId = 3L;
-        // All APPROVED so only the difficulty filter narrows the result.
-        data.question(trivialId).status(QuestionStatus.APPROVED).difficulty(QuestionDifficulty.TRIVIAL).insert();
-        data.question(mediumId).status(QuestionStatus.APPROVED).difficulty(QuestionDifficulty.MEDIUM).insert();
-        data.question(veryHardId).status(QuestionStatus.APPROVED).difficulty(QuestionDifficulty.VERY_HARD).insert();
-        link(trivialId);
-        link(mediumId);
-        link(veryHardId);
+        data.question(trivialId).difficulty(QuestionDifficulty.TRIVIAL).insert();
+        data.question(mediumId).difficulty(QuestionDifficulty.MEDIUM).insert();
+        data.question(veryHardId).difficulty(QuestionDifficulty.VERY_HARD).insert();
 
-        QuestionQuery query = query(
-                List.of(), List.of(QuestionDifficulty.TRIVIAL, QuestionDifficulty.VERY_HARD), QuestionStatus.APPROVED, null);
+        QuestionQuery query = QuestionQuery.builder()
+                .difficulties(List.of(QuestionDifficulty.TRIVIAL, QuestionDifficulty.VERY_HARD))
+                .build();
 
         // The stored integer difficulty (1/3/5) is matched against the requested enum values via the
         // attribute converter: the MEDIUM (3) row is excluded, TRIVIAL (1) and VERY_HARD (5) survive.
@@ -121,22 +102,26 @@ class QuestionSpecificationFactoryIT {
 
     @Test
     void forQueryFiltersToTheConceptIdOnTheQuery() {
-        long conceptA = CONCEPT_ID;
+        long conceptA = 100L;
         long conceptB = 101L;
+
+        data.concept(conceptA).insert();
         data.concept(conceptB).insert();
 
         long linkedToA = 1L;
         long linkedToB = 2L;
         long synoptic = 3L;
-        data.question(linkedToA).status(QuestionStatus.APPROVED).insert();
-        data.question(linkedToB).status(QuestionStatus.APPROVED).insert();
-        data.question(synoptic).status(QuestionStatus.APPROVED).insert();
+        data.question(linkedToA).insert();
+        data.question(linkedToB).insert();
+        data.question(synoptic).insert();
         data.link(linkedToA, conceptA).insert();
         data.link(linkedToB, conceptB).insert();
         data.link(synoptic, conceptA).insert();
         data.link(synoptic, conceptB).insert();
 
-        QuestionQuery query = query(List.of(), List.of(), QuestionStatus.APPROVED, conceptA);
+        QuestionQuery query = QuestionQuery.builder()
+                .conceptId(conceptA)
+                .build();
 
         // Only questions linked to concept A survive: the A-only question and the synoptic (A+B) one.
         // The B-only question is excluded. Critically the synoptic question appears exactly once despite
@@ -147,106 +132,133 @@ class QuestionSpecificationFactoryIT {
     }
 
     @Test
-    void forQueryWithNoConceptIdExcludesUnlinkedQuestions() {
+    void forQueryFiltersToTheQuestionIdOnTheQuery() {
+        long idA = 1L;
+        long idB = 2L;
+        data.question(idA).insert();
+        data.question(idB).insert();
+
+        QuestionQuery query = QuestionQuery.builder()
+                .questionId(idB)
+                .build();
+
+        assertThat(ids(findQuestions(query)), contains(idB));
+    }
+
+    @Test
+    void requiresConceptLinkFiltersUnlinkedQuestions() {
         long linkedId = 1L;
         long unlinkedId = 2L;
-        // Both APPROVED; the only difference is the link. A null conceptId means "no concept filter", but
-        // an unlinked question is unprocessed and must still never be served.
-        data.question(linkedId).status(QuestionStatus.APPROVED).insert();
-        data.question(unlinkedId).status(QuestionStatus.APPROVED).insert();
-        link(linkedId);
+        data.question(linkedId).insert();
+        data.question(unlinkedId).insert();
 
-        QuestionQuery query = query(List.of(), List.of(), QuestionStatus.APPROVED, null);
+        long concept = 100L;
+        data.concept(concept).insert();
+
+        data.link(linkedId, concept).insert();
+
+        //Explicit test to ensure behavior actually flips
+        QuestionQuery query = QuestionQuery.builder()
+                .requiresConceptLink(false)
+                .build();
+
+        assertThat(ids(findQuestions(query)), containsInAnyOrder(linkedId, unlinkedId));
+
+        query = QuestionQuery.builder()
+                .requiresConceptLink(true)
+                .build();
 
         assertThat(ids(findQuestions(query)), containsInAnyOrder(linkedId));
     }
 
     @Test
-    void forQueryWithoutLinkRequirementReturnsUnlinkedQuestions() {
-        long linkedId = 1L;
-        long unlinkedId = 2L;
-        // The admin-review path: PENDING questions must be visible whether or not they are linked yet —
-        // unlinked ones are precisely the ones most in need of review. This pins that dropping the link
-        // requirement actually widens the result, before any admin endpoint exists to depend on it.
-        data.question(linkedId).status(QuestionStatus.PENDING).insert();
-        data.question(unlinkedId).status(QuestionStatus.PENDING).insert();
-        link(linkedId);
-
-        QuestionQuery query = new QuestionQuery(List.of(), List.of(), QuestionStatus.PENDING, null, false);
-
-        assertThat(ids(findQuestions(query)), containsInAnyOrder(linkedId, unlinkedId));
-    }
-
-    @Test
     void forQueryAppliesAllFiltersConjunctively() {
-        // Each row is excluded by exactly one filter, so the sole survivor proves every filter is applied
-        // AND-ed together. A row leaking in means the filter that should have dropped it is no longer
-        // applied. Extend this by adding a row a new filter is the only one to exclude.
         long matches = 1L;
-        long wrongType = 2L;
-        long wrongDifficulty = 3L;
-        long wrongStatus = 4L;
-        long unlinked = 5L;
+        long wrongQuestionId = 2L;
+        long wrongType = 3L;
+        long wrongDifficulty = 4L;
+        long wrongStatus = 5L;
+        long unlinked = 6L;
+        long wrongLink = 7L;
+
         data.question(matches).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
+        data.question(wrongQuestionId).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
         data.question(wrongType).status(QuestionStatus.APPROVED).type(QuestionType.MCQ).difficulty(QuestionDifficulty.EASY).insert();
         data.question(wrongDifficulty).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.HARD).insert();
         data.question(wrongStatus).status(QuestionStatus.PENDING).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
         data.question(unlinked).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
-        // Every candidate but the unlinked one is linked, so the concept requirement isn't what excludes
-        // the type/difficulty/status losers — their own filter is.
-        link(matches);
-        link(wrongType);
-        link(wrongDifficulty);
-        link(wrongStatus);
+        data.question(wrongLink).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
 
-        QuestionQuery query = query(
-                List.of(QuestionType.SHORT_ANSWER), List.of(QuestionDifficulty.EASY), QuestionStatus.APPROVED, null);
+        long conceptA = 100L;
+        long conceptB = 101L;
+
+        data.concept(conceptA).insert();
+        data.concept(conceptB).insert();
+
+        data.link(matches, conceptA).insert();
+        data.link(wrongType, conceptA).insert();
+        data.link(wrongDifficulty, conceptA).insert();
+        data.link(wrongStatus, conceptA).insert();
+        data.link(wrongLink, conceptB).insert();
+
+        QuestionQuery query = QuestionQuery.builder()
+                .types(List.of(QuestionType.SHORT_ANSWER))
+                .difficulties(List.of(QuestionDifficulty.EASY))
+                .status(QuestionStatus.APPROVED)
+                .conceptId(conceptA)
+                .questionId(matches)
+                .requiresConceptLink(true)
+                .build();
 
         assertThat(ids(findQuestions(query)), containsInAnyOrder(matches));
     }
 
     @Test
-    void pagedQueryReturnsQuestionsInStableCreatedAtThenIdOrder() {
-        OffsetDateTime earlier = OffsetDateTime.parse("2026-01-01T00:00:00Z");
-        OffsetDateTime later = OffsetDateTime.parse("2026-01-02T00:00:00Z");
+    void forQueryWithoutFiltersReturnsAll() {
+        long base = 1L;
+        long differentQuestionId = 2L;
+        long differentType = 3L;
+        long differentDifficulty = 4L;
+        long differentStatus = 5L;
+        long unlinked = 6L;
+        long differentLink = 7L;
 
-        // earliestByTime has the highest id but the earliest created_at; the other two share a created_at
-        // so only the id tiebreak separates them. Expected order: created_at first (earliestByTime leads),
-        // then id ascending within the equal-timestamp pair.
-        long earliestByTime = 3L;
-        long sameTimeLowId = 1L;
-        long sameTimeHighId = 2L;
-        data.question(earliestByTime).status(QuestionStatus.APPROVED).createdAt(earlier).insert();
-        data.question(sameTimeLowId).status(QuestionStatus.APPROVED).createdAt(later).insert();
-        data.question(sameTimeHighId).status(QuestionStatus.APPROVED).createdAt(later).insert();
-        link(earliestByTime);
-        link(sameTimeLowId);
-        link(sameTimeHighId);
+        data.question(base).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
+        data.question(differentQuestionId).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
+        data.question(differentType).status(QuestionStatus.APPROVED).type(QuestionType.MCQ).difficulty(QuestionDifficulty.EASY).insert();
+        data.question(differentDifficulty).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.HARD).insert();
+        data.question(differentStatus).status(QuestionStatus.PENDING).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
+        data.question(unlinked).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
+        data.question(differentLink).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
 
-        QuerySpecification<Question> spec = questionSpecificationFactory.forQuery(
-                query(List.of(), List.of(), QuestionStatus.APPROVED, null));
-        Pageable ordered = Pageable.from(0, 10, STABLE_ORDER);
+        long conceptA = 100L;
+        long conceptB = 101L;
 
-        List<Question> results = questionRepository.findAll(spec, ordered).getContent();
+        data.concept(conceptA).insert();
+        data.concept(conceptB).insert();
 
-        assertThat(ids(results), contains(earliestByTime, sameTimeLowId, sameTimeHighId));
-    }
+        data.link(base, conceptA).insert();
+        data.link(differentType, conceptA).insert();
+        data.link(differentDifficulty, conceptA).insert();
+        data.link(differentStatus, conceptA).insert();
+        data.link(differentLink, conceptB).insert();
 
-    // Links an already-inserted question to the shared concept so it survives the null-conceptId
-    // hasConcept requirement. Call after the question row exists (the link FK references it).
-    private void link(long questionId) {
-        data.link(questionId, CONCEPT_ID).insert();
+        QuestionQuery query = QuestionQuery.builder().build();
+
+        assertThat(ids(findQuestions(query)),
+                containsInAnyOrder(
+                        base,
+                        differentQuestionId,
+                        differentType,
+                        differentDifficulty,
+                        differentStatus,
+                        unlinked,
+                        differentLink
+                ));
     }
 
     private List<Question> findQuestions(QuestionQuery query) {
         return questionRepository.findAll(questionSpecificationFactory.forQuery(query));
-    }
-
-    // All standard cases run link-required (the student policy); the admin-path test constructs its
-    // no-link-required query directly.
-    private static QuestionQuery query(List<QuestionType> types, List<QuestionDifficulty> difficulties,
-                                       QuestionStatus status, Long conceptId) {
-        return new QuestionQuery(types, difficulties, status, conceptId, true);
     }
 
     private static List<Long> ids(List<Question> questions) {

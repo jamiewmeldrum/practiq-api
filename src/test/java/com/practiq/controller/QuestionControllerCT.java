@@ -2,7 +2,6 @@ package com.practiq.controller;
 
 import com.practiq.domain.Concept;
 import com.practiq.domain.Question;
-import com.practiq.domain.QuestionConcept;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
@@ -47,13 +46,13 @@ public class QuestionControllerCT {
     private QuestionRepository questionRepository;
 
     @Inject
+    private QuestionConceptRepository questionConceptRepository;
+
+    @Inject
     private QuestionService questionService;
 
     @Inject
     private EmbeddedServer embeddedServer;
-
-    @Inject
-    private QuestionConceptRepository questionConceptRepository;
 
     @MockBean(QuestionRepository.class)
     QuestionRepository questionRepository() {
@@ -374,13 +373,13 @@ public class QuestionControllerCT {
         setField(concept1, "id", conceptIdA1);
         Concept concept2 = new Concept("name1", "description1");
         setField(concept2, "id", conceptIdA2);
-        setField(
-                question,
-                "conceptLinks",
-                Set.of(new QuestionConcept(question, concept1), new QuestionConcept(question, concept2))
+        List<QuestionConceptLink> links = List.of(
+                new QuestionConceptLink(id, conceptIdA1),
+                new QuestionConceptLink(id, conceptIdA2)
         );
 
-        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.of(question));
+        when(questionRepository.findOne(Mockito.any(QuerySpecification.class))).thenReturn(Optional.of(question));
+        when(questionConceptRepository.findLinksByQuestionIds(List.of(id))).thenReturn(links);
 
         String path = QUESTIONS_PATH + "/" + id;
         given()
@@ -398,14 +397,15 @@ public class QuestionControllerCT {
                 .body("createdAt", equalTo(createdAt.toString()))
                 .body("linkedConceptIds", containsInAnyOrder((int) conceptIdA1, (int) conceptIdA2));
 
-        verify(questionRepository).findByIdAndStatus(id, QuestionStatus.APPROVED);
+        verify(questionRepository).findOne(Mockito.any(QuerySpecification.class));
+        verify(questionConceptRepository).findLinksByQuestionIds(List.of(id));
     }
 
     @Test
     void getQuestionByIdSerialisedErrorResponseIfNotFound() {
         long id = 1L;
 
-        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.empty());
+        when(questionRepository.findOne(Mockito.any(QuerySpecification.class))).thenReturn(Optional.empty());
 
         String path = QUESTIONS_PATH + "/" + id;
         given()
@@ -418,30 +418,7 @@ public class QuestionControllerCT {
                 .body("error", equalTo("Could not find resource for path: " + path))
                 .body("status", equalTo(404));
 
-        verify(questionRepository).findByIdAndStatus(id, QuestionStatus.APPROVED);
-    }
-
-    @Test
-    void getQuestionByIdSerialisedErrorResponseIfFoundForQuestionIdButNoLinks() {
-        long id = 1L;
-        Question question = new Question(null, null, null, null, null, null);
-        setField(question, "id", id);
-        setField(question, "conceptLinks", new HashSet<>());
-
-        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.of(question));
-
-        String path = QUESTIONS_PATH + "/" + id;
-        given()
-                .when()
-                .get(path)
-                .then()
-                .statusCode(NOT_FOUND.getCode())
-                .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("error", "status"))
-                .body("error", equalTo("Could not find resource for path: " + path))
-                .body("status", equalTo(404));
-
-        verify(questionRepository).findByIdAndStatus(id, QuestionStatus.APPROVED);
+        verify(questionRepository).findOne(Mockito.any(QuerySpecification.class));
     }
 
     @Test

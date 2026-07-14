@@ -4,7 +4,6 @@ import com.practiq.domain.Question;
 import com.practiq.domain.query.QuestionQuery;
 import com.practiq.domain.query.QuestionSpecificationFactory;
 import com.practiq.domain.types.QuestionDifficulty;
-import com.practiq.domain.types.QuestionStatus;
 import com.practiq.dto.request.QuestionRequest;
 import com.practiq.dto.response.PageResponse;
 import com.practiq.dto.response.QuestionDifficultyResponse;
@@ -12,7 +11,6 @@ import com.practiq.dto.response.QuestionResponse;
 import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.repository.QuestionConceptRepository;
 import com.practiq.repository.QuestionRepository;
-import io.micronaut.core.util.CollectionUtils;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.Sort;
@@ -53,21 +51,19 @@ public class QuestionService {
     public Optional<QuestionResponse> get(long id) {
         log.debug("Getting question by id: {}", id);
 
-        Optional<Question> optionalQuestion = questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED);
-        if (optionalQuestion.isEmpty()) {
+        QuestionQuery query = QuestionQuery.studentCatalogue(id);
+        QuerySpecification<Question> spec = questionSpecificationFactory.forQuery(query);
+
+        Optional<Question> optionalQuestion = questionRepository.findOne(spec);
+        if(optionalQuestion.isEmpty()) {
             return Optional.empty();
         }
 
-        Question question = optionalQuestion.get();
-        Set<Long> linkedConceptIds = question.getConceptLinks().stream()
-                .map(link -> link.getId().getConceptId())
+        Set<Long> questionConcepts = questionConceptRepository.findLinksByQuestionIds(List.of(id)).stream()
+                .map(QuestionConceptLink::conceptId)
                 .collect(toSet());
 
-        if (CollectionUtils.isEmpty(linkedConceptIds)) {
-            return Optional.empty();
-        }
-
-        return Optional.of(toQuestionResponse(question, linkedConceptIds));
+        return optionalQuestion.map(q -> toQuestionResponse(q, questionConcepts));
     }
 
     @Transactional(readOnly = true)
