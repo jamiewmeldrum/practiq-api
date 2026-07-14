@@ -33,20 +33,22 @@ public class QuestionQuery {
     public static QuestionQuery studentCatalogue(List<QuestionType> types,
                                                  List<QuestionDifficulty> difficulties,
                                                  Long conceptId) {
-        return QuestionQuery.builder()
+        return studentCatalogueBuilder()
                 .types(types)
                 .difficulties(difficulties)
-                .status(QuestionStatus.APPROVED)
                 .conceptId(conceptId)
-                .requiresConceptLink(true)
                 .build();
     }
 
     public static QuestionQuery studentCatalogue(long questionId) {
+        return studentCatalogueBuilder()
+                .questionId(questionId)
+                .build();
+    }
+
+    private static QuestionQueryBuilder studentCatalogueBuilder() {
         return QuestionQuery.builder()
                 .status(QuestionStatus.APPROVED)
-                .questionId(questionId)
-                .requiresConceptLink(true)
-                .build();
+                .requiresConceptLink(true);
     }
 }
