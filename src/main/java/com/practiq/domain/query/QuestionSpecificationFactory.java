@@ -8,11 +8,13 @@ import com.practiq.domain.Question_;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
+import io.micronaut.core.util.CollectionUtils;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.inject.Singleton;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 
+import java.util.Collections;
 import java.util.List;
 
 @Singleton
@@ -22,24 +24,34 @@ public class QuestionSpecificationFactory {
     // (in the service), so this no longer fetch-joins, no longer needs distinct, and no longer has to
     // guard against the paged count query.
     public QuerySpecification<Question> forQuery(QuestionQuery query) {
-        QuerySpecification<Question> specification = hasStatus(query.status());
 
-        if (!query.types().isEmpty()) {
-            specification = specification.and(isInQuestionTypes(query.types()));
+        QuerySpecification<Question> specification =
+                (root, criteriaQuery, cb) -> cb.conjunction();
+        if (query.getStatus() != null) {
+            specification = specification.and(hasStatus(query.getStatus()));
         }
 
-        if (!query.difficulties().isEmpty()) {
-            specification = specification.and(isInQuestionDifficulties(query.difficulties()));
+        if (!CollectionUtils.isEmpty(query.getTypes())) {
+            specification = specification.and(isInQuestionTypes(query.getTypes()));
+        }
+
+        if (!CollectionUtils.isEmpty(query.getDifficulties())) {
+            specification = specification.and(isInQuestionDifficulties(query.getDifficulties()));
         }
 
         // Serving policy comes from the query, not this factory: a conceptId filter implies a link, and
         // otherwise the link requirement applies only when the query demands it (student catalogue does;
         // an admin review query must be able to see unlinked questions).
-        if (query.conceptId() != null) {
-            specification = specification.and(hasConceptForId(query.conceptId()));
-        } else if (query.requiresConceptLink()) {
+        if (query.getConceptId() != null) {
+            specification = specification.and(hasConceptForId(query.getConceptId()));
+        } else if (query.isRequiresConceptLink()) {
             specification = specification.and(hasConcept());
         }
+
+        if (query.getQuestionId() != null) {
+            specification = specification.and(hasId(query.getQuestionId()));
+        }
+
         return specification;
     }
 
@@ -80,5 +92,9 @@ public class QuestionSpecificationFactory {
             );
             return cb.exists(matchingLink);
         };
+    }
+
+    private QuerySpecification<Question> hasId(long id) {
+        return (root, criteriaQuery, cb) -> cb.equal(root.get(Question_.id), id);
     }
 }

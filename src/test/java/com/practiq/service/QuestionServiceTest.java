@@ -2,7 +2,6 @@ package com.practiq.service;
 
 import com.practiq.domain.Concept;
 import com.practiq.domain.Question;
-import com.practiq.domain.QuestionConcept;
 import com.practiq.domain.query.QuestionQuery;
 import com.practiq.domain.query.QuestionSpecificationFactory;
 import com.practiq.domain.types.QuestionDifficulty;
@@ -31,7 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.*;
@@ -63,7 +62,7 @@ class QuestionServiceTest {
         Pageable requested = Pageable.from(0, 20);
         Pageable ordered = Pageable.from(0, 20, STABLE_ORDER);
 
-        QuestionQuery approvedOnly = QuestionQuery.studentCatalogue(List.of(), List.of(), null);
+        QuestionQuery approvedOnly = catalogueQuery(null, null, null);
         when(questionSpecificationFactory.forQuery(approvedOnly)).thenReturn(SPEC);
         when(questionRepository.findAll(SPEC, ordered)).thenReturn(Page.of(List.of(), ordered, 0L));
 
@@ -97,10 +96,8 @@ class QuestionServiceTest {
         Pageable requested = Pageable.from(0, 20);
         Pageable ordered = Pageable.from(0, 20, STABLE_ORDER);
 
-        // The request's filters reach the factory verbatim inside a student-catalogue query. Exact-arg
-        // stub-then-verify: QuestionQuery is a record, so equality checks every field, including the
-        // baked-in APPROVED status and concept-link requirement.
-        QuestionQuery expectedQuery = QuestionQuery.studentCatalogue(types, difficulties, 42L);
+        // The request's filters reach the factory verbatim inside the student-catalogue query.
+        QuestionQuery expectedQuery = catalogueQuery(types, difficulties, 42L);
         when(questionSpecificationFactory.forQuery(expectedQuery)).thenReturn(SPEC);
         when(questionRepository.findAll(SPEC, ordered)).thenReturn(Page.of(List.of(), ordered, 0L));
 
@@ -135,7 +132,7 @@ class QuestionServiceTest {
         setField(bare, "id", bareId);
         setField(bare, "createdAt", bareCreatedAt);
 
-        QuestionQuery approvedOnly = QuestionQuery.studentCatalogue(List.of(), List.of(), null);
+        QuestionQuery approvedOnly = catalogueQuery(null, null, null);
         when(questionSpecificationFactory.forQuery(approvedOnly)).thenReturn(SPEC);
         when(questionRepository.findAll(SPEC, ordered)).thenReturn(Page.of(List.of(linked, bare), ordered, 2L));
 
@@ -166,42 +163,26 @@ class QuestionServiceTest {
         assertNull(bareResponse.getType());
         assertEquals(bareCreatedAt, bareResponse.getCreatedAt());
         assertEquals(Set.of(), bareResponse.getLinkedConceptIds());
+
+        verify(questionSpecificationFactory).forQuery(approvedOnly);
+        verify(questionRepository).findAll(SPEC, ordered);
+        verify(questionConceptRepository).findLinksByQuestionIds(Set.of(linkedId, bareId));
     }
 
     @Test
-    void getQuestionByIdQueriesDatabaseByIdAndApprovedStatus() {
+    void getQuestionByIdReturnsEmptyResponseIfNoMatch() {
         long id = 1L;
 
-        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.empty());
-
-        questionService.get(id);
-
-        verify(questionRepository).findByIdAndStatus(id, QuestionStatus.APPROVED);
-    }
-
-    @Test
-    void getQuestionByIdReturnsOptionalEmptyIfQuestionDoesNotExist() {
-        long id = 1L;
-
-        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.empty());
+        QuestionQuery findQuestionByIdQuery = findQuestionByIdQuery(id);
+        when(questionSpecificationFactory.forQuery(findQuestionByIdQuery)).thenReturn(SPEC);
+        when(questionRepository.findOne(SPEC)).thenReturn(Optional.empty());
 
         Optional<QuestionResponse> questionResponse = questionService.get(id);
-        assertThat(questionResponse.isPresent(), is(false));
-    }
 
-    @Test
-    void getQuestionByIdReturnsOptionalEmptyIfQuestionDoesNotHaveConceptLinks() {
-        long id = 1L;
+        assertThat(questionResponse.isPresent(), equalTo(false));
 
-        Question question = spy(new Question(null, null, null, null, null, null));
-        setField(question, "id", id);
-
-        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.of(question));
-
-        Optional<QuestionResponse> questionResponse = questionService.get(id);
-        assertThat(questionResponse.isPresent(), is(false));
-
-        verify(question).getConceptLinks();
+        verify(questionSpecificationFactory).forQuery(findQuestionByIdQuery);
+        verify(questionRepository).findOne(SPEC);
     }
 
     @Test
@@ -234,16 +215,18 @@ class QuestionServiceTest {
         setField(concept1, "id", conceptIdA1);
         Concept concept2 = new Concept("name1", "description1");
         setField(concept2, "id", conceptIdA2);
-        setField(
-                question,
-                "conceptLinks",
-                Set.of(new QuestionConcept(question, concept1), new QuestionConcept(question, concept2))
+        List<QuestionConceptLink> links = List.of(
+                new QuestionConceptLink(id, conceptIdA1),
+                new QuestionConceptLink(id, conceptIdA2)
         );
 
-        when(questionRepository.findByIdAndStatus(id, QuestionStatus.APPROVED)).thenReturn(Optional.of(question));
+        QuestionQuery findQuestionByIdQuery = findQuestionByIdQuery(id);
+        when(questionSpecificationFactory.forQuery(findQuestionByIdQuery)).thenReturn(SPEC);
+        when(questionRepository.findOne(SPEC)).thenReturn(Optional.of(question));
+        when(questionConceptRepository.findLinksByQuestionIds(List.of(id))).thenReturn(links);
 
         Optional<QuestionResponse> questionResponse = questionService.get(id);
-        assertThat(questionResponse.isPresent(), is(true));
+        assertThat(questionResponse.isPresent(), equalTo(true));
 
         QuestionResponse response = questionResponse.get();
         assertEquals(id, response.getId());
@@ -253,6 +236,10 @@ class QuestionServiceTest {
         assertEquals(type, response.getType());
         assertEquals(createdAt, response.getCreatedAt());
         assertEquals(Set.of(conceptIdA1, conceptIdA2), response.getLinkedConceptIds());
+
+        verify(questionSpecificationFactory).forQuery(findQuestionByIdQuery);
+        verify(questionRepository).findOne(SPEC);
+        verify(questionConceptRepository).findLinksByQuestionIds(List.of(id));
     }
 
     private static QuestionResponse responseById(List<QuestionResponse> responses, long id) {
@@ -260,5 +247,25 @@ class QuestionServiceTest {
                 .filter(response -> response.getId() == id)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("No response with id " + id));
+    }
+
+    private QuestionQuery findQuestionByIdQuery(long questionId) {
+        return QuestionQuery.builder()
+                .status(QuestionStatus.APPROVED)
+                .questionId(questionId)
+                .requiresConceptLink(true)
+                .build();
+    }
+
+    // Hand-built rather than via QuestionQuery.studentCatalogue(...) so the expectation is independent of
+    // the production factory: a regression that widens the policy breaks this test instead of moving with it.
+    private QuestionQuery catalogueQuery(List<QuestionType> types, List<QuestionDifficulty> difficulties, Long conceptId) {
+        return QuestionQuery.builder()
+                .types(types)
+                .difficulties(difficulties)
+                .status(QuestionStatus.APPROVED)
+                .conceptId(conceptId)
+                .requiresConceptLink(true)
+                .build();
     }
 }

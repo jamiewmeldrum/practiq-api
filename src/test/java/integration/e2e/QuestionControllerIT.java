@@ -13,6 +13,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Map;
 
@@ -251,20 +252,6 @@ class QuestionControllerIT {
     }
 
     @Test
-    void getQuestionByIdReturns404IfNotFound() {
-        String path = QUESTIONS_PATH + "/123";
-        given()
-                .when()
-                .get(path)
-                .then()
-                .statusCode(NOT_FOUND.getCode())
-                .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("error", "status"))
-                .body("error", equalTo("Could not find resource for path: " + path))
-                .body("status", equalTo(404));
-    }
-
-    @Test
     void getQuestionByIdReturnsNotFoundIfNoApprovedQuestionExistsForId() {
         long targetId = 1L;
         data.question(targetId)
@@ -309,22 +296,33 @@ class QuestionControllerIT {
 
     @Test
     void getQuestionByIdReturnsQuestionIfApprovedAndLinkedQuestionExistsForId() {
-        String approvedBody = "State Newton's first law.";
-        long approvedId = 1L;
-        data.question(approvedId)
+        long id = 1L;
+        String body = "State Newton's first law.";
+        QuestionDifficulty difficulty = QuestionDifficulty.MEDIUM;
+        QuestionType type = QuestionType.SHORT_ANSWER;
+        data.question(id)
                 .status(QuestionStatus.APPROVED)
-                .body(approvedBody)
+                .difficulty(difficulty)
+                .body(body)
+                .type(type)
                 .source(QuestionSource.SEED)
                 .insert();
-        data.link(approvedId, CONCEPT_ID).insert();
+        data.link(id, CONCEPT_ID).insert();
 
         given()
                 .when()
-                .get(QUESTIONS_PATH + "/" + approvedId)
+                .get(QUESTIONS_PATH + "/" + id)
                 .then()
                 .statusCode(OK.getCode())
                 .contentType(ContentType.JSON)
-                .body("body", equalTo(approvedBody));
+                .body("keySet()", containsInAnyOrder("id", "body", "difficulty", "type", "createdAt", "linkedConceptIds"))
+                .body("id", equalTo((int) id))
+                .body("body", equalTo(body))
+                .body("difficulty.value", equalTo(difficulty.value()))
+                .body("difficulty.code", equalTo(difficulty.name()))
+                .body("type", equalTo(type.name()))
+                .body("createdAt", matchesPattern(data.getInstantPattern()))
+                .body("linkedConceptIds", contains((int) CONCEPT_ID));
     }
 
     private void approvedLinkedQuestion(long id, String body, OffsetDateTime createdAt) {
