@@ -1,6 +1,5 @@
 package com.practiq.controller;
 
-import com.practiq.domain.Concept;
 import com.practiq.domain.Question;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
@@ -369,10 +368,6 @@ public class QuestionControllerCT {
         long conceptIdA1 = 10L;
         long conceptIdA2 = 11L;
 
-        Concept concept1 = new Concept("name1", "description1");
-        setField(concept1, "id", conceptIdA1);
-        Concept concept2 = new Concept("name1", "description1");
-        setField(concept2, "id", conceptIdA2);
         List<QuestionConceptLink> links = List.of(
                 new QuestionConceptLink(id, conceptIdA1),
                 new QuestionConceptLink(id, conceptIdA2)

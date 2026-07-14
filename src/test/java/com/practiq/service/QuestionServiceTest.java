@@ -1,6 +1,5 @@
 package com.practiq.service;
 
-import com.practiq.domain.Concept;
 import com.practiq.domain.Question;
 import com.practiq.domain.query.QuestionQuery;
 import com.practiq.domain.query.QuestionSpecificationFactory;
@@ -211,10 +210,6 @@ class QuestionServiceTest {
         long conceptIdA1 = 10L;
         long conceptIdA2 = 11L;
 
-        Concept concept1 = new Concept("name1", "description1");
-        setField(concept1, "id", conceptIdA1);
-        Concept concept2 = new Concept("name1", "description1");
-        setField(concept2, "id", conceptIdA2);
         List<QuestionConceptLink> links = List.of(
                 new QuestionConceptLink(id, conceptIdA1),
                 new QuestionConceptLink(id, conceptIdA2)
