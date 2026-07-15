@@ -11,9 +11,10 @@ import java.util.Map;
 
 public abstract class TestData {
 
+    protected static final String CONCEPT_TABLE = "concept";
     protected static final String QUESTION_TABLE = "question";
     protected static final String QUESTION_CONCEPT_TABLE = "question_concept";
-    protected static final String CONCEPT_TABLE = "concept";
+    protected static final String MARK_SCHEME_TABLE = "mark_scheme";
 
     protected static final String ISO_8601_UTC = "\\d{4}-\\d{2}-\\d{2}T.*Z";
 
@@ -134,6 +135,41 @@ public abstract class TestData {
 
         public void insert() {
             testDatabase.insert(QUESTION_CONCEPT_TABLE, columns);
+        }
+    }
+
+    public final class MarkSchemeRow {
+        private final Map<String, Object> columns = new HashMap<>();
+
+        MarkSchemeRow() {}
+
+        MarkSchemeRow(long questionId, String body) {
+            columns.put("question_id", questionId);
+            columns.put("body", body);
+        }
+
+        public MarkSchemeRow id(long id) {
+            columns.put("id", id);
+            return this;
+        }
+
+        public MarkSchemeRow questionId(long questionId) {
+            columns.put("question_id", questionId);
+            return this;
+        }
+
+        public MarkSchemeRow body(String body) {
+            columns.put("body", body);
+            return this;
+        }
+
+        public MarkSchemeRow createdAt(OffsetDateTime createdAt) {
+            columns.put("created_at", createdAt);
+            return this;
+        }
+
+        public void insert() {
+            testDatabase.insert(MARK_SCHEME_TABLE, columns);
         }
     }
 }
