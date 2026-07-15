@@ -21,10 +21,6 @@ import static io.micronaut.http.HttpStatus.*;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
-// End-to-end over real Postgres. Two rules shape every expectation here: only APPROVED questions are
-// served, and a question with no concept link is unprocessed and never served — so every question that
-// should appear is linked to a concept, and an unlinked one is used only to prove exclusion.
-// The response carries exactly six fields; source/status/source_spec are deliberately not exposed.
 @IntegrationTest
 class QuestionControllerIT {
 
@@ -249,6 +245,20 @@ class QuestionControllerIT {
                     .contentType(ContentType.JSON)
                     .body("content.id", contains(1, 2, 3));
         }
+    }
+
+    @Test
+    void getQuestionByIdReturnsNotFoundIfNoQuestionExistsForId() {
+        String path = QUESTIONS_PATH + "/" + 1L;
+        given()
+                .when()
+                .get(path)
+                .then()
+                .statusCode(NOT_FOUND.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("Could not find resource for path: " + path))
+                .body("status", equalTo(404));
     }
 
     @Test
