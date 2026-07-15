@@ -14,9 +14,18 @@ public class QuestionTestData extends TestData {
     // Clears in FK-safe order: link rows reference questions and concepts, so they go first.
     @Override
     public void clear() {
+        testDatabase.clear(MARK_SCHEME_TABLE);
         testDatabase.clear(QUESTION_CONCEPT_TABLE);
         testDatabase.clear(QUESTION_TABLE);
         testDatabase.clear(CONCEPT_TABLE);
+    }
+
+    public QuestionRow question() {
+        return new QuestionRow();
+    }
+
+    public QuestionRow question(long id) {
+        return new QuestionRow(id);
     }
 
     public List<DBRow> retrieveQuestions() {
@@ -27,12 +36,12 @@ public class QuestionTestData extends TestData {
         testDatabase.delete(QUESTION_TABLE, id);
     }
 
-    public QuestionRow question() {
-        return new QuestionRow();
+    public ConceptRow concept() {
+        return new ConceptRow();
     }
 
-    public QuestionRow question(long id) {
-        return new QuestionRow(id);
+    public ConceptRow concept(long id) {
+        return new ConceptRow(id);
     }
 
     public List<DBRow> retrieveConcepts() {
@@ -47,19 +56,23 @@ public class QuestionTestData extends TestData {
         testDatabase.delete(CONCEPT_TABLE, id);
     }
 
-    public ConceptRow concept() {
-        return new ConceptRow();
-    }
-
-    public ConceptRow concept(long id) {
-        return new ConceptRow(id);
-    }
-
     public QuestionConceptRow link(long questionId, long conceptId) {
         return new QuestionConceptRow(questionId, conceptId);
     }
 
     public List<DBRow> retrieveLinks() {
         return testDatabase.selectAll(QUESTION_CONCEPT_TABLE);
+    }
+
+    public MarkSchemeRow markScheme() {
+        return new MarkSchemeRow();
+    }
+
+    public MarkSchemeRow markScheme(long questionId, String body) {
+        return new MarkSchemeRow(questionId, body);
+    }
+
+    public List<DBRow> retrieveMarkSchemes() {
+        return testDatabase.selectAll(MARK_SCHEME_TABLE);
     }
 }
