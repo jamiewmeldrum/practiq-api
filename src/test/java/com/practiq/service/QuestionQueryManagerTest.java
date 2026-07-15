@@ -1,6 +1,7 @@
 package com.practiq.service;
 
 import com.practiq.domain.Question;
+import com.practiq.domain.projection.LinkedQuestion;
 import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.domain.query.QuestionQuery;
 import com.practiq.domain.query.QuestionSpecificationFactory;
@@ -9,8 +10,6 @@ import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import com.practiq.dto.request.QuestionRequest;
-import com.practiq.dto.response.PageResponse;
-import com.practiq.dto.response.QuestionResponse;
 import com.practiq.repository.QuestionConceptRepository;
 import com.practiq.repository.QuestionRepository;
 import io.micronaut.data.model.Page;
@@ -31,11 +30,15 @@ import java.util.Set;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static utils.TestReflection.setField;
 
+// The manager owns the student-catalogue policy, the stable ordering, and the concept-link stitch. It
+// returns domain projections (LinkedQuestion), never response DTOs — the mapping to QuestionResponse is a
+// separate concern covered by QuestionResponseMapperTest. These tests mock the repositories and the spec
+// factory to pin exactly those three responsibilities.
 @ExtendWith(MockitoExtension.class)
 class QuestionQueryManagerTest {
 
@@ -57,7 +60,7 @@ class QuestionQueryManagerTest {
     private QuestionQueryManager questionQueryManager;
 
     @Test
-    void getForcesApprovedStatusAndRunsTheBuiltSpecOnASortedPage() {
+    void pagedQueryForcesApprovedStatusAndRunsTheBuiltSpecOnASortedPage() {
         QuestionRequest request = new QuestionRequest();
         Pageable requested = Pageable.from(0, 20);
         Pageable ordered = Pageable.from(0, 20, STABLE_ORDER);
@@ -66,23 +69,24 @@ class QuestionQueryManagerTest {
         when(questionSpecificationFactory.forQuery(approvedOnly)).thenReturn(SPEC);
         when(questionRepository.findAll(SPEC, ordered)).thenReturn(Page.of(List.of(), ordered, 0L));
 
-        PageResponse<QuestionResponse> response = questionQueryManager.findQuestionsPagedAndFilteredForStudent(request, requested);
+        Page<LinkedQuestion> page = questionQueryManager.findStudentVisibleQuestionsPagedAndFiltered(request, requested);
 
-        // The envelope carries the paging metadata off the repository Page: an empty first page still
-        // reports its position, requested size and the (zero) total.
-        assertEquals(0, response.content().size());
-        assertEquals(0, response.page());
-        assertEquals(20, response.size());
-        assertEquals(0L, response.totalCount());
+        // The page carries the repository's paging metadata: an empty first page still reports its
+        // position, requested size and the (zero) total.
+        assertThat(page.getContent().isEmpty(), equalTo(true));
+        assertEquals(0, page.getPageNumber());
+        assertEquals(20, page.getSize());
+        assertEquals(0L, page.getTotalSize());
 
-        // Status pinned to APPROVED, the factory's spec is what runs, and it runs against a page carrying
-        // the stable created_at,id order rather than the caller's unsorted page.
+        // Status pinned to APPROVED, the factory's spec is what runs, against a page carrying the stable
+        // created_at,id order rather than the caller's unsorted page. An empty page fires no link query.
         verify(questionSpecificationFactory).forQuery(approvedOnly);
         verify(questionRepository).findAll(SPEC, ordered);
+        verifyNoInteractions(questionConceptRepository);
     }
 
     @Test
-    void getBuildsQueryFromRequestFiltersAndForcesApprovedStatus() {
+    void pagedQueryBuildsQueryFromRequestFiltersAndForcesApprovedStatus() {
         QuestionRequest request = new QuestionRequest();
 
         List<QuestionType> types = List.of(QuestionType.SHORT_ANSWER, QuestionType.MCQ);
@@ -101,69 +105,56 @@ class QuestionQueryManagerTest {
         when(questionSpecificationFactory.forQuery(expectedQuery)).thenReturn(SPEC);
         when(questionRepository.findAll(SPEC, ordered)).thenReturn(Page.of(List.of(), ordered, 0L));
 
-        questionQueryManager.findQuestionsPagedAndFilteredForStudent(request, requested);
+        questionQueryManager.findStudentVisibleQuestionsPagedAndFiltered(request, requested);
 
         verify(questionSpecificationFactory).forQuery(expectedQuery);
         verify(questionRepository).findAll(SPEC, ordered);
     }
 
     @Test
-    void getStitchesConceptIdsFromTheLinkRepositoryOntoTheResponses() {
+    void pagedQueryStitchesConceptLinksOntoEachQuestion() {
         QuestionRequest request = new QuestionRequest();
         Pageable requested = Pageable.from(0, 20);
         Pageable ordered = Pageable.from(0, 20, STABLE_ORDER);
 
-        // A fully-populated, linked question and a bare one (null difficulty/type, no links) — so the same
-        // mapping covers the difficulty {value,code} path, the null-difficulty path, and both link shapes.
         long linkedId = 1L;
-        QuestionDifficulty difficulty = QuestionDifficulty.MEDIUM;
-        Instant linkedCreatedAt = Instant.parse("2026-01-01T00:00:00Z");
         Question linked = new Question(
-                "Linked body", difficulty, QuestionType.EXTENDED,
+                "Linked body", QuestionDifficulty.MEDIUM, QuestionType.EXTENDED,
                 QuestionSource.SEED, QuestionStatus.APPROVED, "AQA GCSE Physics");
         setField(linked, "id", linkedId);
-        setField(linked, "createdAt", linkedCreatedAt);
 
+        // A second question with no links proves the stitch defaults to an empty set rather than dropping
+        // the question or attaching null.
         long bareId = 2L;
-        Instant bareCreatedAt = Instant.parse("2026-01-02T00:00:00Z");
         Question bare = new Question(
                 "Bare body", null, null,
                 QuestionSource.SEED, QuestionStatus.APPROVED, null);
         setField(bare, "id", bareId);
-        setField(bare, "createdAt", bareCreatedAt);
 
         QuestionQuery approvedOnly = catalogueQuery(null, null, null);
         when(questionSpecificationFactory.forQuery(approvedOnly)).thenReturn(SPEC);
         when(questionRepository.findAll(SPEC, ordered)).thenReturn(Page.of(List.of(linked, bare), ordered, 2L));
 
-        // Only the linked question has concept rows; the bare question's id is absent from the result, which
-        // is what drives its linkedConceptIds to an empty set rather than null.
         long conceptA = 10L;
         long conceptB = 11L;
+        QuestionConceptLink linkA = new QuestionConceptLink(linkedId, conceptA);
+        QuestionConceptLink linkB = new QuestionConceptLink(linkedId, conceptB);
         when(questionConceptRepository.findLinksByQuestionIds(Set.of(linkedId, bareId)))
-                .thenReturn(List.of(new QuestionConceptLink(linkedId, conceptA), new QuestionConceptLink(linkedId, conceptB)));
+                .thenReturn(List.of(linkA, linkB));
 
-        PageResponse<QuestionResponse> response = questionQueryManager
-                .findQuestionsPagedAndFilteredForStudent(request, requested);
-        List<QuestionResponse> responses = response.content();
+        Page<LinkedQuestion> page = questionQueryManager.findStudentVisibleQuestionsPagedAndFiltered(request, requested);
+        List<LinkedQuestion> content = page.getContent();
 
-        assertEquals(2, responses.size());
-        assertEquals(2L, response.totalCount());
+        assertEquals(2, content.size());
+        assertEquals(2L, page.getTotalSize());
 
-        QuestionResponse linkedResponse = responseById(responses, linkedId);
-        assertEquals("Linked body", linkedResponse.getBody());
-        assertEquals(difficulty.value(), linkedResponse.getDifficulty().getValue());
-        assertEquals(difficulty.name(), linkedResponse.getDifficulty().getCode());
-        assertEquals(QuestionType.EXTENDED, linkedResponse.getType());
-        assertEquals(linkedCreatedAt, linkedResponse.getCreatedAt());
-        assertEquals(Set.of(conceptA, conceptB), linkedResponse.getLinkedConceptIds());
+        LinkedQuestion linkedResult = byQuestionId(content, linkedId);
+        assertEquals(linked, linkedResult.question());
+        assertEquals(Set.of(linkA, linkB), linkedResult.conceptLinks());
 
-        QuestionResponse bareResponse = responseById(responses, bareId);
-        assertEquals("Bare body", bareResponse.getBody());
-        assertNull(bareResponse.getDifficulty());
-        assertNull(bareResponse.getType());
-        assertEquals(bareCreatedAt, bareResponse.getCreatedAt());
-        assertEquals(Set.of(), bareResponse.getLinkedConceptIds());
+        LinkedQuestion bareResult = byQuestionId(content, bareId);
+        assertEquals(bare, bareResult.question());
+        assertEquals(Set.of(), bareResult.conceptLinks());
 
         verify(questionSpecificationFactory).forQuery(approvedOnly);
         verify(questionRepository).findAll(SPEC, ordered);
@@ -171,82 +162,90 @@ class QuestionQueryManagerTest {
     }
 
     @Test
-    void getQuestionByIdReturnsEmptyResponseIfNoMatch() {
+    void findByIdReturnsEmptyWhenNoStudentVisibleQuestionMatches() {
         long id = 1L;
 
-        QuestionQuery findQuestionByIdQuery = findQuestionByIdQuery(id);
-        when(questionSpecificationFactory.forQuery(findQuestionByIdQuery)).thenReturn(SPEC);
+        QuestionQuery byIdQuery = studentVisibleByIdQuery(id);
+        when(questionSpecificationFactory.forQuery(byIdQuery)).thenReturn(SPEC);
         when(questionRepository.findOne(SPEC)).thenReturn(Optional.empty());
 
-        Optional<QuestionResponse> questionResponse = questionQueryManager.findQuestionByIdForStudent(id);
+        Optional<LinkedQuestion> result = questionQueryManager.findStudentVisibleQuestionById(id);
 
-        assertThat(questionResponse.isPresent(), equalTo(false));
+        assertThat(result.isPresent(), equalTo(false));
 
-        verify(questionSpecificationFactory).forQuery(findQuestionByIdQuery);
+        verify(questionSpecificationFactory).forQuery(byIdQuery);
         verify(questionRepository).findOne(SPEC);
+        verifyNoInteractions(questionConceptRepository);
     }
 
     @Test
-    void getQuestionByIdReturnsQuestionResponse() {
+    void findByIdReturnsLinkedQuestionWithItsConceptLinks() {
         long id = 1L;
-        String body = "Question A";
-        QuestionDifficulty difficulty = QuestionDifficulty.EASY;
-        QuestionType type = QuestionType.EXTENDED;
-        QuestionSource source = QuestionSource.GENERATED;
-        QuestionStatus status = QuestionStatus.APPROVED;
-        String sourceSpec = "GCSE Physics";
-        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
-
         Question question = new Question(
-                body,
-                difficulty,
-                type,
-                source,
-                status,
-                sourceSpec
-        );
+                "Question A", QuestionDifficulty.EASY, QuestionType.EXTENDED,
+                QuestionSource.GENERATED, QuestionStatus.APPROVED, "GCSE Physics");
         setField(question, "id", id);
-        setField(question, "createdAt", createdAt);
 
-        // Question is linked to two concepts.
-        long conceptIdA1 = 10L;
-        long conceptIdA2 = 11L;
+        long conceptA = 10L;
+        long conceptB = 11L;
+        QuestionConceptLink linkA = new QuestionConceptLink(id, conceptA);
+        QuestionConceptLink linkB = new QuestionConceptLink(id, conceptB);
 
-        List<QuestionConceptLink> links = List.of(
-                new QuestionConceptLink(id, conceptIdA1),
-                new QuestionConceptLink(id, conceptIdA2)
-        );
-
-        QuestionQuery findQuestionByIdQuery = findQuestionByIdQuery(id);
-        when(questionSpecificationFactory.forQuery(findQuestionByIdQuery)).thenReturn(SPEC);
+        QuestionQuery byIdQuery = studentVisibleByIdQuery(id);
+        when(questionSpecificationFactory.forQuery(byIdQuery)).thenReturn(SPEC);
         when(questionRepository.findOne(SPEC)).thenReturn(Optional.of(question));
-        when(questionConceptRepository.findLinksByQuestionIds(List.of(id))).thenReturn(links);
+        when(questionConceptRepository.findLinksByQuestionIds(Set.of(id))).thenReturn(List.of(linkA, linkB));
 
-        Optional<QuestionResponse> questionResponse = questionQueryManager.findQuestionByIdForStudent(id);
-        assertThat(questionResponse.isPresent(), equalTo(true));
+        Optional<LinkedQuestion> result = questionQueryManager.findStudentVisibleQuestionById(id);
 
-        QuestionResponse response = questionResponse.get();
-        assertEquals(id, response.getId());
-        assertEquals(body, response.getBody());
-        assertEquals(difficulty.value(), response.getDifficulty().getValue());
-        assertEquals(difficulty.name(), response.getDifficulty().getCode());
-        assertEquals(type, response.getType());
-        assertEquals(createdAt, response.getCreatedAt());
-        assertEquals(Set.of(conceptIdA1, conceptIdA2), response.getLinkedConceptIds());
+        assertThat(result.isPresent(), equalTo(true));
+        LinkedQuestion linkedQuestion = result.get();
+        assertEquals(question, linkedQuestion.question());
+        assertEquals(Set.of(linkA, linkB), linkedQuestion.conceptLinks());
 
-        verify(questionSpecificationFactory).forQuery(findQuestionByIdQuery);
+        verify(questionSpecificationFactory).forQuery(byIdQuery);
         verify(questionRepository).findOne(SPEC);
-        verify(questionConceptRepository).findLinksByQuestionIds(List.of(id));
+        verify(questionConceptRepository).findLinksByQuestionIds(Set.of(id));
     }
 
-    private static QuestionResponse responseById(List<QuestionResponse> responses, long id) {
-        return responses.stream()
-                .filter(response -> response.getId() == id)
+    @Test
+    void doesStudentVisibleQuestionExistReturnsTrueWhenTheSpecMatches() {
+        long id = 1L;
+
+        QuestionQuery byIdQuery = studentVisibleByIdQuery(id);
+        when(questionSpecificationFactory.forQuery(byIdQuery)).thenReturn(SPEC);
+        when(questionRepository.exists(SPEC)).thenReturn(true);
+
+        assertThat(questionQueryManager.doesStudentVisibleQuestionExistForId(id), equalTo(true));
+
+        verify(questionSpecificationFactory).forQuery(byIdQuery);
+        verify(questionRepository).exists(SPEC);
+        verifyNoInteractions(questionConceptRepository);
+    }
+
+    @Test
+    void doesStudentVisibleQuestionExistReturnsFalseWhenTheSpecMatchesNothing() {
+        long id = 1L;
+
+        QuestionQuery byIdQuery = studentVisibleByIdQuery(id);
+        when(questionSpecificationFactory.forQuery(byIdQuery)).thenReturn(SPEC);
+        when(questionRepository.exists(SPEC)).thenReturn(false);
+
+        assertThat(questionQueryManager.doesStudentVisibleQuestionExistForId(id), equalTo(false));
+
+        verify(questionRepository).exists(SPEC);
+    }
+
+    private static LinkedQuestion byQuestionId(List<LinkedQuestion> linkedQuestions, long id) {
+        return linkedQuestions.stream()
+                .filter(linkedQuestion -> linkedQuestion.question().getId() == id)
                 .findFirst()
-                .orElseThrow(() -> new AssertionError("No response with id " + id));
+                .orElseThrow(() -> new AssertionError("No linked question with id " + id));
     }
 
-    private QuestionQuery findQuestionByIdQuery(long questionId) {
+    // Hand-built rather than via QuestionQuery.studentCatalogue(...) so the expectation is independent of
+    // the production factory: a regression that widens the policy breaks these tests instead of moving with them.
+    private QuestionQuery studentVisibleByIdQuery(long questionId) {
         return QuestionQuery.builder()
                 .status(QuestionStatus.APPROVED)
                 .questionId(questionId)
@@ -254,8 +253,6 @@ class QuestionQueryManagerTest {
                 .build();
     }
 
-    // Hand-built rather than via QuestionQuery.studentCatalogue(...) so the expectation is independent of
-    // the production factory: a regression that widens the policy breaks this test instead of moving with it.
     private QuestionQuery catalogueQuery(List<QuestionType> types, List<QuestionDifficulty> difficulties, Long conceptId) {
         return QuestionQuery.builder()
                 .types(types)
@@ -265,5 +262,4 @@ class QuestionQueryManagerTest {
                 .requiresConceptLink(true)
                 .build();
     }
-
 }

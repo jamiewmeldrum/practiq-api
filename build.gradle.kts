@@ -124,6 +124,7 @@ tasks.named<JavaExec>("run") {
 tasks.test {
     useJUnitPlatform()
     exclude("**/*IT.class")
+    exclude("**/*PT.class")
 }
 
 // Integration tests (*IT): real Postgres via Testcontainers. Slower — run pre-merge/CI.
@@ -137,8 +138,26 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     shouldRunAfter(tasks.test)
 }
 
-// `./gradlew build` (CI) runs everything; the dev fast loop is `./gradlew test`.
-tasks.check { dependsOn(integrationTest) }
+// Performance tests (*PT): assert the per-request JDBC statement count against real Postgres, so an
+// eager association or other N+1 regression fails loudly rather than silently slowing a hot path. Real DB
+// (Testcontainers), so grouped with the slow tier — never the every-change `test` loop. Shares the test
+// source set like integrationTest.
+val performanceTest = tasks.register<Test>("performanceTest") {
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform()
+    include("**/*PT.class")
+    shouldRunAfter(tasks.test, integrationTest)
+}
+
+// `./gradlew build` (CI) runs everything; the dev fast loop is `./gradlew test`. Performance tests run by
+// default too; opt out with `-PskipPerf` (e.g. to keep an early pipeline stage fast — see README).
+tasks.check {
+    dependsOn(integrationTest)
+    if (!project.hasProperty("skipPerf")) {
+        dependsOn(performanceTest)
+    }
+}
 
 tasks.named<io.micronaut.gradle.docker.NativeImageDockerfile>("dockerfileNative") {
     jdkVersion = "21"

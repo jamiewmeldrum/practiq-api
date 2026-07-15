@@ -1,7 +1,7 @@
 package com.practiq.service;
 
 import com.practiq.dto.request.QuestionRequest;
-import com.practiq.dto.response.PageResponse;
+import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,11 +32,11 @@ class QuestionServiceTest {
     @Test
     void getQuestionByIdDelegatesToQueryManager() {
         long id = 1L;
-        when(questionQueryManager.findQuestionByIdForStudent(id)).thenReturn(Optional.empty());
+        when(questionQueryManager.findStudentVisibleQuestionById(id)).thenReturn(Optional.empty());
 
         questionService.get(id);
 
-        verify(questionQueryManager).findQuestionByIdForStudent(id);
+        verify(questionQueryManager).findStudentVisibleQuestionById(id);
     }
 
     @Test
@@ -44,11 +44,11 @@ class QuestionServiceTest {
         QuestionRequest request = new QuestionRequest();
         Pageable pageable = Pageable.from(0, 20);
 
-        when(questionQueryManager.findQuestionsPagedAndFilteredForStudent(request, pageable))
-                .thenReturn(new PageResponse<>(List.of(), 0, 0, 0));
+        when(questionQueryManager.findStudentVisibleQuestionsPagedAndFiltered(request, pageable))
+                .thenReturn(Page.of(List.of(), pageable, 0L));
 
         questionService.get(request, pageable);
 
-        verify(questionQueryManager).findQuestionsPagedAndFilteredForStudent(request, pageable);
+        verify(questionQueryManager).findStudentVisibleQuestionsPagedAndFiltered(request, pageable);
     }
 }
