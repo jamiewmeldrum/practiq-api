@@ -3,10 +3,8 @@ package com.practiq.service;
 import com.practiq.domain.Question;
 import com.practiq.domain.query.QuestionQuery;
 import com.practiq.domain.query.QuestionSpecificationFactory;
-import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.dto.request.QuestionRequest;
 import com.practiq.dto.response.PageResponse;
-import com.practiq.dto.response.QuestionDifficultyResponse;
 import com.practiq.dto.response.QuestionResponse;
 import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.repository.QuestionConceptRepository;
@@ -24,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.practiq.dto.mapper.QuestionResponseMapper.toQuestionResponse;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
@@ -104,19 +103,5 @@ public class QuestionService {
         }
         return questionConceptRepository.findLinksByQuestionIds(questionIds).stream()
                 .collect(groupingBy(QuestionConceptLink::questionId, mapping(QuestionConceptLink::conceptId, toSet())));
-    }
-
-    private static QuestionResponse toQuestionResponse(Question question, Set<Long> conceptIds) {
-        log.trace("Converting question to QuestionDto: {}", question.getId());
-
-        QuestionDifficulty difficulty = question.getDifficulty();
-        return new QuestionResponse(
-                question.getId(),
-                question.getBody(),
-                difficulty == null ? null : new QuestionDifficultyResponse(difficulty),
-                question.getType(),
-                question.getCreatedAt(),
-                conceptIds
-        );
     }
 }
