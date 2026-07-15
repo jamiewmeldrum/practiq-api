@@ -1,19 +1,4 @@
--- Questions served to students once approved. Body is Markdown, with images
--- embedded via {{s3:key}} refs and MCQ choices via - [ ] / - [x] lists (see
--- D-009). No level column — serving context comes from the concept mapping,
--- not the question itself (see D-010). source_spec is a provenance stopgap
--- until a specification FK exists. difficulty and type are nullable because
--- AI extraction may not confidently populate them yet (see D-012). Enum-like
--- values (type, source, status) are stored upper-case to match Java enum
--- constant names exactly, so @Enumerated(EnumType.STRING) works with no
--- custom AttributeConverter (see D-013) — this convention applies to every
--- enum-backed column project-wide. source distinguishes self-authored (SEED),
--- AI-extracted-from-a-real-document (EXTRACTED), and genuinely AI-synthesised
--- (GENERATED) content — a real copyright/compliance distinction (see D-014).
--- A link back to the originating S3 document is deferred to Sprint 0.3,
--- added alongside the document table this needs to reference (see D-014).
--- No mark_scheme column — mark schemes are not a Question concern; where
--- they live instead is an open design question, not yet decided (see D-018).
+-- Questions served to students once approved.
 create table question
 (
     id          bigint generated always as identity primary key,
