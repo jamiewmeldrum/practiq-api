@@ -2,7 +2,6 @@ package com.practiq.controller;
 
 import com.practiq.domain.Concept;
 import com.practiq.repository.ConceptRepository;
-import utils.ComponentTest;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.micronaut.test.annotation.MockBean;
 import io.restassured.RestAssured;
@@ -10,16 +9,17 @@ import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import utils.ComponentTest;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 import static io.micronaut.http.HttpStatus.*;
-import static utils.TestReflection.setField;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.Mockito.*;
+import static utils.TestReflection.setField;
 
 @ComponentTest
 class ConceptControllerCT {

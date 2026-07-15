@@ -1,10 +1,10 @@
 package com.practiq.dto.response;
 
-import utils.ComponentTest;
 import io.micronaut.serde.ObjectMapper;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
+import utils.ComponentTest;
 
 import java.io.IOException;
 import java.time.Instant;

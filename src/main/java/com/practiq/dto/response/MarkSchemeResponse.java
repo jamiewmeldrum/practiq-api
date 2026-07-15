@@ -6,7 +6,6 @@ import lombok.ToString;
 
 import java.time.Instant;
 
-//TODO - explicit tests
 @Serdeable
 @Getter
 @ToString

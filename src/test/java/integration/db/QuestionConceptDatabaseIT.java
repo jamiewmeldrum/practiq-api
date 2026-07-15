@@ -1,20 +1,18 @@
 package integration.db;
 
-import utils.IntegrationTest;
-import utils.data.DBRow;
-import utils.data.QuestionTestData;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import utils.IntegrationTest;
+import utils.data.DBRow;
+import utils.data.QuestionTestData;
 
 import java.util.List;
 
-import static utils.data.TestDatabase.FOREIGN_KEY_VIOLATION;
-import static utils.data.TestDatabase.UNIQUE_VIOLATION;
-import static utils.data.TestDatabase.sqlStateOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static utils.data.TestDatabase.*;
 
 @IntegrationTest
 class QuestionConceptDatabaseIT {

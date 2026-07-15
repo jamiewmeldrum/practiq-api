@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Set;
 
-//TODO - explicit test
 @Slf4j
 public class QuestionResponseMapper {
     public static QuestionResponse toQuestionResponse(Question question, Set<Long> conceptIds) {

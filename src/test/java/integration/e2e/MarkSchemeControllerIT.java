@@ -1,9 +1,7 @@
 package integration.e2e;
 
-import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
-import com.practiq.domain.types.QuestionType;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
@@ -17,7 +15,6 @@ import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static io.micronaut.http.HttpStatus.OK;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
-import static org.hamcrest.Matchers.contains;
 
 @IntegrationTest
 public class MarkSchemeControllerIT {

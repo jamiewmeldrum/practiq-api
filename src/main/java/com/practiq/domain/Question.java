@@ -61,7 +61,7 @@ public class Question {
     @OneToOne(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
     private MarkScheme markScheme;
 
-    protected Question() {}
+    public Question() {}
 
     public Question(
             String body,

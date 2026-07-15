@@ -1,7 +1,5 @@
 package integration.e2e;
 
-import utils.IntegrationTest;
-import utils.data.QuestionTestData;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
@@ -9,6 +7,8 @@ import io.restassured.response.Response;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import utils.IntegrationTest;
+import utils.data.QuestionTestData;
 
 import java.time.OffsetDateTime;
 

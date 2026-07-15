@@ -7,17 +7,18 @@ import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import com.practiq.repository.QuestionRepository;
-import utils.IntegrationTest;
-import utils.data.QuestionTestData;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import utils.IntegrationTest;
+import utils.data.QuestionTestData;
 
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 
 @IntegrationTest
 class QuestionSpecificationFactoryIT {

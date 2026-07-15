@@ -1,19 +1,20 @@
 package integration.repository;
 
-import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.projection.QuestionConceptLink;
+import com.practiq.domain.types.QuestionStatus;
 import com.practiq.repository.QuestionConceptRepository;
-import utils.IntegrationTest;
-import utils.data.QuestionTestData;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import utils.IntegrationTest;
+import utils.data.QuestionTestData;
 
 import java.util.List;
 import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 
 @IntegrationTest
 class QuestionConceptRepositoryIT {
