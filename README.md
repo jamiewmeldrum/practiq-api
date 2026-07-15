@@ -294,11 +294,14 @@ claims to verify.** Mocking everything around a thin layer just tests a tautolog
 | Unit | `*Test` | one class, no context | all deps mocked (Mockito) | `test` |
 | Component | `*CT` | real web layer (routing, binding, validation, serialization) | repository / external calls mocked, no DB | `test` |
 | Integration | `*IT` | full stack | real Postgres (Testcontainers) | `integrationTest` |
+| Performance | `*PT` | full stack | real Postgres (Testcontainers) | `performanceTest` |
 
 ```bash
 ./gradlew test                  # unit + component (*CT) — the every-change loop
 ./gradlew integrationTest       # integration (*IT) — real Postgres, pre-merge / CI
-./gradlew build                 # runs everything (check depends on integrationTest)
+./gradlew performanceTest       # performance (*PT) — real Postgres, per-request query counts
+./gradlew build                 # runs everything (check depends on integrationTest + performanceTest)
+./gradlew build -PskipPerf      # ...but skip the performance tier
 ```
 
 **What goes where**
@@ -312,6 +315,22 @@ claims to verify.** Mocking everything around a thin layer just tests a tautolog
   migrations, transactional behaviour. Kept deliberately few. Organised by what they exercise:
   `integration/db` (schema/constraint behaviour via raw SQL), `integration/repository`
   (repository queries and specifications), `integration/e2e` (full HTTP → DB slices).
+- **Performance** — asserts the *number of JDBC statements* a request fires, not its output. Each
+  endpoint gets a happy-path count, and the row-scaling catalogue additionally asserts the count does
+  **not** grow with the number of rows. This is the guard against a silent N+1 — e.g. an eager
+  `@OneToOne` reintroduced on an entity — which every other tier passes green because the *data* is
+  still correct. Uses Hibernate statistics (`StatementCounter`) against real Postgres; lives in
+  `performance/` behind `@PerformanceTest`.
+
+**The performance tier and the toggle.** `*PT` tests run as part of `build`/`check` by default. Pass
+`-PskipPerf` to skip them (they need Docker, like `*IT`). They assert on **prepared-statement** count,
+which is the metric that sees eager secondary selects — a query-execution count would miss them. A
+regression that adds a per-row query trips the invariance assertion no matter how it's introduced.
+
+> **Pipeline note (for whoever owns CI):** these run in the default `build`, so the pipeline covers them
+> today. If we adopt a git-flow-style dev/main split, it may be cleaner to gate the performance tier to a
+> later stage (e.g. pre-merge to `main`) with `-PskipPerf` on the fast feature-branch build, rather than
+> paying the container cost on every push. Left as a deliberate, easily-reversed default for now.
 
 **Writing a component test.** Micronaut has no `@WebMvcTest`-style slice annotation, so a
 few things have to be arranged by hand to test the web layer without a database. The pattern

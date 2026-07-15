@@ -25,8 +25,10 @@ public class MarkSchemeService {
     public Optional<MarkSchemeResponse> getForQuestionId(long questionId) {
         log.debug("Getting mark scheme for question id: {}", questionId);
 
-        return questionQueryManager.findQuestionByIdForStudent(questionId)
-                .flatMap(question -> markSchemeRepository.findByQuestionId(question.getId()))
-                .map(MarkSchemeResponseMapper::toMarkSchemeResponse);
+        if (questionQueryManager.doesStudentVisibleQuestionExistForId(questionId)) {
+            return markSchemeRepository.findByQuestionId(questionId).map(MarkSchemeResponseMapper::toMarkSchemeResponse);
+        } else {
+            return Optional.empty();
+        }
     }
 }

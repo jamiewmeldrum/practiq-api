@@ -13,8 +13,7 @@ import java.util.List;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static utils.data.TestDatabase.NOT_NULL_VIOLATION;
-import static utils.data.TestDatabase.sqlStateOf;
+import static utils.data.TestDatabase.*;
 
 @IntegrationTest
 public class MarkSchemeDatabaseIT {
@@ -73,10 +72,22 @@ public class MarkSchemeDatabaseIT {
     @Test
     void ensureThatQuestionMustExist() {
         IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.markScheme().questionId(1L).insert());
+                data.markScheme().questionId(1L).body("body").insert());
 
-        assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
-        assertThat(thrown.getCause().getMessage(), containsString("\"body\""));
+        assertThat(sqlStateOf(thrown), equalTo(FOREIGN_KEY_VIOLATION));
+        assertThat(thrown.getCause().getMessage(), containsString("question_id"));
+    }
+
+    @Test
+    void ensureThatThereCanOnlyBeOneMarkSchemeForAQuestion() {
+        long questionId = 1L;
+        data.question(questionId).insert();
+
+        data.markScheme().questionId(questionId).body("body").insert();
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
+                data.markScheme().questionId(questionId).body("body").insert());
+
+        assertThat(sqlStateOf(thrown), equalTo(UNIQUE_VIOLATION));
     }
 
     @Test

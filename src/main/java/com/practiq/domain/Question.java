@@ -58,9 +58,6 @@ public class Question {
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<QuestionConcept> conceptLinks = new HashSet<>();
 
-    @OneToOne(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
-    private MarkScheme markScheme;
-
     public Question() {}
 
     public Question(

@@ -84,7 +84,7 @@ public class MarkSchemeRepositoryIT {
         Optional<MarkScheme> markScheme = markSchemeRepository.findByQuestionId(questionId);
         assertThat(markScheme.isPresent(), is(true));
 
-        assertThat(markScheme.get().getQuestion().getId(), equalTo(questionId));
+        assertThat(markScheme.get().getQuestionId(), equalTo(questionId));
         assertThat(markScheme.get().getBody(), equalTo("body"));
     }
 }

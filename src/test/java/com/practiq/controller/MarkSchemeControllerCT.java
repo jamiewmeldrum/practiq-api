@@ -1,7 +1,6 @@
 package com.practiq.controller;
 
 import com.practiq.domain.MarkScheme;
-import com.practiq.domain.Question;
 import com.practiq.repository.MarkSchemeRepository;
 import com.practiq.repository.QuestionConceptRepository;
 import com.practiq.repository.QuestionRepository;
@@ -73,21 +72,18 @@ public class MarkSchemeControllerCT {
         String body = "Award 1 mark for stating the wave bends around the edge of the gap.";
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
-        Question question = new Question();
-        setField(question, "id", questionId);
-
         // version is set to a non-zero value so its absence from the JSON proves the payload drops it,
         // rather than it merely happening to be zero.
         MarkScheme markScheme = new MarkScheme();
         setField(markScheme, "id", markSchemeId);
-        setField(markScheme, "question", question);
+        setField(markScheme, "questionId", questionId);
         setField(markScheme, "version", 7);
         setField(markScheme, "body", body);
         setField(markScheme, "createdAt", createdAt);
 
-        // The visibility gate is satisfied by an approved, resolvable question; the mark scheme is then
-        // found for it. The spec is built inside QuestionQueryManager, so it can only be matched by type.
-        when(questionRepository.findOne(Mockito.any(QuerySpecification.class))).thenReturn(Optional.of(question));
+        // The visibility gate is an existence check; the mark scheme is then found for the question. The
+        // spec is built inside QuestionQueryManager, so it can only be matched by type.
+        when(questionRepository.exists(Mockito.any(QuerySpecification.class))).thenReturn(true);
         when(markSchemeRepository.findByQuestionId(questionId)).thenReturn(Optional.of(markScheme));
 
         String path = QUESTIONS_PATH + "/" + questionId + "/mark-scheme";
@@ -103,7 +99,7 @@ public class MarkSchemeControllerCT {
                 .body("body", equalTo(body))
                 .body("createdAt", equalTo(createdAt.toString()));
 
-        verify(questionRepository).findOne(Mockito.any(QuerySpecification.class));
+        verify(questionRepository).exists(Mockito.any(QuerySpecification.class));
         verify(markSchemeRepository).findByQuestionId(questionId);
     }
 
@@ -114,7 +110,7 @@ public class MarkSchemeControllerCT {
     void getMarkSchemeSerialisesNotFoundEnvelopeWhenQuestionNotVisible() {
         long questionId = 1L;
 
-        when(questionRepository.findOne(Mockito.any(QuerySpecification.class))).thenReturn(Optional.empty());
+        when(questionRepository.exists(Mockito.any(QuerySpecification.class))).thenReturn(false);
 
         String path = QUESTIONS_PATH + "/" + questionId + "/mark-scheme";
         given()
@@ -127,7 +123,7 @@ public class MarkSchemeControllerCT {
                 .body("error", equalTo("Could not find resource for path: " + path))
                 .body("status", equalTo(404));
 
-        verify(questionRepository).findOne(Mockito.any(QuerySpecification.class));
+        verify(questionRepository).exists(Mockito.any(QuerySpecification.class));
         verifyNoInteractions(markSchemeRepository);
     }
 

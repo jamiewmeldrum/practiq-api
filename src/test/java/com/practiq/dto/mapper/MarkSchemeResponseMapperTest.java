@@ -1,7 +1,6 @@
 package com.practiq.dto.mapper;
 
 import com.practiq.domain.MarkScheme;
-import com.practiq.domain.Question;
 import com.practiq.dto.response.MarkSchemeResponse;
 import org.junit.jupiter.api.Test;
 
@@ -18,14 +17,12 @@ class MarkSchemeResponseMapperTest {
     void markSchemeMapsToMarkSchemeResponse() {
         long id = 1L;
         long questionId = 10L;
-        Question question = new Question();
-        setField(question, "id", questionId);
         String body = "Diffraction";
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
         MarkScheme markScheme = new MarkScheme();
         setField(markScheme, "id", id);
-        setField(markScheme, "question", question);
+        setField(markScheme, "questionId", questionId);
         setField(markScheme, "body", body);
         setField(markScheme, "createdAt", createdAt);
 

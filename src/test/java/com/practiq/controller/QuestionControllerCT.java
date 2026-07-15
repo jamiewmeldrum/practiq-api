@@ -29,6 +29,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static io.micronaut.http.HttpStatus.*;
 import static io.restassured.RestAssured.given;
@@ -374,7 +375,7 @@ public class QuestionControllerCT {
         );
 
         when(questionRepository.findOne(Mockito.any(QuerySpecification.class))).thenReturn(Optional.of(question));
-        when(questionConceptRepository.findLinksByQuestionIds(List.of(id))).thenReturn(links);
+        when(questionConceptRepository.findLinksByQuestionIds(Set.of(id))).thenReturn(links);
 
         String path = QUESTIONS_PATH + "/" + id;
         given()
@@ -393,7 +394,7 @@ public class QuestionControllerCT {
                 .body("linkedConceptIds", containsInAnyOrder((int) conceptIdA1, (int) conceptIdA2));
 
         verify(questionRepository).findOne(Mockito.any(QuerySpecification.class));
-        verify(questionConceptRepository).findLinksByQuestionIds(List.of(id));
+        verify(questionConceptRepository).findLinksByQuestionIds(Set.of(id));
     }
 
     @Test
