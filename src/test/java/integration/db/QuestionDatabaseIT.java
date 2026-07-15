@@ -2,12 +2,12 @@ package integration.db;
 
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
-import utils.IntegrationTest;
-import utils.data.DBRow;
-import utils.data.QuestionTestData;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import utils.IntegrationTest;
+import utils.data.DBRow;
+import utils.data.QuestionTestData;
 
 import java.time.Instant;
 import java.util.List;

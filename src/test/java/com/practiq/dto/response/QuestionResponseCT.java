@@ -2,12 +2,12 @@ package com.practiq.dto.response;
 
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionType;
-import utils.ComponentTest;
 import io.micronaut.serde.ObjectMapper;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompareMode;
+import utils.ComponentTest;
 
 import java.io.IOException;
 import java.time.Instant;

@@ -1,9 +1,6 @@
 package com.practiq.controller;
 
-import com.practiq.domain.query.QuestionSpecificationFactory;
-import com.practiq.repository.QuestionConceptRepository;
 import com.practiq.repository.QuestionRepository;
-import com.practiq.service.QuestionService;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
@@ -22,7 +19,8 @@ import static io.micronaut.http.HttpStatus.OK;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * A little bit hacky, but necessary.

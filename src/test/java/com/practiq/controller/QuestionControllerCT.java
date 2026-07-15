@@ -1,17 +1,16 @@
 package com.practiq.controller;
 
 import com.practiq.domain.Question;
+import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
-import com.practiq.domain.query.QuestionSpecificationFactory;
 import com.practiq.dto.request.QuestionRequest;
-import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.repository.QuestionConceptRepository;
 import com.practiq.repository.QuestionRepository;
+import com.practiq.service.QuestionQueryManager;
 import com.practiq.service.QuestionService;
-import utils.ComponentTest;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
@@ -24,17 +23,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import utils.ComponentTest;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
-import static utils.TestReflection.assertAllFieldsSet;
-import static utils.TestReflection.setField;
 import static io.micronaut.http.HttpStatus.*;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
+import static utils.TestReflection.assertAllFieldsSet;
+import static utils.TestReflection.setField;
 
 @ComponentTest
 public class QuestionControllerCT {
@@ -68,10 +70,8 @@ public class QuestionControllerCT {
     // has no constructor to call — so wrap a real instance built from the (mocked) repositories and the
     // real specification factory.
     @MockBean(QuestionService.class)
-    QuestionService questionService(QuestionRepository questionRepository,
-                                    QuestionConceptRepository questionConceptRepository,
-                                    QuestionSpecificationFactory questionSpecificationFactory) {
-        return spy(new QuestionService(questionRepository, questionConceptRepository, questionSpecificationFactory));
+    QuestionService questionService(QuestionQueryManager questionQueryManager) {
+        return spy(new QuestionService(questionQueryManager));
     }
 
     @BeforeEach

@@ -9,23 +9,22 @@ import com.practiq.repository.QuestionRepository;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.Sort;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
-import utils.IntegrationTest;
-import utils.data.QuestionTestData;
 import jakarta.inject.Inject;
+import jakarta.persistence.OptimisticLockException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import jakarta.persistence.OptimisticLockException;
+import utils.IntegrationTest;
+import utils.data.QuestionTestData;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static java.util.stream.Collectors.toList;
-import static utils.TestReflection.setField;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static utils.TestReflection.setField;
 
 @IntegrationTest
 class QuestionRepositoryIT {

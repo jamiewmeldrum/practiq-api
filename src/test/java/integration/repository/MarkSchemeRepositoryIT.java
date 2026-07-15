@@ -9,8 +9,11 @@ import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.QuestionTestData;
 
+import java.util.Optional;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.TestReflection.setField;
 
@@ -64,5 +67,24 @@ public class MarkSchemeRepositoryIT {
         MarkScheme survivor = markSchemeRepository.findAll().getFirst();
         assertThat(survivor.getBody(), equalTo("Updated first."));
         assertThat(survivor.getVersion(), equalTo(1));
+    }
+
+    @Test
+    void findByQuestionIdReturnsEmptyIfNoMatch() {
+        assertThat(markSchemeRepository.findByQuestionId(1L).isPresent(), is(false));
+    }
+
+    @Test
+    void findByQuestionIdReturnsMarkSchemeIfMatch() {
+        long questionId = 1L;
+
+        data.question(questionId).insert();
+        data.markScheme(questionId, "body").insert();
+
+        Optional<MarkScheme> markScheme = markSchemeRepository.findByQuestionId(questionId);
+        assertThat(markScheme.isPresent(), is(true));
+
+        assertThat(markScheme.get().getQuestion().getId(), equalTo(questionId));
+        assertThat(markScheme.get().getBody(), equalTo("body"));
     }
 }
