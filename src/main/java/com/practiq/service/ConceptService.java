@@ -1,6 +1,6 @@
 package com.practiq.service;
 
-import com.practiq.domain.Concept;
+import com.practiq.dto.mapper.ConceptResponseMapper;
 import com.practiq.dto.response.ConceptResponse;
 import com.practiq.repository.ConceptRepository;
 import jakarta.inject.Singleton;
@@ -22,22 +22,12 @@ public class ConceptService {
     public List<ConceptResponse> get() {
         log.debug("Getting all concepts");
         return conceptRepository.listOrderByCreatedAtAsc().stream()
-                .map(ConceptService::toConceptDto)
+                .map(ConceptResponseMapper::toConceptResponse)
                 .collect(Collectors.toList());
     }
 
     public Optional<ConceptResponse> get(long id) {
         log.debug("Getting concept by id: {}", id);
-        return conceptRepository.findById(id).map(ConceptService::toConceptDto);
-    }
-
-    private static ConceptResponse toConceptDto(Concept concept) {
-        log.trace("Converting concept to ConceptDto: {}", concept.getId());
-        return new ConceptResponse(
-                concept.getId(),
-                concept.getName(),
-                concept.getDescription(),
-                concept.getCreatedAt()
-        );
+        return conceptRepository.findById(id).map(ConceptResponseMapper::toConceptResponse);
     }
 }
