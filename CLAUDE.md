@@ -199,9 +199,9 @@ Sprint sequence: **0.1** skeleton + Concept endpoint + CI *(complete)* → **0.2
 
 > **Current sprint: 0.2 — Question read API + attempts (self-assessed)** *(update this line as sprints complete)*
 >
-> **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged, filterable, serving policy enforced) · `GET /api/v1/questions/{id}` (question detail; serving policy enforced via `studentCatalogue(id)`, 404 not 403, no mark scheme) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept stitch · JPA static metamodel.
+> **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged, filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept stitch · JPA static metamodel.
 >
-> **Remaining** (D-018 resolved — settled, no longer blocking): `mark_scheme` entity/migration + `GET /api/v1/questions/{id}/mark-scheme` (ungated) *(next up)* · `question_attempt` (feedback table deferred) · `POST`/`GET /api/v1/questions/{id}/attempts` · **409 handler for `OptimisticLockException`** (owed with the first write endpoint) · `X-Session-Token` handling · write up CT persistence-disable as a D-007 sub-decision.
+> **Remaining** (D-018 resolved — settled, no longer blocking): `GET /api/v1/questions/{id}` *(next up)* · `mark_scheme` entity/migration + `GET /api/v1/questions/{id}/mark-scheme` (ungated) · `question_attempt` (feedback table deferred) · `POST`/`GET /api/v1/questions/{id}/attempts` · **409 handler for `OptimisticLockException`** (owed with the first write endpoint) · `X-Session-Token` handling · write up CT persistence-disable as a D-007 sub-decision.
 >
 > **Deliberately out of scope:** `question_attempt_feedback` — whole table deferred to Phase 3 (D-019 amendment; no consumer for a self-score yet) · MCQ auto-marking (separate feature, unscheduled) · idempotency keys (D-021) · unique constraint on attempts (would break the revision loop) · server-issued session tokens (D-020) · async grading / `202` / polling · batch submission · strict `Pageable` binder (D-028).
 
