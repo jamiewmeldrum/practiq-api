@@ -19,9 +19,6 @@ public class MarkScheme {
     @GeneratedValue(strategy = IDENTITY)
     private long id;
 
-    // Scalar reference, not a @OneToOne Question: mark scheme and question are separate aggregates with
-    // independent edit lifecycles (D-018), so the relationship is held once as the FK and navigated by id
-    // through the repository when needed — never as an eager association.
     @Column(name = "question_id", nullable = false, updatable = false)
     private long questionId;
 

@@ -25,7 +25,6 @@ import static org.hamcrest.Matchers.*;
 class QuestionControllerIT {
 
     private static final String QUESTIONS_PATH = "/api/v1/questions";
-    private static final long CONCEPT_ID = 100L;
 
     @Inject
     private QuestionTestData data;
@@ -36,7 +35,6 @@ class QuestionControllerIT {
     @BeforeEach
     void setUp() {
         data.clear();
-        data.concept(CONCEPT_ID).insert();
         RestAssured.port = embeddedServer.getPort();
     }
 
@@ -55,6 +53,9 @@ class QuestionControllerIT {
 
     @Test
     void getReturnsOnlyApprovedQuestionsWithConceptLinks() {
+        long conceptId = 100L;
+        data.concept(conceptId).insert();
+
         String approvedBody = "State Newton's first law.";
         long approvedId = 1L;
         data.question(approvedId)
@@ -62,14 +63,14 @@ class QuestionControllerIT {
                 .body(approvedBody)
                 .source(QuestionSource.SEED)
                 .insert();
-        data.link(approvedId, CONCEPT_ID).insert();
+        data.link(approvedId, conceptId).insert();
 
         data.question(2L)
                 .status(QuestionStatus.PENDING)
                 .body("A pending question.")
                 .source(QuestionSource.SEED)
                 .insert();
-        data.link(2L, CONCEPT_ID).insert();
+        data.link(2L, conceptId).insert();
 
         data.question(3L)
                 .status(QuestionStatus.APPROVED)
@@ -92,6 +93,9 @@ class QuestionControllerIT {
 
     @Test
     void returnsOnlyQuestionsMatchingAllFilters() {
+        long conceptId = 100L;
+        data.concept(conceptId).insert();
+
         String matchingBody1 = "State Newton's first law.";
         String matchingBody2 = "State Newton's second law.";
         String matchingBody3 = "State Newton's third law.";
@@ -99,7 +103,7 @@ class QuestionControllerIT {
         /*
          * MATCHING CRITERIA
          * Status = APPROVED
-         * Concept = CONCEPT_ID
+         * Concept = conceptId
          * Difficult = MEDIUM, HARD
          * Type = SHORT_ANSWER, MCQ
          */
@@ -111,7 +115,7 @@ class QuestionControllerIT {
                 .type(QuestionType.SHORT_ANSWER)
                 .difficulty(QuestionDifficulty.MEDIUM)
                 .insert();
-        data.link(1L, CONCEPT_ID).insert();
+        data.link(1L, conceptId).insert();
 
         //Matches all, difficulty HARD, type SHORT_ANSWER. Source changed as irrelevant
         data.question(2L)
@@ -121,7 +125,7 @@ class QuestionControllerIT {
                 .type(QuestionType.SHORT_ANSWER)
                 .difficulty(QuestionDifficulty.HARD)
                 .insert();
-        data.link(2L, CONCEPT_ID).insert();
+        data.link(2L, conceptId).insert();
 
         //Matches all, difficulty MEDIUM, type MCQ. Source changed as irrelevant
         data.question(3L)
@@ -131,7 +135,7 @@ class QuestionControllerIT {
                 .type(QuestionType.MCQ)
                 .difficulty(QuestionDifficulty.MEDIUM)
                 .insert();
-        data.link(3L, CONCEPT_ID).insert();
+        data.link(3L, conceptId).insert();
 
         // Wrong type
         data.question(4L)
@@ -141,7 +145,7 @@ class QuestionControllerIT {
                 .type(QuestionType.EXTENDED)
                 .difficulty(QuestionDifficulty.MEDIUM)
                 .insert();
-        data.link(4L, CONCEPT_ID).insert();
+        data.link(4L, conceptId).insert();
 
         // Wrong difficulty
         data.question(5L)
@@ -151,10 +155,10 @@ class QuestionControllerIT {
                 .type(QuestionType.SHORT_ANSWER)
                 .difficulty(QuestionDifficulty.VERY_HARD)
                 .insert();
-        data.link(5L, CONCEPT_ID).insert();
+        data.link(5L, conceptId).insert();
 
         // Wrong concept
-        long additionalConceptId = CONCEPT_ID + 1;
+        long additionalConceptId = conceptId + 1;
         data.concept(additionalConceptId).insert();
         data.question(6L)
                 .status(QuestionStatus.APPROVED)
@@ -167,7 +171,7 @@ class QuestionControllerIT {
 
         given()
                 .when()
-                .get(QUESTIONS_PATH + "?types=SHORT_ANSWER,MCQ&difficulties=3,4&conceptId=" + CONCEPT_ID)
+                .get(QUESTIONS_PATH + "?types=SHORT_ANSWER,MCQ&difficulties=3,4&conceptId=" + conceptId)
                 .then()
                 .statusCode(OK.getCode())
                 .contentType(ContentType.JSON)
@@ -184,7 +188,7 @@ class QuestionControllerIT {
                         difficultyResponse(QuestionDifficulty.MEDIUM),
                         difficultyResponse(QuestionDifficulty.MEDIUM),
                         difficultyResponse(QuestionDifficulty.HARD)))
-                .body("content.linkedConceptIds", everyItem(contains((int) CONCEPT_ID)));
+                .body("content.linkedConceptIds", everyItem(contains((int) conceptId)));
     }
 
     // The difficulty serialises as a {value, code} object, which RestAssured surfaces as a Map — so an
@@ -196,6 +200,9 @@ class QuestionControllerIT {
 
     @Test
     void getPagesInStableCreatedAtThenIdOrderAcrossMultiplePages() {
+        long conceptId = 100L;
+        data.concept(conceptId).insert();
+
         OffsetDateTime day1 = OffsetDateTime.parse("2026-01-01T00:00:00Z");
         OffsetDateTime day2 = OffsetDateTime.parse("2026-01-02T00:00:00Z");
         OffsetDateTime day3 = OffsetDateTime.parse("2026-01-03T00:00:00Z");
@@ -203,11 +210,11 @@ class QuestionControllerIT {
         // created_at leads; id breaks ties within an equal timestamp. earliest has the highest id but the
         // earliest time, so it still sorts first — and the day2/day3 pairs prove the id tiebreak. Full
         // order: [5, 1, 2, 3, 4].
-        approvedLinkedQuestion(5L, "Earliest by time.", day1);
-        approvedLinkedQuestion(1L, "Day two, lower id.", day2);
-        approvedLinkedQuestion(2L, "Day two, higher id.", day2);
-        approvedLinkedQuestion(3L, "Day three, lower id.", day3);
-        approvedLinkedQuestion(4L, "Day three, higher id.", day3);
+        approvedLinkedQuestion(5L, "Earliest by time.", day1, conceptId);
+        approvedLinkedQuestion(1L, "Day two, lower id.", day2, conceptId);
+        approvedLinkedQuestion(2L, "Day two, higher id.", day2, conceptId);
+        approvedLinkedQuestion(3L, "Day three, lower id.", day3, conceptId);
+        approvedLinkedQuestion(4L, "Day three, higher id.", day3, conceptId);
 
         // Walk all three pages at size 2. Each is a contiguous, non-overlapping slice of the one total
         // order — including the last, partial page at index 2 — so a row can't straddle, repeat or vanish.
@@ -229,12 +236,15 @@ class QuestionControllerIT {
 
     @Test
     void getReturnsTheSameOrderedResultOnRepeatedCalls() {
+        long conceptId = 100L;
+        data.concept(conceptId).insert();
+
         OffsetDateTime sameInstant = OffsetDateTime.parse("2026-01-01T00:00:00Z");
         // Equal created_at across all three, so the order is decided purely by the id tiebreak. Repeated
         // calls must reproduce it identically rather than return an arbitrary (DB-dependent) order.
-        approvedLinkedQuestion(1L, "One.", sameInstant);
-        approvedLinkedQuestion(2L, "Two.", sameInstant);
-        approvedLinkedQuestion(3L, "Three.", sameInstant);
+        approvedLinkedQuestion(1L, "One.", sameInstant, conceptId);
+        approvedLinkedQuestion(2L, "Two.", sameInstant, conceptId);
+        approvedLinkedQuestion(3L, "Three.", sameInstant, conceptId);
 
         for (int call = 0; call < 2; call++) {
             given()
@@ -263,13 +273,16 @@ class QuestionControllerIT {
 
     @Test
     void getQuestionByIdReturnsNotFoundIfNoApprovedQuestionExistsForId() {
+        long conceptId = 100L;
+        data.concept(conceptId).insert();
+
         long targetId = 1L;
         data.question(targetId)
                 .status(QuestionStatus.REJECTED)
                 .body("State Newton's first law.")
                 .source(QuestionSource.SEED)
                 .insert();
-        data.link(targetId, CONCEPT_ID).insert();
+        data.link(targetId, conceptId).insert();
 
         String path = QUESTIONS_PATH + "/" + targetId;
         given()
@@ -285,6 +298,10 @@ class QuestionControllerIT {
 
     @Test
     void getQuestionByIdReturnsNotFoundIfNoLinkExistsForId() {
+        // A concept exists but is never linked to the question, so the missing link is the only reason
+        // the question isn't served.
+        data.concept(100L).insert();
+
         long targetId = 1L;
         data.question(targetId)
                 .status(QuestionStatus.APPROVED)
@@ -306,6 +323,9 @@ class QuestionControllerIT {
 
     @Test
     void getQuestionByIdReturnsQuestionIfApprovedAndLinkedQuestionExistsForId() {
+        long conceptId = 100L;
+        data.concept(conceptId).insert();
+
         long id = 1L;
         String body = "State Newton's first law.";
         QuestionDifficulty difficulty = QuestionDifficulty.MEDIUM;
@@ -317,7 +337,7 @@ class QuestionControllerIT {
                 .type(type)
                 .source(QuestionSource.SEED)
                 .insert();
-        data.link(id, CONCEPT_ID).insert();
+        data.link(id, conceptId).insert();
 
         given()
                 .when()
@@ -332,15 +352,15 @@ class QuestionControllerIT {
                 .body("difficulty.code", equalTo(difficulty.name()))
                 .body("type", equalTo(type.name()))
                 .body("createdAt", matchesPattern(data.getInstantPattern()))
-                .body("linkedConceptIds", contains((int) CONCEPT_ID));
+                .body("linkedConceptIds", contains((int) conceptId));
     }
 
-    private void approvedLinkedQuestion(long id, String body, OffsetDateTime createdAt) {
+    private void approvedLinkedQuestion(long id, String body, OffsetDateTime createdAt, long conceptId) {
         data.question(id).status(QuestionStatus.APPROVED)
                 .body(body)
                 .source(QuestionSource.SEED)
                 .createdAt(createdAt)
                 .insert();
-        data.link(id, CONCEPT_ID).insert();
+        data.link(id, conceptId).insert();
     }
 }

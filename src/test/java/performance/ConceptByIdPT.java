@@ -1,7 +1,5 @@
 package performance;
 
-import com.practiq.domain.types.QuestionSource;
-import com.practiq.domain.types.QuestionStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
 import jakarta.inject.Inject;
@@ -17,14 +15,14 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
-// Pins the JDBC statement count for serving a mark scheme.
+// Pins the JDBC statement count for serving a single concept by id.
 @PerformanceTest
-public class MarkSchemePT {
+public class ConceptByIdPT {
 
-    private static final String MARK_SCHEME_PATH = "/api/v1/questions/%s/mark-scheme";
+    private static final String CONCEPTS_PATH = "/api/v1/concepts";
 
-    // The exists(spec) visibility gate + findByQuestionId.
-    private static final long EXPECTED_STATEMENTS = 2L;
+    // A single findById.
+    private static final long EXPECTED_STATEMENTS = 1L;
 
     @Inject
     private QuestionTestData data;
@@ -45,21 +43,12 @@ public class MarkSchemePT {
     }
 
     @Test
-    void servingAMarkSchemeFiresAConstantNumberOfStatements() {
+    void servingAConceptByIdFiresAConstantNumberOfStatements() {
         long conceptId = 100L;
         data.concept(conceptId).insert();
 
-        long questionId = 1L;
-        data.question(questionId)
-                .status(QuestionStatus.APPROVED)
-                .body("State Newton's first law.")
-                .source(QuestionSource.SEED)
-                .insert();
-        data.link(questionId, conceptId).insert();
-        data.markScheme(questionId, "Award 1 mark for stating the law.").insert();
-
         long count = statements.countDuring(() ->
-                given().when().get(MARK_SCHEME_PATH.formatted(questionId)).then().statusCode(OK.getCode()));
+                given().when().get(CONCEPTS_PATH + "/" + conceptId).then().statusCode(OK.getCode()));
 
         assertThat(count, equalTo(EXPECTED_STATEMENTS));
     }

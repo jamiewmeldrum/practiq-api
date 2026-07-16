@@ -22,8 +22,6 @@ import static org.hamcrest.Matchers.equalTo;
 public class QuestionByIdPT {
 
     private static final String QUESTIONS_PATH = "/api/v1/questions";
-    private static final long CONCEPT_ID = 100L;
-    private static final long QUESTION_ID = 1L;
 
     // findOne(spec) + the concept-link stitch.
     private static final long EXPECTED_STATEMENTS = 2L;
@@ -42,22 +40,25 @@ public class QuestionByIdPT {
     @BeforeEach
     void setUp() {
         data.clear();
-        data.concept(CONCEPT_ID).insert();
         RestAssured.port = embeddedServer.getPort();
         statements = new StatementCounter(entityManagerFactory);
     }
 
     @Test
     void servingAQuestionByIdFiresAConstantNumberOfStatements() {
-        data.question(QUESTION_ID)
+        long conceptId = 100L;
+        data.concept(conceptId).insert();
+
+        long questionId = 1L;
+        data.question(questionId)
                 .status(QuestionStatus.APPROVED)
                 .body("State Newton's first law.")
                 .source(QuestionSource.SEED)
                 .insert();
-        data.link(QUESTION_ID, CONCEPT_ID).insert();
+        data.link(questionId, conceptId).insert();
 
         long count = statements.countDuring(() ->
-                given().when().get(QUESTIONS_PATH + "/" + QUESTION_ID).then().statusCode(OK.getCode()));
+                given().when().get(QUESTIONS_PATH + "/" + questionId).then().statusCode(OK.getCode()));
 
         assertThat(count, equalTo(EXPECTED_STATEMENTS));
     }
