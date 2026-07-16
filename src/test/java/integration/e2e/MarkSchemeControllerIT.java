@@ -52,8 +52,6 @@ public class MarkSchemeControllerIT {
         long questionId = 1L;
         data.question(questionId)
                 .status(QuestionStatus.REJECTED)
-                .body("State Newton's first law.")
-                .source(QuestionSource.SEED)
                 .insert();
 
         long conceptId = 10L;
@@ -79,8 +77,6 @@ public class MarkSchemeControllerIT {
         long questionId = 1L;
         data.question(questionId)
                 .status(QuestionStatus.APPROVED)
-                .body("State Newton's first law.")
-                .source(QuestionSource.SEED)
                 .insert();
 
         data.markScheme(questionId, "body").insert();
@@ -102,8 +98,6 @@ public class MarkSchemeControllerIT {
         long questionId = 1L;
         data.question(questionId)
                 .status(QuestionStatus.APPROVED)
-                .body("State Newton's first law.")
-                .source(QuestionSource.SEED)
                 .insert();
 
         long conceptId = 10L;
@@ -127,8 +121,6 @@ public class MarkSchemeControllerIT {
         long questionId = 1L;
         data.question(questionId)
                 .status(QuestionStatus.APPROVED)
-                .body("State Newton's first law.")
-                .source(QuestionSource.SEED)
                 .insert();
 
         long conceptId = 10L;
