@@ -25,8 +25,6 @@ import static utils.TestReflection.setField;
 @ExtendWith(MockitoExtension.class)
 class MarkSchemeServiceTest {
 
-    private static final long QUESTION_ID = 10L;
-
     @Mock
     private QuestionQueryManager questionQueryManager;
 
@@ -38,56 +36,61 @@ class MarkSchemeServiceTest {
 
     @Test
     void getForQuestionIdReturnsEmptyWhenQuestionNotVisibleToStudent() {
-        when(questionQueryManager.doesStudentVisibleQuestionExistForId(QUESTION_ID)).thenReturn(false);
+        long questionId = 10L;
 
-        Optional<MarkSchemeResponse> result = markSchemeService.getForQuestionId(QUESTION_ID);
+        when(questionQueryManager.doesStudentVisibleQuestionExistForId(questionId)).thenReturn(false);
+
+        Optional<MarkSchemeResponse> result = markSchemeService.getForQuestionId(questionId);
 
         assertThat(result.isPresent(), equalTo(false));
 
         // The visibility gate short-circuits: an invisible question never reaches the mark-scheme lookup,
         // so its existence can't leak through a different not-found cause.
-        verify(questionQueryManager).doesStudentVisibleQuestionExistForId(QUESTION_ID);
+        verify(questionQueryManager).doesStudentVisibleQuestionExistForId(questionId);
         verifyNoInteractions(markSchemeRepository);
     }
 
     @Test
     void getForQuestionIdReturnsEmptyWhenQuestionVisibleButHasNoMarkScheme() {
-        when(questionQueryManager.doesStudentVisibleQuestionExistForId(QUESTION_ID)).thenReturn(true);
-        when(markSchemeRepository.findByQuestionId(QUESTION_ID)).thenReturn(Optional.empty());
+        long questionId = 10L;
 
-        Optional<MarkSchemeResponse> result = markSchemeService.getForQuestionId(QUESTION_ID);
+        when(questionQueryManager.doesStudentVisibleQuestionExistForId(questionId)).thenReturn(true);
+        when(markSchemeRepository.findByQuestionId(questionId)).thenReturn(Optional.empty());
+
+        Optional<MarkSchemeResponse> result = markSchemeService.getForQuestionId(questionId);
 
         assertThat(result.isPresent(), equalTo(false));
 
-        verify(questionQueryManager).doesStudentVisibleQuestionExistForId(QUESTION_ID);
-        verify(markSchemeRepository).findByQuestionId(QUESTION_ID);
+        verify(questionQueryManager).doesStudentVisibleQuestionExistForId(questionId);
+        verify(markSchemeRepository).findByQuestionId(questionId);
     }
 
     @Test
     void getForQuestionIdReturnsMappedResponseWhenQuestionVisibleAndMarkSchemeExists() {
+        long questionId = 10L;
         long markSchemeId = 1L;
         String body = "Award 1 mark for stating the wave bends around the edge of the gap.";
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
         MarkScheme markScheme = new MarkScheme();
         setField(markScheme, "id", markSchemeId);
-        setField(markScheme, "questionId", QUESTION_ID);
+        setField(markScheme, "questionId", questionId);
         setField(markScheme, "body", body);
         setField(markScheme, "createdAt", createdAt);
 
-        when(questionQueryManager.doesStudentVisibleQuestionExistForId(QUESTION_ID)).thenReturn(true);
-        when(markSchemeRepository.findByQuestionId(QUESTION_ID)).thenReturn(Optional.of(markScheme));
+        when(questionQueryManager.doesStudentVisibleQuestionExistForId(questionId)).thenReturn(true);
+        when(markSchemeRepository.findByQuestionId(questionId)).thenReturn(Optional.of(markScheme));
 
-        Optional<MarkSchemeResponse> result = markSchemeService.getForQuestionId(QUESTION_ID);
+        Optional<MarkSchemeResponse> result = markSchemeService.getForQuestionId(questionId);
 
         assertThat(result.isPresent(), equalTo(true));
         MarkSchemeResponse response = result.get();
         assertThat(response.getId(), equalTo(markSchemeId));
-        assertThat(response.getQuestionId(), equalTo(QUESTION_ID));
+        assertThat(response.getQuestionId(), equalTo(questionId));
         assertThat(response.getBody(), equalTo(body));
         assertThat(response.getCreatedAt(), equalTo(createdAt));
 
-        verify(questionQueryManager).doesStudentVisibleQuestionExistForId(QUESTION_ID);
-        verify(markSchemeRepository).findByQuestionId(QUESTION_ID);
+        verify(questionQueryManager).doesStudentVisibleQuestionExistForId(questionId);
+        verify(markSchemeRepository).findByQuestionId(questionId);
     }
 }

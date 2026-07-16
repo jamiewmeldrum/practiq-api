@@ -190,6 +190,62 @@ class QuestionRepositoryIT {
         assertThat(question.get().getStatus(), is(status));
     }
 
+    // The visibility gate runs the same studentCatalogue spec through exists(), which Micronaut Data
+    // translates differently from findOne() — and the spec carries an EXISTS subquery for the concept
+    // link. These mirror the findOne cases so the gate's answer is pinned against a real database rather
+    // than only end-to-end through the web layer.
+    @Test
+    void existsReturnsTrueIfQuestionIsApprovedAndLinked() {
+        long id = 1L;
+        data.question(id).status(QuestionStatus.APPROVED).insert();
+
+        long conceptId = 10L;
+        data.concept(conceptId).insert();
+        data.link(id, conceptId).insert();
+
+        assertThat(existsForStudentCatalogue(id), is(true));
+    }
+
+    @Test
+    void existsReturnsFalseIfNoQuestionForId() {
+        long id = 1L;
+        data.question(id).status(QuestionStatus.APPROVED).insert();
+
+        long conceptId = 10L;
+        data.concept(conceptId).insert();
+        data.link(id, conceptId).insert();
+
+        assertThat(existsForStudentCatalogue(2L), is(false));
+    }
+
+    @Test
+    void existsReturnsFalseIfQuestionNotApproved() {
+        long id = 1L;
+        data.question(id).status(QuestionStatus.REJECTED).insert();
+
+        long conceptId = 10L;
+        data.concept(conceptId).insert();
+        data.link(id, conceptId).insert();
+
+        assertThat(existsForStudentCatalogue(id), is(false));
+    }
+
+    @Test
+    void existsReturnsFalseIfQuestionHasNoConceptLinks() {
+        long id = 1L;
+        data.question(id).status(QuestionStatus.APPROVED).insert();
+
+        // The concept exists but is never linked, so the missing link is the only disqualifier.
+        data.concept(10L).insert();
+
+        assertThat(existsForStudentCatalogue(id), is(false));
+    }
+
+    private boolean existsForStudentCatalogue(long questionId) {
+        QuestionQuery query = QuestionQuery.studentCatalogue(questionId);
+        return questionRepository.exists(questionSpecificationFactory.forQuery(query));
+    }
+
     private static List<Long> ids(List<Question> questions) {
         return questions.stream().map(Question::getId).collect(toList());
     }

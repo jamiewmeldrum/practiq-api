@@ -24,7 +24,6 @@ import static org.hamcrest.Matchers.equalTo;
 public class QuestionCataloguePT {
 
     private static final String QUESTIONS_PATH = "/api/v1/questions";
-    private static final long CONCEPT_ID = 100L;
 
     // Paged content SELECT + the page COUNT + the single concept-link stitch query.
     private static final long EXPECTED_STATEMENTS = 3L;
@@ -43,14 +42,15 @@ public class QuestionCataloguePT {
     @BeforeEach
     void setUp() {
         data.clear();
-        data.concept(CONCEPT_ID).insert();
         RestAssured.port = embeddedServer.getPort();
         statements = new StatementCounter(entityManagerFactory);
     }
 
     @Test
     void servingTheCatalogueFiresAConstantNumberOfStatements() {
-        insertApprovedLinkedQuestions(3);
+        long conceptId = 100L;
+        data.concept(conceptId).insert();
+        insertApprovedLinkedQuestions(3, conceptId);
 
         long count = statements.countDuring(() ->
                 given().when().get(QUESTIONS_PATH).then().statusCode(OK.getCode()));
@@ -60,13 +60,17 @@ public class QuestionCataloguePT {
 
     @Test
     void servingMoreRowsDoesNotFireMoreStatements() {
-        insertApprovedLinkedQuestions(2);
+        long conceptId = 100L;
+        data.concept(conceptId).insert();
+        insertApprovedLinkedQuestions(2, conceptId);
+
         long fewer = statements.countDuring(() ->
                 given().when().get(QUESTIONS_PATH + "?size=50").then().statusCode(OK.getCode()));
 
         data.clear();
-        data.concept(CONCEPT_ID).insert();
-        insertApprovedLinkedQuestions(6);
+        data.concept(conceptId).insert();
+        insertApprovedLinkedQuestions(6, conceptId);
+
         long more = statements.countDuring(() ->
                 given().when().get(QUESTIONS_PATH + "?size=50").then().statusCode(OK.getCode()));
 
@@ -74,14 +78,14 @@ public class QuestionCataloguePT {
         assertThat(more, equalTo(fewer));
     }
 
-    private void insertApprovedLinkedQuestions(int count) {
+    private void insertApprovedLinkedQuestions(int count, long conceptId) {
         for (long id = 1; id <= count; id++) {
             data.question(id)
                     .status(QuestionStatus.APPROVED)
                     .body("Question " + id)
                     .source(QuestionSource.SEED)
                     .insert();
-            data.link(id, CONCEPT_ID).insert();
+            data.link(id, conceptId).insert();
         }
     }
 }

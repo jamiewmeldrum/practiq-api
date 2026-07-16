@@ -42,7 +42,6 @@ import static utils.TestReflection.setField;
 @ComponentTest
 public class QuestionControllerCT {
     private static final String QUESTIONS_PATH = "/api/v1/questions";
-    private static final Instant CREATED_AT = Instant.parse("2026-01-01T00:00:00Z");
 
     @Inject
     private QuestionRepository questionRepository;
@@ -201,17 +200,19 @@ public class QuestionControllerCT {
 
     @Test
     void getQuestionsSerializesAFilteredPageWithAndWithoutLinks() {
+        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+
         long linkedId = 1L;
         String linkedBody = "Calculate the acceleration of a car.";
         QuestionDifficulty linkedDifficulty = QuestionDifficulty.EASY;
         QuestionType linkedType = QuestionType.SHORT_ANSWER;
-        Question linked = approvedQuestion(linkedId, linkedBody, linkedDifficulty, linkedType);
+        Question linked = approvedQuestion(linkedId, linkedBody, linkedDifficulty, linkedType, createdAt);
 
         long bareId = 2L;
         String bareBody = "Explain what is meant by diffraction.";
         QuestionDifficulty bareDifficulty = QuestionDifficulty.MEDIUM;
         QuestionType bareType = QuestionType.EXTENDED;
-        Question bare = approvedQuestion(bareId, bareBody, bareDifficulty, bareType);
+        Question bare = approvedQuestion(bareId, bareBody, bareDifficulty, bareType, createdAt);
 
         long conceptA = 10L;
         long conceptB = 11L;
@@ -234,14 +235,14 @@ public class QuestionControllerCT {
                 .body("content.find { it.id == " + linkedId + " }.difficulty.value", equalTo(linkedDifficulty.value()))
                 .body("content.find { it.id == " + linkedId + " }.difficulty.code", equalTo(linkedDifficulty.name()))
                 .body("content.find { it.id == " + linkedId + " }.type", equalTo(linkedType.name()))
-                .body("content.find { it.id == " + linkedId + " }.createdAt", equalTo(CREATED_AT.toString()))
+                .body("content.find { it.id == " + linkedId + " }.createdAt", equalTo(createdAt.toString()))
                 .body("content.find { it.id == " + linkedId + " }.linkedConceptIds", containsInAnyOrder((int) conceptA, (int) conceptB))
 
                 .body("content.find { it.id == " + bareId + " }.body", equalTo(bareBody))
                 .body("content.find { it.id == " + bareId + " }.difficulty.value", equalTo(bareDifficulty.value()))
                 .body("content.find { it.id == " + bareId + " }.difficulty.code", equalTo(bareDifficulty.name()))
                 .body("content.find { it.id == " + bareId + " }.type", equalTo(bareType.name()))
-                .body("content.find { it.id == " + bareId + " }.createdAt", equalTo(CREATED_AT.toString()))
+                .body("content.find { it.id == " + bareId + " }.createdAt", equalTo(createdAt.toString()))
                 .body("content.find { it.id == " + bareId + " }.linkedConceptIds", empty());
 
         verify(questionRepository).findAll(Mockito.any(QuerySpecification.class), Mockito.any(Pageable.class));
@@ -433,10 +434,11 @@ public class QuestionControllerCT {
 
     // An APPROVED question with id and created_at set (both DB-assigned in production, so set by reflection
     // here). created_at must be non-null or Serde omits the key and the keySet assertions break.
-    private static Question approvedQuestion(long id, String body, QuestionDifficulty difficulty, QuestionType type) {
+    private static Question approvedQuestion(
+            long id, String body, QuestionDifficulty difficulty, QuestionType type, Instant createdAt) {
         Question question = new Question(body, difficulty, type, QuestionSource.SEED, QuestionStatus.APPROVED, "AQA GCSE Physics");
         setField(question, "id", id);
-        setField(question, "createdAt", CREATED_AT);
+        setField(question, "createdAt", createdAt);
         return question;
     }
 }

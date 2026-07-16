@@ -147,7 +147,7 @@ val performanceTest = tasks.register<Test>("performanceTest") {
     classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform()
     include("**/*PT.class")
-    shouldRunAfter(tasks.test, integrationTest)
+    mustRunAfter(tasks.test, integrationTest)
 }
 
 // `./gradlew build` (CI) runs everything; the dev fast loop is `./gradlew test`. Performance tests run by

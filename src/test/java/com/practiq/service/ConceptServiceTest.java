@@ -17,6 +17,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
+import static utils.TestReflection.setField;
 
 @ExtendWith(MockitoExtension.class)
 class ConceptServiceTest {
@@ -34,22 +35,14 @@ class ConceptServiceTest {
         String diffractionDescription = "The spreading of waves through a gap or around an obstacle.";
         Instant diffractionCreatedAt = Instant.parse("2026-06-29T10:15:30Z");
 
-        Concept diffraction = mock(Concept.class);
-        when(diffraction.getId()).thenReturn(diffractionId);
-        when(diffraction.getName()).thenReturn(diffractionName);
-        when(diffraction.getDescription()).thenReturn(diffractionDescription);
-        when(diffraction.getCreatedAt()).thenReturn(diffractionCreatedAt);
+        Concept diffraction = concept(diffractionId, diffractionName, diffractionDescription, diffractionCreatedAt);
 
         long accelerationId = 43L;
         String accelerationName = "Acceleration";
         String accelerationDescription = "The rate of change of velocity over time.";
         Instant accelerationCreatedAt = Instant.parse("2026-06-29T10:15:30Z");
 
-        Concept acceleration = mock(Concept.class);
-        when(acceleration.getId()).thenReturn(accelerationId);
-        when(acceleration.getName()).thenReturn(accelerationName);
-        when(acceleration.getDescription()).thenReturn(accelerationDescription);
-        when(acceleration.getCreatedAt()).thenReturn(accelerationCreatedAt);
+        Concept acceleration = concept(accelerationId, accelerationName, accelerationDescription, accelerationCreatedAt);
 
         when(conceptRepository.listOrderByCreatedAtAsc()).thenReturn(List.of(
                 diffraction,
@@ -92,13 +85,7 @@ class ConceptServiceTest {
         String description = "The spreading of waves through a gap or around an obstacle.";
         Instant createdAt = Instant.parse("2026-06-29T10:15:30Z");
 
-        Concept concept = mock(Concept.class);
-        when(concept.getId()).thenReturn(id);
-        when(concept.getName()).thenReturn(name);
-        when(concept.getDescription()).thenReturn(description);
-        when(concept.getCreatedAt()).thenReturn(createdAt);
-
-        when(conceptRepository.findById(id)).thenReturn(Optional.of(concept));
+        when(conceptRepository.findById(id)).thenReturn(Optional.of(concept(id, name, description, createdAt)));
 
         Optional<ConceptResponse> conceptDto = conceptService.get(id);
         assertThat(conceptDto.isPresent(), is(true));
@@ -122,5 +109,15 @@ class ConceptServiceTest {
         assertThat(conceptDto.isPresent(), is(false));
 
         verify(conceptRepository).findById(id);
+    }
+
+    // A real Concept rather than a mock: id and createdAt are DB-assigned in production, so they're set by
+    // reflection. A mocked entity would answer whatever was stubbed for whichever getter the mapper happens
+    // to call, so it can't catch the mapper reading the wrong field.
+    private static Concept concept(long id, String name, String description, Instant createdAt) {
+        Concept concept = new Concept(name, description);
+        setField(concept, "id", id);
+        setField(concept, "createdAt", createdAt);
+        return concept;
     }
 }
