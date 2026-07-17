@@ -285,14 +285,13 @@ need a custom `Pageable` binder; not worth the machinery yet.
 
 ## Testing
 
-Three tiers, split by how much of the app is wired and where the boundary is cut.
-The guiding rule: **put each test where it can actually observe the behaviour it
-claims to verify.** Mocking everything around a thin layer just tests a tautology.
+Four tiers. The guiding rule: **put each test where it can actually observe the behaviour it claims to
+verify.** Mocking everything around a thin layer just tests a tautology.
 
 | Tier | Suffix | Wires | Boundary | Task |
 |------|--------|-------|----------|------|
 | Unit | `*Test` | one class, no context | all deps mocked (Mockito) | `test` |
-| Component | `*CT` | real web layer (routing, binding, validation, serialization) | repository / external calls mocked, no DB | `test` |
+| Component | `*CT` | real web layer (routing, binding, validation, serialization) | repository mocked, no DB | `test` |
 | Integration | `*IT` | full stack | real Postgres (Testcontainers) | `integrationTest` |
 | Performance | `*PT` | full stack | real Postgres (Testcontainers) | `performanceTest` |
 
@@ -300,37 +299,60 @@ claims to verify.** Mocking everything around a thin layer just tests a tautolog
 ./gradlew test                  # unit + component (*CT) — the every-change loop
 ./gradlew integrationTest       # integration (*IT) — real Postgres, pre-merge / CI
 ./gradlew performanceTest       # performance (*PT) — real Postgres, per-request query counts
-./gradlew build                 # runs everything (check depends on integrationTest + performanceTest)
+./gradlew build                 # runs everything
 ./gradlew build -PskipPerf      # ...but skip the performance tier
 ```
 
-**What goes where**
+### What each tier answers
 
-- **Unit** — service logic with deps mocked; and validation *rule correctness* via a bare
-  `jakarta.validation.Validator` (no context at all) when a constraint is non-trivial.
-- **Component** — controller behaviour: routing, body binding, that `@Valid` is actually
-  *wired* (bad payload → 400), JSON serialization. The repository boundary is mocked, so no
-  SQL runs. This is the layer that keeps the slow integration tier thin.
-- **Integration** — only what genuinely needs a real database: repository queries, `@Query`,
-  migrations, transactional behaviour. Kept deliberately few. Organised by what they exercise:
-  `integration/db` (schema/constraint behaviour via raw SQL), `integration/repository`
-  (repository queries and specifications), `integration/e2e` (full HTTP → DB slices).
-- **Performance** — asserts the *number of JDBC statements* a request fires, not its output. Each
-  endpoint gets a happy-path count, and the row-scaling catalogue additionally asserts the count does
-  **not** grow with the number of rows. This is the guard against a silent N+1 — e.g. an eager
-  `@OneToOne` reintroduced on an entity — which every other tier passes green because the *data* is
-  still correct. Uses Hibernate statistics (`StatementCounter`) against real Postgres; lives in
-  `performance/` behind `@PerformanceTest`.
+How a test is wired tells you where it plugs in. Only the **question** tells you whether it's worth
+having — so that's what the name encodes:
 
-**The performance tier and the toggle.** `*PT` tests run as part of `build`/`check` by default. Pass
-`-PskipPerf` to skip them (they need Docker, like `*IT`). They assert on **prepared-statement** count,
-which is the metric that sees eager secondary selects — a query-execution count would miss them. A
-regression that adds a per-row query trips the invariance assertion no matter how it's introduced.
+| Naming | Question it answers |
+|--------|---------------------|
+| `*Test` | Does this logic do what it should? |
+| `*CT` | Does the web layer bind, serialise and map correctly? |
+| `*ControllerIT` | Does the definition of done actually hold, end to end? |
+| `*RepositoryIT` / `*SpecificationFactoryIT` | Do I understand the method I'm calling? |
+| `*DatabaseIT` | Does the migration say what I think it says? |
+| `*PT` | Is the query plan the shape I think it is? |
 
-> **Pipeline note (for whoever owns CI):** these run in the default `build`, so the pipeline covers them
-> today. If we adopt a git-flow-style dev/main split, it may be cleaner to gate the performance tier to a
-> later stage (e.g. pre-merge to `main`) with `-PskipPerf` on the fast feature-branch build, rather than
-> paying the container cost on every push. Left as a deliberate, easily-reversed default for now.
+**Three IT flavours, one tier.** `*ControllerIT`, `*RepositoryIT` and `*DatabaseIT` share a tier because
+they share a *mechanism* — they need a container and run in `integrationTest`. They differ in the question,
+which the name carries. `IT` here honestly means "needs Docker", which is true of all three; "integration"
+is a conceptual promise the suffix never made.
+
+No tier substitutes for another. A repository test proves you understand your tools; it does not prove the
+app calls them. Swap `findOne(spec)` for a hand-rolled query and the repository test still passes — it now
+tests a method production abandoned, and it goes stale silently. Only the controller IT's meaning survives
+that refactor.
+
+### Why there's a performance tier
+
+`*PT` asserts **how** the data was fetched, not **what** came back. Each endpoint gets a happy-path pin on
+the number of JDBC statements a single request fires; row-scaling endpoints also assert the count doesn't
+grow with the number of rows.
+
+That second assertion catches an N+1. The first one exists for a subtler bug. Reintroduce a fetch-join on a
+paginated to-many and Hibernate quietly stops pushing `LIMIT` to SQL — it fetches the whole result set and
+pages it in memory. Every correctness test still passes, because the rows returned are *correct*; the
+invariance check also passes, because the statement count stays constant. The only thing that moves is the
+absolute number of statements. Tests that assert what came back structurally cannot see this. That's the
+whole reason the tier exists.
+
+The counts are deliberate magic numbers, each with a comment saying what it's made of. Update the pin
+consciously when you legitimately add a query — the friction is the feature.
+
+### Calibration
+
+This is a practice project, and some of this is more than a project this size needs. That's deliberate.
+How much test weight is right is a function of team preference and how much the thing costs when it breaks;
+the point here was to build the designs out far enough to have an opinion about them. Too much is sometimes
+how you find out what enough looks like.
+
+> **Pipeline note:** `*PT` runs in the default `build`, so CI covers it today. Under a git-flow dev/main
+> split it may be cleaner to gate it to a later stage with `-PskipPerf` on fast feature-branch builds,
+> rather than paying the container cost on every push. Easily reversed.
 
 **Writing a component test.** Micronaut has no `@WebMvcTest`-style slice annotation, so a
 few things have to be arranged by hand to test the web layer without a database. The pattern

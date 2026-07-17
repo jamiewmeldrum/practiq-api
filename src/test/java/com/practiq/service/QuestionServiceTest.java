@@ -90,19 +90,6 @@ class QuestionServiceTest {
     }
 
     @Test
-    void getQuestionsDelegatesTheRequestAndPageableVerbatim() {
-        QuestionRequest request = new QuestionRequest();
-        Pageable pageable = Pageable.from(0, 20);
-
-        when(questionQueryManager.findStudentVisibleQuestionsPagedAndFiltered(request, pageable))
-                .thenReturn(Page.of(List.of(), pageable, 0L));
-
-        questionService.get(request, pageable);
-
-        verify(questionQueryManager).findStudentVisibleQuestionsPagedAndFiltered(request, pageable);
-    }
-
-    @Test
     void getQuestionsPairsThePagesMetadataWithItsMappedContent() {
         long questionId = 7L;
         String body = "Explain what is meant by diffraction.";

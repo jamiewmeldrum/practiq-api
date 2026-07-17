@@ -344,9 +344,40 @@ public class QuestionControllerCT {
                 .body("status", equalTo(400));
     }
 
+    // The null-field guard for the question payload: micronaut.serde.serialization.inclusion=always is what
+    // keeps an unrated difficulty and an absent type as present-but-null keys rather than dropping them
+    // (Serde's own default is NON_EMPTY). Asserted over a real HTTP call, because the encoder the route uses
+    // is the only one whose behaviour is the contract.
+    @Test
+    void getQuestionByIdSerialisesNullDifficultyAndTypeAsPresentNullKeys() {
+        long id = 7L;
+        String body = "Explain what is meant by diffraction.";
+        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+
+        Question question = approvedQuestion(id, body, null, null, createdAt);
+
+        when(questionRepository.findOne(Mockito.any(QuerySpecification.class))).thenReturn(Optional.of(question));
+        when(questionConceptRepository.findLinksByQuestionIds(Set.of(id))).thenReturn(List.of());
+
+        given()
+                .when()
+                .get(QUESTIONS_PATH + "/" + id)
+                .then()
+                .statusCode(OK.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("id", "body", "difficulty", "type", "createdAt", "linkedConceptIds"))
+                .body("id", equalTo((int) id))
+                .body("body", equalTo(body))
+                .body("difficulty", nullValue())
+                .body("type", nullValue())
+                .body("linkedConceptIds", empty());
+
+        verify(questionConceptRepository).findLinksByQuestionIds(Set.of(id));
+    }
+
     @Test
     void getQuestionByIdSerialisedQuestionResponse() {
-        long id = 1L;
+        long id = 3L;
         String body = "Question A";
         QuestionDifficulty difficulty = QuestionDifficulty.EASY;
         QuestionType type = QuestionType.EXTENDED;
@@ -400,7 +431,7 @@ public class QuestionControllerCT {
 
     @Test
     void getQuestionByIdSerialisedErrorResponseIfNotFound() {
-        long id = 1L;
+        long id = 3L;
 
         when(questionRepository.findOne(Mockito.any(QuerySpecification.class))).thenReturn(Optional.empty());
 

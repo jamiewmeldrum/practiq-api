@@ -67,18 +67,16 @@ public class MarkSchemeControllerCT {
 
     @Test
     void getMarkSchemeSerialisesResponse() {
-        long questionId = 1L;
+        long questionId = 7L;
         long markSchemeId = 5L;
         String body = "Award 1 mark for stating the wave bends around the edge of the gap.";
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
         // version is set to a non-zero value so its absence from the JSON proves the payload drops it,
         // rather than it merely happening to be zero.
-        MarkScheme markScheme = new MarkScheme();
+        MarkScheme markScheme = new MarkScheme(questionId, body);
         setField(markScheme, "id", markSchemeId);
-        setField(markScheme, "questionId", questionId);
         setField(markScheme, "version", 7);
-        setField(markScheme, "body", body);
         setField(markScheme, "createdAt", createdAt);
 
         // The visibility gate is an existence check; the mark scheme is then found for the question. The
@@ -108,7 +106,7 @@ public class MarkSchemeControllerCT {
     // lookup is never reached.
     @Test
     void getMarkSchemeSerialisesNotFoundEnvelopeWhenQuestionNotVisible() {
-        long questionId = 1L;
+        long questionId = 7L;
 
         when(questionRepository.exists(Mockito.any(QuerySpecification.class))).thenReturn(false);
 

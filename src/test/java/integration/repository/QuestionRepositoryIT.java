@@ -123,71 +123,60 @@ class QuestionRepositoryIT {
         assertThat(ids(results), contains(earliestByTime, sameTimeLowId, sameTimeHighId));
     }
 
+    // Every by-id case below carries a second, fully-servable question (id 8). Without it a spec that
+    // dropped its id predicate would still answer "found"/"true" from the other row and pass.
     @Test
     void findByIdAndStatusReturnsOptionalEmptyIfNoMatchOnId() {
-        long id = 1L;
-        QuestionStatus status = QuestionStatus.APPROVED;
-        data.question(id).status(status).insert();
-
         long conceptId = 10L;
         data.concept(conceptId).insert();
+        servableQuestion(7L, conceptId);
+        servableQuestion(8L, conceptId);
 
-        data.link(id, conceptId).insert();
-
-        QuestionQuery query = QuestionQuery.studentCatalogue(2L);
-        QuerySpecification<Question> spec = questionSpecificationFactory.forQuery(query);
-        Optional<Question> question = questionRepository.findOne(spec);
-
-        assertThat(question.isPresent(), is(false));
+        // 9 is neither of the two rows present.
+        assertThat(findForStudentCatalogue(9L).isPresent(), is(false));
     }
 
     @Test
     void findByIdAndStatusReturnsOptionalEmptyIfNotApproved() {
-        long id = 1L;
-        QuestionStatus status = QuestionStatus.REJECTED;
-        data.question(id).status(status).insert();
-
         long conceptId = 10L;
         data.concept(conceptId).insert();
 
-        data.link(id, conceptId).insert();
+        long rejectedId = 7L;
+        data.question(rejectedId).status(QuestionStatus.REJECTED).insert();
+        data.link(rejectedId, conceptId).insert();
 
-        QuestionQuery query = QuestionQuery.studentCatalogue(id);
-        QuerySpecification<Question> spec = questionSpecificationFactory.forQuery(query);
-        Optional<Question> question = questionRepository.findOne(spec);
-        assertThat(question.isPresent(), is(false));
+        servableQuestion(8L, conceptId);
+
+        assertThat(findForStudentCatalogue(rejectedId).isPresent(), is(false));
     }
 
     @Test
     void findByIdAndStatusReturnsOptionalEmptyIfNoQuestionConceptLinks() {
-        long id = 1L;
-        QuestionStatus status = QuestionStatus.APPROVED;
-        data.question(id).status(status).insert();
+        long conceptId = 10L;
+        data.concept(conceptId).insert();
 
-        QuestionQuery query = QuestionQuery.studentCatalogue(id);
-        QuerySpecification<Question> spec = questionSpecificationFactory.forQuery(query);
-        Optional<Question> question = questionRepository.findOne(spec);
-        assertThat(question.isPresent(), is(false));
+        long unlinkedId = 7L;
+        data.question(unlinkedId).status(QuestionStatus.APPROVED).insert();
+
+        servableQuestion(8L, conceptId);
+
+        assertThat(findForStudentCatalogue(unlinkedId).isPresent(), is(false));
     }
 
     @Test
     void findByIdAndStatusReturnsOptionalQuestionIfMatched() {
-        long id = 1L;
-        QuestionStatus status = QuestionStatus.APPROVED;
-        data.question(id).status(status).insert();
-
         long conceptId = 10L;
         data.concept(conceptId).insert();
 
-        data.link(id, conceptId).insert();
+        long id = 7L;
+        servableQuestion(id, conceptId);
+        servableQuestion(8L, conceptId);
 
-        QuestionQuery query = QuestionQuery.studentCatalogue(id);
-        QuerySpecification<Question> spec = questionSpecificationFactory.forQuery(query);
-        Optional<Question> question = questionRepository.findOne(spec);
+        Optional<Question> question = findForStudentCatalogue(id);
 
         assertThat(question.isPresent(), is(true));
         assertThat(question.get().getId(), is(id));
-        assertThat(question.get().getStatus(), is(status));
+        assertThat(question.get().getStatus(), is(QuestionStatus.APPROVED));
     }
 
     // The visibility gate runs the same studentCatalogue spec through exists(), which Micronaut Data
@@ -196,49 +185,60 @@ class QuestionRepositoryIT {
     // than only end-to-end through the web layer.
     @Test
     void existsReturnsTrueIfQuestionIsApprovedAndLinked() {
-        long id = 1L;
-        data.question(id).status(QuestionStatus.APPROVED).insert();
-
         long conceptId = 10L;
         data.concept(conceptId).insert();
-        data.link(id, conceptId).insert();
+        servableQuestion(7L, conceptId);
+        servableQuestion(8L, conceptId);
 
-        assertThat(existsForStudentCatalogue(id), is(true));
+        assertThat(existsForStudentCatalogue(7L), is(true));
     }
 
     @Test
     void existsReturnsFalseIfNoQuestionForId() {
-        long id = 1L;
-        data.question(id).status(QuestionStatus.APPROVED).insert();
-
         long conceptId = 10L;
         data.concept(conceptId).insert();
-        data.link(id, conceptId).insert();
+        servableQuestion(7L, conceptId);
+        servableQuestion(8L, conceptId);
 
-        assertThat(existsForStudentCatalogue(2L), is(false));
+        assertThat(existsForStudentCatalogue(9L), is(false));
     }
 
     @Test
     void existsReturnsFalseIfQuestionNotApproved() {
-        long id = 1L;
-        data.question(id).status(QuestionStatus.REJECTED).insert();
-
         long conceptId = 10L;
         data.concept(conceptId).insert();
-        data.link(id, conceptId).insert();
 
-        assertThat(existsForStudentCatalogue(id), is(false));
+        long rejectedId = 7L;
+        data.question(rejectedId).status(QuestionStatus.REJECTED).insert();
+        data.link(rejectedId, conceptId).insert();
+
+        servableQuestion(8L, conceptId);
+
+        assertThat(existsForStudentCatalogue(rejectedId), is(false));
     }
 
     @Test
     void existsReturnsFalseIfQuestionHasNoConceptLinks() {
-        long id = 1L;
+        long conceptId = 10L;
+        data.concept(conceptId).insert();
+
+        // The concept exists but is never linked to 7, so the missing link is its only disqualifier.
+        long unlinkedId = 7L;
+        data.question(unlinkedId).status(QuestionStatus.APPROVED).insert();
+
+        servableQuestion(8L, conceptId);
+
+        assertThat(existsForStudentCatalogue(unlinkedId), is(false));
+    }
+
+    private void servableQuestion(long id, long conceptId) {
         data.question(id).status(QuestionStatus.APPROVED).insert();
+        data.link(id, conceptId).insert();
+    }
 
-        // The concept exists but is never linked, so the missing link is the only disqualifier.
-        data.concept(10L).insert();
-
-        assertThat(existsForStudentCatalogue(id), is(false));
+    private Optional<Question> findForStudentCatalogue(long questionId) {
+        QuestionQuery query = QuestionQuery.studentCatalogue(questionId);
+        return questionRepository.findOne(questionSpecificationFactory.forQuery(query));
     }
 
     private boolean existsForStudentCatalogue(long questionId) {

@@ -49,17 +49,24 @@ public class QuestionByIdPT {
         long conceptId = 100L;
         data.concept(conceptId).insert();
 
-        long questionId = 1L;
-        data.question(questionId)
-                .status(QuestionStatus.APPROVED)
-                .body("State Newton's first law.")
-                .source(QuestionSource.SEED)
-                .insert();
-        data.link(questionId, conceptId).insert();
+        // Two servable rows: the statement count must be a property of the query plan, not of the target
+        // happening to be the only row in the table.
+        long questionId = 7L;
+        servableQuestion(questionId, conceptId, "State Newton's first law.");
+        servableQuestion(8L, conceptId, "Servable question eight.");
 
         long count = statements.countDuring(() ->
                 given().when().get(QUESTIONS_PATH + "/" + questionId).then().statusCode(OK.getCode()));
 
         assertThat(count, equalTo(EXPECTED_STATEMENTS));
+    }
+
+    private void servableQuestion(long id, long conceptId, String body) {
+        data.question(id)
+                .status(QuestionStatus.APPROVED)
+                .body(body)
+                .source(QuestionSource.SEED)
+                .insert();
+        data.link(id, conceptId).insert();
     }
 }

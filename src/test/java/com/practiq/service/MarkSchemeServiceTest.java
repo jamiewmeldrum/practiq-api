@@ -72,10 +72,8 @@ class MarkSchemeServiceTest {
         String body = "Award 1 mark for stating the wave bends around the edge of the gap.";
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
-        MarkScheme markScheme = new MarkScheme();
+        MarkScheme markScheme = new MarkScheme(questionId, body);
         setField(markScheme, "id", markSchemeId);
-        setField(markScheme, "questionId", questionId);
-        setField(markScheme, "body", body);
         setField(markScheme, "createdAt", createdAt);
 
         when(questionQueryManager.doesStudentVisibleQuestionExistForId(questionId)).thenReturn(true);

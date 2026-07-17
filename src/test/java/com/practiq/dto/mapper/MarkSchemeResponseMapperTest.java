@@ -20,10 +20,8 @@ class MarkSchemeResponseMapperTest {
         String body = "Diffraction";
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
-        MarkScheme markScheme = new MarkScheme();
+        MarkScheme markScheme = new MarkScheme(questionId, body);
         setField(markScheme, "id", id);
-        setField(markScheme, "questionId", questionId);
-        setField(markScheme, "body", body);
         setField(markScheme, "createdAt", createdAt);
 
         MarkSchemeResponse markSchemeResponse = toMarkSchemeResponse(markScheme);

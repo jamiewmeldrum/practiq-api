@@ -69,22 +69,33 @@ public class MarkSchemeRepositoryIT {
         assertThat(survivor.getVersion(), equalTo(1));
     }
 
+    // Both cases carry two mark schemes. Without the second, a finder that returned any row would pass the
+    // match case, and the no-match case would pass on an empty table.
     @Test
     void findByQuestionIdReturnsEmptyIfNoMatch() {
-        assertThat(markSchemeRepository.findByQuestionId(1L).isPresent(), is(false));
+        data.question(7L).insert();
+        data.markScheme(7L, "Mark scheme for seven.").insert();
+        data.question(8L).insert();
+        data.markScheme(8L, "Mark scheme for eight.").insert();
+
+        // 9 is neither of the two rows present.
+        assertThat(markSchemeRepository.findByQuestionId(9L).isPresent(), is(false));
     }
 
     @Test
     void findByQuestionIdReturnsMarkSchemeIfMatch() {
-        long questionId = 1L;
+        long questionId = 7L;
+        String body = "Mark scheme for seven.";
 
         data.question(questionId).insert();
-        data.markScheme(questionId, "body").insert();
+        data.markScheme(questionId, body).insert();
+        data.question(8L).insert();
+        data.markScheme(8L, "Mark scheme for eight.").insert();
 
         Optional<MarkScheme> markScheme = markSchemeRepository.findByQuestionId(questionId);
         assertThat(markScheme.isPresent(), is(true));
 
         assertThat(markScheme.get().getQuestionId(), equalTo(questionId));
-        assertThat(markScheme.get().getBody(), equalTo("body"));
+        assertThat(markScheme.get().getBody(), equalTo(body));
     }
 }
