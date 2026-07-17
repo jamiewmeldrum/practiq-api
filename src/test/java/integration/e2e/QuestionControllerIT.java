@@ -46,7 +46,6 @@ class QuestionControllerIT {
                 .then()
                 .statusCode(OK.getCode())
                 .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("content", "page", "size", "totalCount"))
                 .body("content", empty())
                 .body("totalCount", equalTo(0));
     }
@@ -257,16 +256,23 @@ class QuestionControllerIT {
         }
     }
 
+    // Each by-id test below carries a second, fully-servable question. Without it a handler returning *a*
+    // question rather than *the* one asked for would pass.
     @Test
     void getQuestionByIdReturnsNotFoundIfNoQuestionExistsForId() {
-        String path = QUESTIONS_PATH + "/" + 1L;
+        long conceptId = 100L;
+        data.concept(conceptId).insert();
+        approvedLinkedQuestion(7L, "Servable question seven.", conceptId);
+        approvedLinkedQuestion(8L, "Servable question eight.", conceptId);
+
+        // 9 is neither of the two rows present.
+        String path = QUESTIONS_PATH + "/" + 9L;
         given()
                 .when()
                 .get(path)
                 .then()
                 .statusCode(NOT_FOUND.getCode())
                 .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("error", "status"))
                 .body("error", equalTo("Could not find resource for path: " + path))
                 .body("status", equalTo(404));
     }
@@ -276,13 +282,13 @@ class QuestionControllerIT {
         long conceptId = 100L;
         data.concept(conceptId).insert();
 
-        long targetId = 1L;
+        long targetId = 7L;
         data.question(targetId)
                 .status(QuestionStatus.REJECTED)
-                .body("State Newton's first law.")
-                .source(QuestionSource.SEED)
                 .insert();
         data.link(targetId, conceptId).insert();
+
+        approvedLinkedQuestion(8L, "Servable question eight.", conceptId);
 
         String path = QUESTIONS_PATH + "/" + targetId;
         given()
@@ -291,23 +297,23 @@ class QuestionControllerIT {
                 .then()
                 .statusCode(NOT_FOUND.getCode())
                 .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("error", "status"))
                 .body("error", equalTo("Could not find resource for path: " + path))
                 .body("status", equalTo(404));
     }
 
     @Test
     void getQuestionByIdReturnsNotFoundIfNoLinkExistsForId() {
-        // A concept exists but is never linked to the question, so the missing link is the only reason
-        // the question isn't served.
-        data.concept(100L).insert();
+        // A concept exists but is never linked to the target, so the missing link is the only reason it
+        // isn't served — the second question is linked and is.
+        long conceptId = 100L;
+        data.concept(conceptId).insert();
 
-        long targetId = 1L;
+        long targetId = 7L;
         data.question(targetId)
                 .status(QuestionStatus.APPROVED)
-                .body("State Newton's first law.")
-                .source(QuestionSource.SEED)
                 .insert();
+
+        approvedLinkedQuestion(8L, "Servable question eight.", conceptId);
 
         String path = QUESTIONS_PATH + "/" + targetId;
         given()
@@ -316,7 +322,6 @@ class QuestionControllerIT {
                 .then()
                 .statusCode(NOT_FOUND.getCode())
                 .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("error", "status"))
                 .body("error", equalTo("Could not find resource for path: " + path))
                 .body("status", equalTo(404));
     }
@@ -326,7 +331,7 @@ class QuestionControllerIT {
         long conceptId = 100L;
         data.concept(conceptId).insert();
 
-        long id = 1L;
+        long id = 7L;
         String body = "State Newton's first law.";
         QuestionDifficulty difficulty = QuestionDifficulty.MEDIUM;
         QuestionType type = QuestionType.SHORT_ANSWER;
@@ -335,9 +340,10 @@ class QuestionControllerIT {
                 .difficulty(difficulty)
                 .body(body)
                 .type(type)
-                .source(QuestionSource.SEED)
                 .insert();
         data.link(id, conceptId).insert();
+
+        approvedLinkedQuestion(8L, "Servable question eight.", conceptId);
 
         given()
                 .when()
@@ -345,7 +351,6 @@ class QuestionControllerIT {
                 .then()
                 .statusCode(OK.getCode())
                 .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("id", "body", "difficulty", "type", "createdAt", "linkedConceptIds"))
                 .body("id", equalTo((int) id))
                 .body("body", equalTo(body))
                 .body("difficulty.value", equalTo(difficulty.value()))
@@ -353,6 +358,13 @@ class QuestionControllerIT {
                 .body("type", equalTo(type.name()))
                 .body("createdAt", matchesPattern(data.getInstantPattern()))
                 .body("linkedConceptIds", contains((int) conceptId));
+    }
+
+    private void approvedLinkedQuestion(long id, String body, long conceptId) {
+        data.question(id).status(QuestionStatus.APPROVED)
+                .body(body)
+                .insert();
+        data.link(id, conceptId).insert();
     }
 
     private void approvedLinkedQuestion(long id, String body, OffsetDateTime createdAt, long conceptId) {

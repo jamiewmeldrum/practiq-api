@@ -13,6 +13,7 @@
 - **The learning goal overrides speed.** This project exists to rebuild genuine skill — every line should be explainable in an interview. If something with learning value is being delegated, say so.
 - Acceptable to generate on request without ceremony: CI YAML, docker-compose, .gitignore, README boilerplate — low learning value.
 - A good session-end habit: when asked, review the repo against the current sprint's DoD and these conventions, and list gaps.
+- **DoD review output (when asked to review the repo against a sprint's DoD):** for each DoD item, state not just pass/fail but the *mechanism* — which existing abstraction it reused vs. re-implemented, which query/method path it took, and which test tier exercised it. The developer relays this to a separate PM context that cannot see the repo, so "reuses `QuestionQuery.studentCatalogue`" is a useful fact and "enforces the serving policy" is not. Flag any place a shared invariant (e.g. D-024's policy object) was copied rather than reused, and any DoD line proven only by the happy path. This is the engineer's debrief — mechanism over outcome — and is distinct from any PR/PM summary that may also be requested.
 
 ## 2. What Practiq is
 
@@ -53,15 +54,30 @@ TARGET (Phase 4+ only): API → SQS → practiq-processor → extractor Lambda �
 
 ```
 com.practiq
-  api/         REST controllers (thin — no business logic)
-  service/     business logic (@Singleton)
-  domain/      JPA entities
-  repository/  Micronaut Data repositories
-  ai/          AIService interface + StubAIService + ClaudeAIService
-  ingestion/   async ingestion job + extractor HTTP client (Sprint 1.2+)
-  config/      configuration
-  dto/         request/response records — never expose entities
+  api/                REST controllers (thin — no business logic)
+  service/            business logic (@Singleton) + QuestionQueryManager
+  domain/             JPA entities
+  domain/projection/  read projections (LinkedQuestion, QuestionConceptLink) — never entities
+  domain/query/       QuestionQuery + specification factory
+  repository/         Micronaut Data repositories
+  ai/                 AIService interface + StubAIService + ClaudeAIService
+  ingestion/          async ingestion job + extractor HTTP client (Sprint 1.2+)
+  config/             configuration
+  dto/                request/response records — never expose entities
+  dto/mapper/         static mapper methods (ConceptResponseMapper, QuestionResponseMapper, …)
 ```
+
+- **`QuestionQueryManager` owns question retrieval.** Question repository calls live there, not in services. A
+  service that needs question data goes through it. It holds the `studentCatalogue` policy, the stable
+  `(created_at, id)` ordering, and the two-query concept stitch; it returns domain projections, never DTOs —
+  services do the DTO mapping. This does **not** supersede D-024: the policy is still an invariant on
+  `QuestionQuery`'s constructor. Two mechanisms, deliberately.
+- **`LinkedQuestion`** (`domain/projection/`) — `Question` + `Set<QuestionConceptLink>`; the read path's
+  assembly type, consumed by `QuestionResponseMapper`.
+- **Mappers are static methods, no interface.** A method reference already satisfies `Function<E,R>` and every
+  call site knows both types statically, so polymorphism has no call site. **Trigger to revisit:** the day a
+  mapper needs a collaborator (e.g. resolving `{{s3:key}}` to presigned URLs) it must become an injected
+  `@Singleton`.
 
 ## 6. Data model (Flyway is the source of truth)
 
@@ -153,22 +169,111 @@ Ingestion failures are flagged for the review UI — never student-facing. AI pr
 
 ## 9. Testing (first-class, written alongside features)
 
-Three-tier model — put each test where it can actually observe the behaviour it claims to verify:
+Four tiers. **A tier is an annotation that does something.** Put each test where it can observe the behaviour
+it claims to verify.
 
 | Tier | Naming | Wires | Boundary | Gradle task | Run cadence |
 |------|--------|-------|----------|-------------|-------------|
 | Unit | `*Test` | one class, no context | all deps mocked (JUnit 5 + Mockito) | `test` | every change |
-| Component | `*CT` | real web layer (routing, binding, validation, serialisation) | `@MockBean` — **no DB** | `test` | every change |
+| Component | `*CT` | real web layer (routing, binding, validation, serialisation) | `@CTSlice` — **no DB** | `test` | every change |
 | Integration | `*IT` | full stack | real Postgres via Testcontainers | `integrationTest` | pre-merge / CI |
+| Performance | `*PT` | full stack | real Postgres via Testcontainers | `performanceTest` | pre-merge / CI |
 
-- **Unit:** service logic; non-trivial validation rule correctness via a bare `jakarta.validation.Validator`.
-- **Component:** controller behaviour — that routes map correctly, body binding works, `@Valid` is actually wired (bad payload → 400), serialisation produces the right JSON shape. Persistence boundary mocked. Cover *representative* shape/value, not exhaustive field nuance — a read endpoint gets ~2 tests (a few entities with expected fields, plus an empty case), not one per field.
-- **Integration:** only what needs a real DB — repository queries, `@Query`, migration correctness, transactional behaviour. Kept deliberately few.
-- **Responsibility & overlap (honeycomb, not strict pyramid):** higher tiers are deliberately multi-responsibility. "One reason to fail" is a unit heuristic — do not impose it on CT/IT. Overlap is defence in depth, not waste. Push checks down from IT to CT (faster, sharper failure localisation) so ITs stay few and cover only what genuinely needs Postgres. Exhaustive per-field serialisation nuance lives in small unit tests, and only when there is real nuance — don't manufacture it.
-- Component tests run in the everyday `test` task alongside unit tests. They must not require Docker. `integrationTest` is the Docker-gated task.
-- **Micronaut caveat:** no `@WebMvcTest`-style slice exists; the context is fairly fully wired. Component tests must disable the persistence layer (Flyway/datasource/JPA) to prevent Testcontainers pulling in a Postgres container and losing the speed benefit. Exact disable mechanism to be formally recorded as a sub-decision in Sprint 0.2.
-- **Scaffolding convention:** test stubs use `fail("not yet implemented")`, never empty bodies — unwritten coverage shows red, not misleading green.
+### What each tier answers
+
+**Ask this before writing a test, and before deleting one.** Wiring tells you how a test is plugged in; only
+the question tells you whether it's worth having.
+
+| Naming | Question it answers |
+|--------|---------------------|
+| `*Test` | Does this logic do what it should? |
+| `*CT` | Does the web layer bind, serialise, and map correctly? |
+| `*ControllerIT` | **Does the DoD actually hold, end to end?** |
+| `*RepositoryIT` / `*SpecificationFactoryIT` | Do I understand the method I'm calling? (a unit test — the DB is part of the unit) |
+| `*DatabaseIT` | Does the migration say what I think it says? |
+| `*PT` | Is the query plan the shape I think it is? |
+
+**Three IT flavours, one tier.** They share a tier because they share a *mechanism* — needs a container, runs
+in `integrationTest`. They differ in the question, which the name carries. `IT` honestly means "needs Docker",
+which is true of all three; "integration" is a conceptual promise the suffix never made.
+
+- **A tier is an annotation that does something** (`@CTSlice` cuts persistence; `@PerformanceTest` sets
+  `generate_statistics`, gets its own task and opt-out flag). **A flavour is a naming convention that means
+  something.** Never build the first to express the second — a `@DatabaseTest` annotation would do nothing:
+  same container, environment, task, cadence. See D-032.
+- **Promote a flavour to a tier only when it needs mechanism** — different cadence, own opt-out, different
+  wiring. Naming clarity alone never earns it.
+- **No tier substitutes for another.** Repo tests prove you understand your tools; they do not prove the app
+  calls them. Change `findOne(spec)` to `customQuery()` and the repo test still passes — it tests a method
+  production abandoned, and it goes stale silently, without failing. Only the IT's meaning survives that
+  refactor.
+
+### Rules
+
+- **ITs are the DoD in executable form.** An endpoint owes **one IT per clause of what you said you'd build** —
+  not one per predicate, code path, or data condition. If the DoD doesn't name a case, it doesn't earn an IT.
+  (D-018's DoD names both mark-scheme 404 arms, so both get one.)
+- **A new repository query owes a repo test** — not because the IT misses it, but because "do I understand this
+  method" is otherwise unasked, and the repo tier drifts to testing methods production no longer calls.
+- **By-id tests insert two rows with distinct, fixed, non-1 ids** and assert the correct one came back. With one
+  row a test claims "you get the question you asked for" but only proves "you get *a* question". Two, not "at
+  least two" — a third row proves nothing further. Fixed ids, not random — reproducibility beats coverage
+  theatre. Applies to every by-id lookup, every entity, every tier.
+- **DTO shape is owned by the controller CT**, asserted over a real HTTP call. ITs assert values and filtering;
+  real persistence doesn't change a field list. Don't assert shape through a hand-injected `ObjectMapper` — it
+  isn't necessarily the encoder the route uses.
+- **`TestData` defaults mirror the DB's own defaults and mask nothing** (e.g. `QuestionRow` leaves `status` to
+  the DB's `PENDING` so `QuestionDatabaseIT` can observe it). **Name a field only where the test depends on its
+  value.** Builder forms: **one unconstrained form for when the test controls everything, and every other form
+  must produce a valid row.** Not "one empty and one valid" — add a form when a test needs it, never to
+  complete a symmetry.
+- **No data setup in `setUp()`** beyond `data.clear()` and port/counter wiring. Each test inserts exactly what
+  it depends on — globally-seeded data hides what a test actually relies on.
+- **Statics only for values that must change together** (endpoint paths, pinned statement counts, stub
+  sentinels). Test data values are per-test locals.
+- **Never mock entities.** Build real instances + `TestReflection.setField` for DB-assigned fields (`id`,
+  `createdAt`, `version`) — a mocked entity answers whatever you stubbed and can't catch a mapper reading the
+  wrong field. Reflection for anything a constructor *could* set is a missing constructor, not a convention.
+- **Responsibility & overlap (honeycomb, not strict pyramid):** higher tiers are deliberately
+  multi-responsibility. "One reason to fail" is a unit heuristic — do not impose it on CT/IT. Overlap is
+  defence in depth, not waste. Push checks down from IT to CT where the CT can genuinely observe the thing.
+- **Mutation analysis finds blind spots. It never decides deletions.** A mutation changes production code, so
+  the test that fires "closest to the cause" is by construction the one most coupled to the implementation —
+  it measures implementation-coupling and calls it value, ranking unit tests first and ITs last on any
+  codebase. See D-032.
+- **Scaffolding convention:** test stubs use `fail("not yet implemented")`, never empty bodies.
+- Component tests run in the everyday `test` task and must not require Docker. `integrationTest` and
+  `performanceTest` are the Docker-gated tasks.
+- **Micronaut caveat:** no `@WebMvcTest`-style slice exists; the context is fairly fully wired. Component tests
+  must disable persistence (Flyway/datasource/JPA) or Testcontainers pulls in Postgres and the speed benefit is
+  lost. Exact mechanism to be recorded as a sub-decision to D-007 before Sprint 0.2 closes.
 - StubAIService is the default for all tiers. Tests must be independent and readable.
+
+### Performance tier specifics
+
+`@PerformanceTest` (bundles `@MicronautTest(transactional=false, environments="performance")`) ·
+`src/test/java/performance/` · `application-performance.properties` sets `hibernate.generate_statistics=true` ·
+`utils/StatementCounter` wraps Hibernate `Statistics`.
+
+- Asserts **JDBC statement counts per request, not output**. Every endpoint gets a happy-path absolute pin;
+  row-scaling endpoints also get a row-count invariance test.
+- **Use `getPrepareStatementCount()`, never `getQueryExecutionCount()`** — the latter doesn't see eager
+  secondary selects, i.e. exactly the regression being hunted.
+- **Both assertions are needed.** Invariance catches an N+1 (count scales with rows). The absolute pin catches
+  a fetch-join reintroduction — which invariance sails past (count stays constant) and the correctness ITs also
+  pass (in-memory paging still returns correct rows). The magic numbers are deliberate friction: update the pin
+  consciously when a query is legitimately added, with a comment saying what the number is made of. Don't
+  decompose it into named constants — that asserts a composition which stops being true once branching exists.
+- **Current pins:** `/concepts` 1 · `/concepts/{id}` 1 · `/questions` 3 · `/questions/{id}` 2 ·
+  `/questions/{id}/mark-scheme` 2.
+- Runs in `check`/`build` by default; `-PskipPerf` opts out. `mustRunAfter(integrationTest)` — both share one
+  Test Resources Postgres, and `shouldRunAfter` is only advisory (would race under `--parallel`).
+
+### An endpoint's test tax
+
+A new endpoint owes: **1 CT** (shape + representative values) · **1 ordering IT** (D-029 — never a fresh paging
+suite) · **1 IT per DoD clause** · **1 PT pin** (+ invariance if row-scaling) · **1 `TestData` builder**. Repo
+tests are owed per *new query*, not per endpoint.
 
 ## 10. Hard rules
 
@@ -187,6 +292,7 @@ Three-tier model — put each test where it can actually observe the behaviour i
 - **The student serving policy is an object invariant, not a filter.** `QuestionQuery.studentCatalogue(...)` bakes in `status=APPROVED` + concept-linked. `status` is never a client parameter. Filters narrow, never widen. See D-024.
 - **Paged endpoints return `PageResponse<T>`; unpaged collections return bare arrays. Nulls always serialise.** See D-023.
 - **Framework paging behaviour is pinned once in `PagingCT`.** A new paginated endpoint adds an *ordering* IT only — never a fresh paging suite. See D-029.
+- **Cross-aggregate references are by scalar id, never associations.** `MarkScheme` holds `long questionId`, not `@OneToOne Question`; `Question` holds no reference to `MarkScheme` at all. The relationship is expressed exactly once — the `mark_scheme.question_id` FK and its DB constraint. Navigation is a repository query by id. `@OneToOne` defaults to EAGER and its inverse side can't be lazy without bytecode enhancement, so both directions fire wasted selects. **Carve-out:** `Question.conceptLinks` `@OneToMany` stays — that's *within* the aggregate, it's lazy, and the admin concepts write path needs it. See D-031.
 - **Read projections are distinct types from write entities.** `QuestionConceptLink` (projection) ≠ `QuestionConcept` (entity). Don't reuse the entity where a lean projection is what the read path needs. See D-030.
 - No secrets in code, config, or commits.
 - **No copyrighted material committed — ever.** Real past papers may be used privately for local testing; all committed fixtures/seed content are self-written. Seed concept lists may mirror the published spec's topic structure (facts), not its prose.
@@ -199,9 +305,9 @@ Sprint sequence: **0.1** skeleton + Concept endpoint + CI *(complete)* → **0.2
 
 > **Current sprint: 0.2 — Question read API + attempts (self-assessed)** *(update this line as sprints complete)*
 >
-> **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged, filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept stitch · JPA static metamodel.
+> **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged, filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept stitch · JPA static metamodel · `GET /api/v1/questions/{id}` · `mark_scheme` entity + `V3__mark_scheme.sql` + `GET /api/v1/questions/{id}/mark-scheme` (ungated) — **D-018 closed in code** · `QuestionQueryManager` + `LinkedQuestion` projection · performance tier (`*PT`).
 >
-> **Remaining** (D-018 resolved — settled, no longer blocking): `GET /api/v1/questions/{id}` *(next up)* · `mark_scheme` entity/migration + `GET /api/v1/questions/{id}/mark-scheme` (ungated) · `question_attempt` (feedback table deferred) · `POST`/`GET /api/v1/questions/{id}/attempts` · **409 handler for `OptimisticLockException`** (owed with the first write endpoint) · `X-Session-Token` handling · write up CT persistence-disable as a D-007 sub-decision.
+> **Remaining:** `question_attempt` migration/entity/repository/service (feedback table deferred to Phase 3) · `POST`/`GET /api/v1/questions/{id}/attempts` · **409 handler for `OptimisticLockException`** (owed with the first write endpoint) · `X-Session-Token` handling · write up CT persistence-disable as a D-007 sub-decision.
 >
 > **Deliberately out of scope:** `question_attempt_feedback` — whole table deferred to Phase 3 (D-019 amendment; no consumer for a self-score yet) · MCQ auto-marking (separate feature, unscheduled) · idempotency keys (D-021) · unique constraint on attempts (would break the revision loop) · server-issued session tokens (D-020) · async grading / `202` / polling · batch submission · strict `Pageable` binder (D-028).
 

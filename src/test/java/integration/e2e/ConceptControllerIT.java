@@ -85,6 +85,8 @@ class ConceptControllerIT {
                 .body("$", empty());
     }
 
+    // Both by-id tests carry a second concept. Without it a handler returning *a* concept rather than *the*
+    // one asked for would pass.
     @Test
     void getConceptsReturnsSeededConceptById() {
         long id = 45;
@@ -92,6 +94,7 @@ class ConceptControllerIT {
         String description = "The spreading of waves through a gap or around an obstacle.";
 
         data.concept().id(id).name(name).description(description).insert();
+        data.concept().id(46).name("Acceleration").description("The rate of change of velocity.").insert();
 
         given()
                 .when()
@@ -99,7 +102,6 @@ class ConceptControllerIT {
                 .then()
                 .statusCode(OK.getCode())
                 .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("id", "name", "description", "createdAt"))
                 .body("id", equalTo((int) id))
                 .body("name", equalTo(name))
                 .body("description", equalTo(description))
@@ -108,16 +110,17 @@ class ConceptControllerIT {
 
     @Test
     void getConceptsReturnsNotFoundIfNoConceptForId() {
-        long id = 46;
+        data.concept().id(45).name("Diffraction").description("desc 1").insert();
+        data.concept().id(46).name("Acceleration").description("desc 2").insert();
 
-        String path = CONCEPTS_PATH + "/" + id;
+        // 47 is neither of the two rows present.
+        String path = CONCEPTS_PATH + "/" + 47L;
         given()
                 .when()
                 .get(path)
                 .then()
                 .statusCode(NOT_FOUND.getCode())
                 .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("error", "status"))
                 .body("error", equalTo("Could not find resource for path: " + path))
                 .body("status", equalTo(404));
     }

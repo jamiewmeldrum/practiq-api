@@ -49,18 +49,25 @@ public class MarkSchemePT {
         long conceptId = 100L;
         data.concept(conceptId).insert();
 
-        long questionId = 1L;
-        data.question(questionId)
-                .status(QuestionStatus.APPROVED)
-                .body("State Newton's first law.")
-                .source(QuestionSource.SEED)
-                .insert();
-        data.link(questionId, conceptId).insert();
-        data.markScheme(questionId, "Award 1 mark for stating the law.").insert();
+        // Two servable rows, each with a mark scheme: the statement count must be a property of the query
+        // plan, not of the target happening to be the only row in the table.
+        long questionId = 7L;
+        servableQuestionWithMarkScheme(questionId, conceptId, "Award 1 mark for stating the law.");
+        servableQuestionWithMarkScheme(8L, conceptId, "Mark scheme for eight.");
 
         long count = statements.countDuring(() ->
                 given().when().get(MARK_SCHEME_PATH.formatted(questionId)).then().statusCode(OK.getCode()));
 
         assertThat(count, equalTo(EXPECTED_STATEMENTS));
+    }
+
+    private void servableQuestionWithMarkScheme(long id, long conceptId, String markSchemeBody) {
+        data.question(id)
+                .status(QuestionStatus.APPROVED)
+                .body("Question " + id)
+                .source(QuestionSource.SEED)
+                .insert();
+        data.link(id, conceptId).insert();
+        data.markScheme(id, markSchemeBody).insert();
     }
 }

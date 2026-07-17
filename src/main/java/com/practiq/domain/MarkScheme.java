@@ -31,4 +31,11 @@ public class MarkScheme {
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
+
+    protected MarkScheme() {}
+
+    public MarkScheme(long questionId, String body) {
+        this.questionId = questionId;
+        this.body = body;
+    }
 }

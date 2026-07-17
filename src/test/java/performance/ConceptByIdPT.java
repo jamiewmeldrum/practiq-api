@@ -44,8 +44,11 @@ public class ConceptByIdPT {
 
     @Test
     void servingAConceptByIdFiresAConstantNumberOfStatements() {
-        long conceptId = 100L;
+        // Two rows: the statement count must be a property of the query plan, not of the target happening
+        // to be the only row in the table.
+        long conceptId = 7L;
         data.concept(conceptId).insert();
+        data.concept(8L).insert();
 
         long count = statements.countDuring(() ->
                 given().when().get(CONCEPTS_PATH + "/" + conceptId).then().statusCode(OK.getCode()));
