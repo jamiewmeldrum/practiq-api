@@ -3,7 +3,7 @@ package com.practiq.domain.query;
 import com.practiq.repository.QuestionConceptRepository;
 import com.practiq.repository.QuestionRepository;
 
-public class TestQuestionQueryRunner extends QuestionQueryRunner<TestQuestionQueryPolicy> {
+class TestQuestionQueryRunner extends QuestionQueryRunner<TestQuestionQueryPolicy> {
     protected TestQuestionQueryRunner(
             QuestionRepository questionRepository,
             QuestionConceptRepository questionConceptRepository,

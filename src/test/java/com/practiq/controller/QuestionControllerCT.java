@@ -3,7 +3,6 @@ package com.practiq.controller;
 import com.practiq.domain.Question;
 import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.domain.query.StudentQuestionQueryRunner;
-import com.practiq.domain.query.TestQuestionQueryRunner;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;

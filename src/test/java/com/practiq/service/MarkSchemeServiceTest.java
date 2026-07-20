@@ -20,7 +20,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static utils.TestReflection.setField;
 
-// A thin layer over the QuestionQueryManager visibility gate and MarkSchemeRepository. Both are mocked so
+// A thin layer over the StudentQuestionQueryRunner visibility gate and MarkSchemeRepository. Both are mocked so
 // these tests pin the orchestration: the question must be student-visible before the mark scheme is even
 // looked up, and a missing scheme is an empty result, not an error.
 @ExtendWith(MockitoExtension.class)

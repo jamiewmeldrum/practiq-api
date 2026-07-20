@@ -7,7 +7,6 @@ import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
-import com.practiq.dto.request.QuestionRequest;
 import com.practiq.repository.QuestionConceptRepository;
 import com.practiq.repository.QuestionRepository;
 import io.micronaut.data.model.Page;
@@ -58,7 +57,6 @@ class QuestionQueryRunnerTest {
 
     @Test
     void pagedQueryRunsThePolicysQueryOnAStableSortedPage() {
-        QuestionRequest request = new QuestionRequest();
         Pageable requested = Pageable.from(0, 20);
         Pageable ordered = Pageable.from(0, 20, STABLE_ORDER);
 
@@ -68,7 +66,7 @@ class QuestionQueryRunnerTest {
         when(questionSpecificationFactory.forQuery(policyQuery)).thenReturn(SPEC);
         when(questionRepository.findAll(SPEC, ordered)).thenReturn(Page.of(List.of(), ordered, 0L));
 
-        Page<LinkedQuestion> page = runner.findQuestionsPagedAndFiltered(request, requested);
+        Page<LinkedQuestion> page = runner.findQuestionsPagedAndFiltered(null, null, null, requested);
 
         // The page carries the repository's paging metadata: an empty first page still reports its
         // position, requested size and the (zero) total. An empty page fires no link query.
@@ -84,25 +82,19 @@ class QuestionQueryRunnerTest {
 
     @Test
     void pagedQueryPassesTheRequestFiltersThroughThePolicy() {
-        QuestionRequest request = new QuestionRequest();
-
         List<QuestionType> types = List.of(QuestionType.SHORT_ANSWER, QuestionType.MCQ);
-        request.setTypes(types);
-
         List<QuestionDifficulty> difficulties = List.of(QuestionDifficulty.HARD, QuestionDifficulty.VERY_HARD);
-        request.setDifficulties(difficulties);
-
-        request.setConceptId(42L);
+        Long conceptId = 42L;
 
         Pageable requested = Pageable.from(0, 20);
         Pageable ordered = Pageable.from(0, 20, STABLE_ORDER);
 
-        // The request's filters reach the policy verbatim, and its resulting query is what runs.
-        QuestionQuery policyQuery = catalogueQuery(types, difficulties, 42L);
+        // The filters reach the policy verbatim, and its resulting query is what runs.
+        QuestionQuery policyQuery = catalogueQuery(types, difficulties, conceptId);
         when(questionSpecificationFactory.forQuery(policyQuery)).thenReturn(SPEC);
         when(questionRepository.findAll(SPEC, ordered)).thenReturn(Page.of(List.of(), ordered, 0L));
 
-        runner.findQuestionsPagedAndFiltered(request, requested);
+        runner.findQuestionsPagedAndFiltered(types, difficulties, conceptId, requested);
 
         verify(questionSpecificationFactory).forQuery(policyQuery);
         verify(questionRepository).findAll(SPEC, ordered);
@@ -110,7 +102,6 @@ class QuestionQueryRunnerTest {
 
     @Test
     void pagedQueryStitchesConceptLinksOntoEachQuestion() {
-        QuestionRequest request = new QuestionRequest();
         Pageable requested = Pageable.from(0, 20);
         Pageable ordered = Pageable.from(0, 20, STABLE_ORDER);
 
@@ -139,7 +130,7 @@ class QuestionQueryRunnerTest {
         when(questionConceptRepository.findLinksByQuestionIds(Set.of(linkedId, bareId)))
                 .thenReturn(List.of(linkA, linkB));
 
-        Page<LinkedQuestion> page = runner.findQuestionsPagedAndFiltered(request, requested);
+        Page<LinkedQuestion> page = runner.findQuestionsPagedAndFiltered(null, null, null, requested);
         List<LinkedQuestion> content = page.getContent();
 
         assertEquals(2, content.size());
