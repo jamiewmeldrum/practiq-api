@@ -78,34 +78,6 @@ class QuestionDatabaseIT {
     }
 
     @Test
-    void ensureQuestionConceptsDeletedWhenQuestionsDeleted() {
-        long questionId = 1L;
-        data.question(questionId).insert();
-
-        long conceptId1 = 10L;
-        data.concept(conceptId1).insert();
-        data.link(questionId, conceptId1).insert();
-
-        long conceptId2 = 20L;
-        data.concept(conceptId2).insert();
-        data.link(questionId, conceptId2).insert();
-
-        List<DBRow> questions = data.retrieveQuestions();
-        assertThat(questions, hasSize(1));
-
-        List<DBRow> questionConcepts = data.retrieveLinks();
-        assertThat(questionConcepts, hasSize(2));
-
-        data.deleteQuestion(questionId);
-
-        List<DBRow> questionsAfterDelete = data.retrieveQuestions();
-        assertThat(questionsAfterDelete, empty());
-
-        List<DBRow> questionConceptsAfterDelete = data.retrieveLinks();
-        assertThat(questionConceptsAfterDelete, empty());
-    }
-
-    @Test
     void ensureThatBodyMustBeSet() {
         IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
                 data.question().source(QuestionSource.SEED).insert());

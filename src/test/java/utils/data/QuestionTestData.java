@@ -14,6 +14,7 @@ public class QuestionTestData extends TestData {
     // Clears in FK-safe order: link rows reference questions and concepts, so they go first.
     @Override
     public void clear() {
+        testDatabase.clear(QUESTION_ATTEMPT);
         testDatabase.clear(MARK_SCHEME_TABLE);
         testDatabase.clear(QUESTION_CONCEPT_TABLE);
         testDatabase.clear(QUESTION_TABLE);
@@ -74,5 +75,17 @@ public class QuestionTestData extends TestData {
 
     public List<DBRow> retrieveMarkSchemes() {
         return testDatabase.selectAll(MARK_SCHEME_TABLE);
+    }
+
+    public QuestionAttemptRow questionAttempt() {
+        return new QuestionAttemptRow();
+    }
+
+    public QuestionAttemptRow questionAttempt(long questionId, String sessionToken, String body) {
+        return new QuestionAttemptRow(questionId, sessionToken, body);
+    }
+
+    public List<DBRow> retrieveQuestionAttempts() {
+        return testDatabase.selectAll(QUESTION_ATTEMPT);
     }
 }
