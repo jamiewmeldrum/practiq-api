@@ -4,7 +4,6 @@ import com.practiq.domain.Question;
 import com.practiq.domain.projection.LinkedQuestion;
 import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.domain.query.StudentQuestionQueryRunner;
-import com.practiq.domain.query.TestQuestionQueryRunner;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
@@ -97,13 +96,23 @@ class QuestionServiceTest {
         setField(question, "id", questionId);
         LinkedQuestion linkedQuestion = new LinkedQuestion(question, Set.of());
 
+        // Distinct filter values so the assertion proves the service unpacks the request and hands the
+        // runner each field, rather than passing something opaque through.
+        List<QuestionType> types = List.of(QuestionType.MCQ);
+        List<QuestionDifficulty> difficulties = List.of(QuestionDifficulty.HARD);
+        long conceptId = 3L;
         QuestionRequest request = new QuestionRequest();
+        request.setTypes(types);
+        request.setDifficulties(difficulties);
+        request.setConceptId(conceptId);
+
         Pageable requested = Pageable.from(2, 5);
 
         // Page number, size and total are all distinct, so an envelope that hardcodes a value or reads the
         // wrong field off the Page fails rather than coincidentally matching.
         Page<LinkedQuestion> page = Page.of(List.of(linkedQuestion), requested, 11L);
-        when(questionQueryRunner.findQuestionsPagedAndFiltered(request, requested)).thenReturn(page);
+        when(questionQueryRunner.findQuestionsPagedAndFiltered(types, difficulties, conceptId, requested))
+                .thenReturn(page);
 
         PageResponse<QuestionResponse> response = questionService.get(request, requested);
 
@@ -116,6 +125,6 @@ class QuestionServiceTest {
         assertThat(response.size(), equalTo(5));
         assertThat(response.totalCount(), equalTo(11L));
 
-        verify(questionQueryRunner).findQuestionsPagedAndFiltered(request, requested);
+        verify(questionQueryRunner).findQuestionsPagedAndFiltered(types, difficulties, conceptId, requested);
     }
 }

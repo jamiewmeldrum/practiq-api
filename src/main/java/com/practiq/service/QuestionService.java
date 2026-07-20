@@ -36,7 +36,8 @@ public class QuestionService {
     @Transactional(readOnly = true)
     public PageResponse<QuestionResponse> get(QuestionRequest request, Pageable pageable) {
         log.debug("Getting approved questions, page {}", pageable.getNumber());
-        Page<LinkedQuestion> page = questionQueryRunner.findQuestionsPagedAndFiltered(request, pageable);
+        Page<LinkedQuestion> page = questionQueryRunner.findQuestionsPagedAndFiltered(
+                request.getTypes(), request.getDifficulties(), request.getConceptId(), pageable);
         return PageResponse.of(page, toQuestionResponses(page.getContent()));
     }
 }

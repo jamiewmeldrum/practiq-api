@@ -9,7 +9,7 @@ import java.util.List;
 // echoes its inputs into a QuestionQuery. That lets QuestionQueryRunnerTest prove the runner faithfully
 // runs whatever the policy returns, without coupling the runner mechanics to any real policy's imposed
 // fields. The imposed-field behaviour is a policy concern, tested on the concrete policies.
-public class TestQuestionQueryPolicy implements QuestionQueryPolicy {
+class TestQuestionQueryPolicy implements QuestionQueryPolicy {
 
     @Override
     public QuestionQuery forId(long questionId) {

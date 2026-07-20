@@ -24,7 +24,7 @@ import static org.hamcrest.Matchers.*;
 import static org.mockito.Mockito.*;
 import static utils.TestReflection.setField;
 
-// Real web layer through to the real service, QuestionQueryManager, spec factory and mapper — only the
+// Real web layer through to the real service, StudentQuestionQueryRunner, spec factory and mapper — only the
 // repositories (the persistence boundary) are mocked, so a single test exercises as much of the app as
 // possible: routing, path-var binding, the student-visibility gate, the mark-scheme lookup, mapping and
 // the serialised shape (including that version never reaches the payload).
@@ -80,7 +80,7 @@ public class MarkSchemeControllerCT {
         setField(markScheme, "createdAt", createdAt);
 
         // The visibility gate is an existence check; the mark scheme is then found for the question. The
-        // spec is built inside QuestionQueryManager, so it can only be matched by type.
+        // spec is built inside StudentQuestionQueryRunner, so it can only be matched by type.
         when(questionRepository.exists(Mockito.any(QuerySpecification.class))).thenReturn(true);
         when(markSchemeRepository.findByQuestionId(questionId)).thenReturn(Optional.of(markScheme));
 

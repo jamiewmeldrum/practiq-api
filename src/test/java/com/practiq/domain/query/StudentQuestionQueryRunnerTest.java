@@ -4,7 +4,6 @@ import com.practiq.domain.Question;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
-import com.practiq.dto.request.QuestionRequest;
 import com.practiq.repository.QuestionConceptRepository;
 import com.practiq.repository.QuestionRepository;
 import io.micronaut.data.model.Page;
@@ -67,22 +66,18 @@ class StudentQuestionQueryRunnerTest {
     void cataloguePathImposesApprovedAndConceptLinkAndKeepsRequestFilters() {
         List<QuestionType> types = List.of(QuestionType.MCQ);
         List<QuestionDifficulty> difficulties = List.of(QuestionDifficulty.HARD);
-
-        QuestionRequest request = new QuestionRequest();
-        request.setTypes(types);
-        request.setDifficulties(difficulties);
-        request.setConceptId(42L);
+        Long conceptId = 42L;
 
         QuestionQuery expected = studentQuery()
                 .types(types)
                 .difficulties(difficulties)
-                .conceptId(42L)
+                .conceptId(conceptId)
                 .build();
         when(questionSpecificationFactory.forQuery(expected)).thenReturn(SPEC);
         when(questionRepository.findAll(eq(SPEC), any(Pageable.class)))
                 .thenReturn(Page.of(List.of(), Pageable.from(0), 0L));
 
-        studentQuestionQueryRunner.findQuestionsPagedAndFiltered(request, Pageable.from(0, 20));
+        studentQuestionQueryRunner.findQuestionsPagedAndFiltered(types, difficulties, conceptId, Pageable.from(0, 20));
 
         verify(questionSpecificationFactory).forQuery(expected);
     }

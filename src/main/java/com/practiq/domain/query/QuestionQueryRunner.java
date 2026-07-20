@@ -3,7 +3,8 @@ package com.practiq.domain.query;
 import com.practiq.domain.Question;
 import com.practiq.domain.projection.LinkedQuestion;
 import com.practiq.domain.projection.QuestionConceptLink;
-import com.practiq.dto.request.QuestionRequest;
+import com.practiq.domain.types.QuestionDifficulty;
+import com.practiq.domain.types.QuestionType;
 import com.practiq.repository.QuestionConceptRepository;
 import com.practiq.repository.QuestionRepository;
 import io.micronaut.data.model.Page;
@@ -52,12 +53,14 @@ abstract class QuestionQueryRunner <P extends QuestionQueryPolicy> {
                 .map(question -> toLinkedQuestion(question, linksByQuestionId(List.of(question))));
     }
 
-    public Page<LinkedQuestion> findQuestionsPagedAndFiltered(QuestionRequest request, Pageable pageable) {
-        QuestionQuery query = policy.catalogue(
-                request.getTypes(),
-                request.getDifficulties(),
-                request.getConceptId()
-        );
+    // Takes the already-unpacked filter values, not a QuestionRequest: keeps this query package free of any
+    // dependency on the web-request DTO (dto/request). The service does the one-line unpack.
+    public Page<LinkedQuestion> findQuestionsPagedAndFiltered(
+            List<QuestionType> types,
+            List<QuestionDifficulty> difficulties,
+            Long conceptId,
+            Pageable pageable) {
+        QuestionQuery query = policy.catalogue(types, difficulties, conceptId);
         QuerySpecification<Question> spec = questionSpecificationFactory.forQuery(query);
 
         Pageable ordered = Pageable.from(pageable.getNumber(), pageable.getSize(), STABLE_ORDER);
