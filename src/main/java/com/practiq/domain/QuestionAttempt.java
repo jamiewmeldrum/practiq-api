@@ -1,0 +1,43 @@
+package com.practiq.domain;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import lombok.Getter;
+import lombok.ToString;
+
+import java.time.Instant;
+
+import static jakarta.persistence.GenerationType.IDENTITY;
+
+@Entity
+@Table(name = "question_attempt")
+@Getter
+@ToString
+public class QuestionAttempt {
+
+    @Id
+    @GeneratedValue(strategy = IDENTITY)
+    private long id;
+
+    @Column(name = "question_id", nullable = false, updatable = false)
+    private long questionId;
+
+    @NotNull
+    @Column(name = "session_token", nullable = false)
+    private String sessionToken;
+
+    @NotNull
+    @Column(name = "body", nullable = false)
+    private String body;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private Instant createdAt;
+
+    public QuestionAttempt() {}
+
+    public QuestionAttempt(long questionId, String sessionToken, String body) {
+        this.questionId = questionId;
+        this.sessionToken = sessionToken;
+        this.body = body;
+    }
+}
