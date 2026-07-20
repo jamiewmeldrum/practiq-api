@@ -231,3 +231,59 @@ from inserted i
 where sq.mark_scheme is not null;
 
 drop table seed_questions;
+
+-- ── Question attempts ──────────────────────────────────────────────────────
+-- Anonymous attempts keyed by session_token (a client-generated UUID, D-020).
+-- Matched to questions by body text, same pattern as above — no separate id list.
+--
+-- Deliberately shaped to exercise what GET /questions/{id}/attempts must do:
+--   * Two sessions (A, B) so filtering by X-Session-Token is observable — session A
+--     sees its own attempts only, never B's.
+--   * Multiple attempts at ONE question by ONE session (the revision loop — the exact
+--     case D-021 says must NOT be blocked by a unique constraint).
+--   * created_at set explicitly with clear gaps so "newest first" is unambiguous when
+--     eyeballed — the one place a DB now() default would make ordering untestable by hand.
+--
+-- Cascade handles idempotency: the question delete above already cleared old attempts
+-- via ON DELETE CASCADE before the questions were reinserted, so this just rebuilds.
+--
+-- Session tokens are readable fixed UUIDs — paste straight into an X-Session-Token header:
+--   Session A: 11111111-1111-1111-1111-111111111111
+--   Session B: 22222222-2222-2222-2222-222222222222
+
+create temporary table seed_attempts as
+select *
+from (values
+          -- Session A — three attempts at the same speed question: the revision loop, improving each time
+          ('A car travels 150 m in 10 s. Calculate its average speed.',
+           '11111111-1111-1111-1111-111111111111', 'speed = 150 / 10', timestamptz '2026-01-10 09:00:00+00'),
+          ('A car travels 150 m in 10 s. Calculate its average speed.',
+           '11111111-1111-1111-1111-111111111111', 'speed = distance / time = 150 / 10 = 15', timestamptz '2026-01-10 09:05:00+00'),
+          ('A car travels 150 m in 10 s. Calculate its average speed.',
+           '11111111-1111-1111-1111-111111111111', 'speed = distance / time = 150 / 10 = 15 m/s', timestamptz '2026-01-10 09:12:00+00'),
+
+          -- Session A — single attempts at two other questions
+          ('State Newton''s First Law.',
+           '11111111-1111-1111-1111-111111111111',
+           'An object stays still or moving at constant speed unless a force acts on it.', timestamptz '2026-01-10 09:20:00+00'),
+          ('Which of the following is a vector quantity?
+
+- [ ] Speed
+- [ ] Mass
+- [x] Velocity
+- [ ] Time',
+           '11111111-1111-1111-1111-111111111111', 'Velocity', timestamptz '2026-01-10 09:25:00+00'),
+
+          -- Session B — different session, same speed question + one other. Proves GET filters by token.
+          ('A car travels 150 m in 10 s. Calculate its average speed.',
+           '22222222-2222-2222-2222-222222222222', 'Its 15', timestamptz '2026-01-11 14:00:00+00'),
+          ('A charge of 15 C flows past a point in a wire in 5 s. Calculate the current in the wire.',
+           '22222222-2222-2222-2222-222222222222', 'I = Q/t = 15/5 = 3A', timestamptz '2026-01-11 14:08:00+00')
+     ) as t(question_body, session_token, body, created_at);
+
+insert into question_attempt (question_id, session_token, body, created_at)
+select q.id, sa.session_token, sa.body, sa.created_at
+from seed_attempts sa
+         join question q on q.body = sa.question_body;
+
+drop table seed_attempts;
