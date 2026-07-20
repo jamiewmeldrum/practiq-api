@@ -2,6 +2,8 @@ package com.practiq.controller;
 
 import com.practiq.domain.Question;
 import com.practiq.domain.projection.QuestionConceptLink;
+import com.practiq.domain.query.StudentQuestionQueryRunner;
+import com.practiq.domain.query.TestQuestionQueryRunner;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
@@ -9,7 +11,6 @@ import com.practiq.domain.types.QuestionType;
 import com.practiq.dto.request.QuestionRequest;
 import com.practiq.repository.QuestionConceptRepository;
 import com.practiq.repository.QuestionRepository;
-import com.practiq.service.QuestionQueryManager;
 import com.practiq.service.QuestionService;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -70,8 +71,8 @@ public class QuestionControllerCT {
     // has no constructor to call — so wrap a real instance built from the (mocked) repositories and the
     // real specification factory.
     @MockBean(QuestionService.class)
-    QuestionService questionService(QuestionQueryManager questionQueryManager) {
-        return spy(new QuestionService(questionQueryManager));
+    QuestionService questionService(StudentQuestionQueryRunner questionQueryRunner) {
+        return spy(new QuestionService(questionQueryRunner));
     }
 
     @BeforeEach

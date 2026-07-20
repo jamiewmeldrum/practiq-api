@@ -3,6 +3,8 @@ package com.practiq.service;
 import com.practiq.domain.Question;
 import com.practiq.domain.projection.LinkedQuestion;
 import com.practiq.domain.projection.QuestionConceptLink;
+import com.practiq.domain.query.StudentQuestionQueryRunner;
+import com.practiq.domain.query.TestQuestionQueryRunner;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
@@ -29,30 +31,26 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.TestReflection.setField;
 
-// The service has two jobs: delegate retrieval to QuestionQueryManager, and assemble the response —
-// mapping LinkedQuestion projections to QuestionResponse and pairing a page's metadata with its mapped
-// content. The manager is mocked so both are pinned here; the mapper's own field-level nuance (null
-// difficulty, empty links) belongs to QuestionResponseMapperTest.
 @ExtendWith(MockitoExtension.class)
 class QuestionServiceTest {
 
     @Mock
-    private QuestionQueryManager questionQueryManager;
+    private StudentQuestionQueryRunner questionQueryRunner;
 
     @InjectMocks
     private QuestionService questionService;
 
     @Test
-    void getQuestionByIdReturnsEmptyWhenNoStudentVisibleQuestionExists() {
+    void getQuestionByIdReturnsEmptyWhenNoVisibleQuestionExists() {
         long questionId = 1L;
 
-        when(questionQueryManager.findStudentVisibleQuestionById(questionId)).thenReturn(Optional.empty());
+        when(questionQueryRunner.findQuestionById(questionId)).thenReturn(Optional.empty());
 
         Optional<QuestionResponse> response = questionService.get(questionId);
 
         assertThat(response.isPresent(), equalTo(false));
 
-        verify(questionQueryManager).findStudentVisibleQuestionById(questionId);
+        verify(questionQueryRunner).findQuestionById(questionId);
     }
 
     @Test
@@ -71,7 +69,7 @@ class QuestionServiceTest {
         LinkedQuestion linkedQuestion =
                 new LinkedQuestion(question, Set.of(new QuestionConceptLink(questionId, conceptId)));
 
-        when(questionQueryManager.findStudentVisibleQuestionById(questionId))
+        when(questionQueryRunner.findQuestionById(questionId))
                 .thenReturn(Optional.of(linkedQuestion));
 
         Optional<QuestionResponse> response = questionService.get(questionId);
@@ -86,7 +84,7 @@ class QuestionServiceTest {
         assertThat(questionResponse.getCreatedAt(), equalTo(createdAt));
         assertThat(questionResponse.getLinkedConceptIds(), equalTo(Set.of(conceptId)));
 
-        verify(questionQueryManager).findStudentVisibleQuestionById(questionId);
+        verify(questionQueryRunner).findQuestionById(questionId);
     }
 
     @Test
@@ -105,7 +103,7 @@ class QuestionServiceTest {
         // Page number, size and total are all distinct, so an envelope that hardcodes a value or reads the
         // wrong field off the Page fails rather than coincidentally matching.
         Page<LinkedQuestion> page = Page.of(List.of(linkedQuestion), requested, 11L);
-        when(questionQueryManager.findStudentVisibleQuestionsPagedAndFiltered(request, requested)).thenReturn(page);
+        when(questionQueryRunner.findQuestionsPagedAndFiltered(request, requested)).thenReturn(page);
 
         PageResponse<QuestionResponse> response = questionService.get(request, requested);
 
@@ -118,6 +116,6 @@ class QuestionServiceTest {
         assertThat(response.size(), equalTo(5));
         assertThat(response.totalCount(), equalTo(11L));
 
-        verify(questionQueryManager).findStudentVisibleQuestionsPagedAndFiltered(request, requested);
+        verify(questionQueryRunner).findQuestionsPagedAndFiltered(request, requested);
     }
 }

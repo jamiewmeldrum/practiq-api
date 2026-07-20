@@ -109,10 +109,8 @@ class QuestionRepositoryIT {
         data.link(sameTimeLowId, conceptId).insert();
         data.link(sameTimeHighId, conceptId).insert();
 
-        QuestionQuery query = QuestionQuery.builder()
-                .status(QuestionStatus.APPROVED)
+        QuestionQuery query = baseQuery()
                 .conceptId(conceptId)
-                .requiresConceptLink(true)
                 .build();
 
         QuerySpecification<Question> spec = questionSpecificationFactory.forQuery(query);
@@ -133,7 +131,7 @@ class QuestionRepositoryIT {
         servableQuestion(8L, conceptId);
 
         // 9 is neither of the two rows present.
-        assertThat(findForStudentCatalogue(9L).isPresent(), is(false));
+        assertThat(findForQuestionId(9L).isPresent(), is(false));
     }
 
     @Test
@@ -147,7 +145,7 @@ class QuestionRepositoryIT {
 
         servableQuestion(8L, conceptId);
 
-        assertThat(findForStudentCatalogue(rejectedId).isPresent(), is(false));
+        assertThat(findForQuestionId(rejectedId).isPresent(), is(false));
     }
 
     @Test
@@ -160,7 +158,7 @@ class QuestionRepositoryIT {
 
         servableQuestion(8L, conceptId);
 
-        assertThat(findForStudentCatalogue(unlinkedId).isPresent(), is(false));
+        assertThat(findForQuestionId(unlinkedId).isPresent(), is(false));
     }
 
     @Test
@@ -172,7 +170,7 @@ class QuestionRepositoryIT {
         servableQuestion(id, conceptId);
         servableQuestion(8L, conceptId);
 
-        Optional<Question> question = findForStudentCatalogue(id);
+        Optional<Question> question = findForQuestionId(id);
 
         assertThat(question.isPresent(), is(true));
         assertThat(question.get().getId(), is(id));
@@ -190,7 +188,7 @@ class QuestionRepositoryIT {
         servableQuestion(7L, conceptId);
         servableQuestion(8L, conceptId);
 
-        assertThat(existsForStudentCatalogue(7L), is(true));
+        assertThat(existsForQuestionId(7L), is(true));
     }
 
     @Test
@@ -200,7 +198,7 @@ class QuestionRepositoryIT {
         servableQuestion(7L, conceptId);
         servableQuestion(8L, conceptId);
 
-        assertThat(existsForStudentCatalogue(9L), is(false));
+        assertThat(existsForQuestionId(9L), is(false));
     }
 
     @Test
@@ -214,7 +212,7 @@ class QuestionRepositoryIT {
 
         servableQuestion(8L, conceptId);
 
-        assertThat(existsForStudentCatalogue(rejectedId), is(false));
+        assertThat(existsForQuestionId(rejectedId), is(false));
     }
 
     @Test
@@ -228,7 +226,7 @@ class QuestionRepositoryIT {
 
         servableQuestion(8L, conceptId);
 
-        assertThat(existsForStudentCatalogue(unlinkedId), is(false));
+        assertThat(existsForQuestionId(unlinkedId), is(false));
     }
 
     private void servableQuestion(long id, long conceptId) {
@@ -236,14 +234,21 @@ class QuestionRepositoryIT {
         data.link(id, conceptId).insert();
     }
 
-    private Optional<Question> findForStudentCatalogue(long questionId) {
-        QuestionQuery query = QuestionQuery.studentCatalogue(questionId);
+    private Optional<Question> findForQuestionId(long questionId) {
+        QuestionQuery query = baseQuery().questionId(questionId).build();
         return questionRepository.findOne(questionSpecificationFactory.forQuery(query));
     }
 
-    private boolean existsForStudentCatalogue(long questionId) {
-        QuestionQuery query = QuestionQuery.studentCatalogue(questionId);
+    private boolean existsForQuestionId(long questionId) {
+        QuestionQuery query = baseQuery().questionId(questionId).build();
         return questionRepository.exists(questionSpecificationFactory.forQuery(query));
+    }
+
+    private static QuestionQuery.QuestionQueryBuilder baseQuery() {
+        //Basic catalogue filter - fairly arbitary, but was built for student catalogues so serves as a default
+        return QuestionQuery.builder()
+                .status(QuestionStatus.APPROVED)
+                .requiresConceptLink(true);
     }
 
     private static List<Long> ids(List<Question> questions) {

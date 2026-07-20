@@ -1,6 +1,7 @@
 package com.practiq.service;
 
 import com.practiq.domain.MarkScheme;
+import com.practiq.domain.query.StudentQuestionQueryRunner;
 import com.practiq.dto.response.MarkSchemeResponse;
 import com.practiq.repository.MarkSchemeRepository;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,7 @@ import static utils.TestReflection.setField;
 class MarkSchemeServiceTest {
 
     @Mock
-    private QuestionQueryManager questionQueryManager;
+    private StudentQuestionQueryRunner questionQueryRunner;
 
     @Mock
     private MarkSchemeRepository markSchemeRepository;
@@ -35,10 +36,10 @@ class MarkSchemeServiceTest {
     private MarkSchemeService markSchemeService;
 
     @Test
-    void getForQuestionIdReturnsEmptyWhenQuestionNotVisibleToStudent() {
+    void getForQuestionIdReturnsEmptyWhenQuestionDoesNotExistForQuery() {
         long questionId = 10L;
 
-        when(questionQueryManager.doesStudentVisibleQuestionExistForId(questionId)).thenReturn(false);
+        when(questionQueryRunner.doesQuestionExistForId(questionId)).thenReturn(false);
 
         Optional<MarkSchemeResponse> result = markSchemeService.getForQuestionId(questionId);
 
@@ -46,7 +47,7 @@ class MarkSchemeServiceTest {
 
         // The visibility gate short-circuits: an invisible question never reaches the mark-scheme lookup,
         // so its existence can't leak through a different not-found cause.
-        verify(questionQueryManager).doesStudentVisibleQuestionExistForId(questionId);
+        verify(questionQueryRunner).doesQuestionExistForId(questionId);
         verifyNoInteractions(markSchemeRepository);
     }
 
@@ -54,14 +55,14 @@ class MarkSchemeServiceTest {
     void getForQuestionIdReturnsEmptyWhenQuestionVisibleButHasNoMarkScheme() {
         long questionId = 10L;
 
-        when(questionQueryManager.doesStudentVisibleQuestionExistForId(questionId)).thenReturn(true);
+        when(questionQueryRunner.doesQuestionExistForId(questionId)).thenReturn(true);
         when(markSchemeRepository.findByQuestionId(questionId)).thenReturn(Optional.empty());
 
         Optional<MarkSchemeResponse> result = markSchemeService.getForQuestionId(questionId);
 
         assertThat(result.isPresent(), equalTo(false));
 
-        verify(questionQueryManager).doesStudentVisibleQuestionExistForId(questionId);
+        verify(questionQueryRunner).doesQuestionExistForId(questionId);
         verify(markSchemeRepository).findByQuestionId(questionId);
     }
 
@@ -76,7 +77,7 @@ class MarkSchemeServiceTest {
         setField(markScheme, "id", markSchemeId);
         setField(markScheme, "createdAt", createdAt);
 
-        when(questionQueryManager.doesStudentVisibleQuestionExistForId(questionId)).thenReturn(true);
+        when(questionQueryRunner.doesQuestionExistForId(questionId)).thenReturn(true);
         when(markSchemeRepository.findByQuestionId(questionId)).thenReturn(Optional.of(markScheme));
 
         Optional<MarkSchemeResponse> result = markSchemeService.getForQuestionId(questionId);
@@ -88,7 +89,7 @@ class MarkSchemeServiceTest {
         assertThat(response.getBody(), equalTo(body));
         assertThat(response.getCreatedAt(), equalTo(createdAt));
 
-        verify(questionQueryManager).doesStudentVisibleQuestionExistForId(questionId);
+        verify(questionQueryRunner).doesQuestionExistForId(questionId);
         verify(markSchemeRepository).findByQuestionId(questionId);
     }
 }

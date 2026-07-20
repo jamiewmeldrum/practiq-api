@@ -1,6 +1,7 @@
 package com.practiq.service;
 
 import com.practiq.domain.projection.LinkedQuestion;
+import com.practiq.domain.query.StudentQuestionQueryRunner;
 import com.practiq.dto.mapper.QuestionResponseMapper;
 import com.practiq.dto.request.QuestionRequest;
 import com.practiq.dto.response.PageResponse;
@@ -19,23 +20,23 @@ import static com.practiq.dto.mapper.QuestionResponseMapper.toQuestionResponses;
 @Singleton
 public class QuestionService {
 
-    private final QuestionQueryManager questionQueryManager;
+    private final StudentQuestionQueryRunner questionQueryRunner;
 
-    public QuestionService(QuestionQueryManager questionQueryManager) {
-        this.questionQueryManager = questionQueryManager;
+    public QuestionService(StudentQuestionQueryRunner questionQueryRunner) {
+        this.questionQueryRunner = questionQueryRunner;
     }
 
     @Transactional(readOnly = true)
     public Optional<QuestionResponse> get(long id) {
         log.debug("Getting question for id {}", id);
-        return questionQueryManager.findStudentVisibleQuestionById(id)
+        return questionQueryRunner.findQuestionById(id)
                 .map(QuestionResponseMapper::toQuestionResponse);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<QuestionResponse> get(QuestionRequest request, Pageable pageable) {
         log.debug("Getting approved questions, page {}", pageable.getNumber());
-        Page<LinkedQuestion> page = questionQueryManager.findStudentVisibleQuestionsPagedAndFiltered(request, pageable);
+        Page<LinkedQuestion> page = questionQueryRunner.findQuestionsPagedAndFiltered(request, pageable);
         return PageResponse.of(page, toQuestionResponses(page.getContent()));
     }
 }

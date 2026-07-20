@@ -12,14 +12,15 @@ import static org.hamcrest.Matchers.contains;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class QuestionQueryTest {
+class StudentQuestionQueryPolicyTest {
     @Test
     void studentCatalogueForGetAllFilteringSetsMandatoryAndSpecifiedFields() {
         List<QuestionType> types = List.of(QuestionType.MCQ);
         List<QuestionDifficulty> difficulties = List.of(QuestionDifficulty.HARD);
         long conceptId = 42L;
 
-        QuestionQuery query = QuestionQuery.studentCatalogue(types, difficulties, conceptId);
+        StudentQuestionQueryPolicy policy = new StudentQuestionQueryPolicy();
+        QuestionQuery query = policy.catalogue(types, difficulties, conceptId);
 
         assertEquals(QuestionStatus.APPROVED, query.getStatus());
         assertTrue(query.isRequiresConceptLink());
@@ -32,7 +33,8 @@ class QuestionQueryTest {
     void studentCatalogueForGetOneSetsMandatoryAndSpecifiedFields() {
         long questionId = 15L;
 
-        QuestionQuery query = QuestionQuery.studentCatalogue(questionId);
+        StudentQuestionQueryPolicy policy = new StudentQuestionQueryPolicy();
+        QuestionQuery query = policy.forId(questionId);
 
         assertEquals(QuestionStatus.APPROVED, query.getStatus());
         assertTrue(query.isRequiresConceptLink());
