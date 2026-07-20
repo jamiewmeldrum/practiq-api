@@ -9,8 +9,6 @@ import utils.data.QuestionTestData;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -18,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.data.TestDatabase.*;
 
 @IntegrationTest
-public class MarkSchemeDatabaseIT {
+public class QuestionAttemptDatabaseIT {
 
     @Inject
     private QuestionTestData data;
@@ -29,44 +27,46 @@ public class MarkSchemeDatabaseIT {
     }
 
     @Test
-    void ensureMarkSchemeCreatedWithDefaultFields() {
+    void ensureQuestionAttemptCreatedWithDefaultFields() {
         long questionId = 1L;
         data.question(questionId).insert();
 
+        String sessionToken = "sessionToken";
         String body = "Mark scheme body";
-        data.markScheme(questionId, body).insert();
+        data.questionAttempt(questionId, sessionToken, body).insert();
 
-        List<DBRow> markSchemes = data.retrieveMarkSchemes();
-        DBRow markScheme = markSchemes.getFirst();
-        markScheme.assertThat("id", greaterThan(0L));
-        markScheme.assertThat("question_id", equalTo(questionId));
-        markScheme.assertThat("version", equalTo(0));
-        markScheme.assertThat("body", equalTo(body));
-        markScheme.assertThat("created_at", allOf(
+        List<DBRow> questionAttempts = data.retrieveQuestionAttempts();
+        DBRow questionAttempt = questionAttempts.getFirst();
+        questionAttempt.assertThat("id", greaterThan(0L));
+        questionAttempt.assertThat("question_id", equalTo(questionId));
+        questionAttempt.assertThat("session_token", equalTo(sessionToken));
+        questionAttempt.assertThat("body", equalTo(body));
+        questionAttempt.assertThat("created_at", allOf(
                 greaterThan(Instant.EPOCH),
                 lessThanOrEqualTo(Instant.now())
         ));
-        markScheme.assertAllColumnsChecked();
+        questionAttempt.assertAllColumnsChecked();
     }
 
     @Test
-    void ensureMarkSchemeDeletedWhenQuestionsDeleted() {
+    void ensureQuestionAttemptDeletedWhenQuestionsDeleted() {
         long questionId = 1L;
         data.question(questionId).insert();
-        data.markScheme(questionId, "body").insert();
+        data.questionAttempt(questionId, "sessionToken", "body").insert();
+        data.questionAttempt(questionId, "sessionToken", "body").insert();
 
         //Add another question and attempt
         long otherQuestionId = 2L;
         data.question(otherQuestionId).insert();
-        data.markScheme(otherQuestionId, "body").insert();
+        data.questionAttempt(otherQuestionId, "sessionToken", "body").insert();
 
         List<DBRow> questions = data.retrieveQuestions();
         assertThat(questions, hasSize(2));
         assertThat(DBRow.collectColumn(questions, "id"), contains(questionId, otherQuestionId));
 
-        List<DBRow> markSchemes = data.retrieveMarkSchemes();
-        assertThat(markSchemes, hasSize(2));
-        assertThat(DBRow.collectColumn(markSchemes, "question_id"), contains(questionId, otherQuestionId));
+        List<DBRow> questionAttempts = data.retrieveQuestionAttempts();
+        assertThat(questionAttempts, hasSize(3));
+        assertThat(DBRow.collectColumn(questionAttempts, "question_id"), contains(questionId, questionId, otherQuestionId));
 
         data.deleteQuestion(questionId);
 
@@ -74,36 +74,24 @@ public class MarkSchemeDatabaseIT {
         assertThat(questionsAfterDelete, hasSize(1));
         assertThat(DBRow.collectColumn(questionsAfterDelete, "id"), contains(otherQuestionId));
 
-        List<DBRow> markSchemesAfterDelete = data.retrieveMarkSchemes();
-        assertThat(markSchemesAfterDelete, hasSize(1));
-        assertThat(DBRow.collectColumn(markSchemesAfterDelete, "question_id"), contains(otherQuestionId));
+        List<DBRow> questionAttemptsAfterDelete = data.retrieveQuestionAttempts();
+        assertThat(questionAttemptsAfterDelete, hasSize(1));
+        assertThat(DBRow.collectColumn(questionAttemptsAfterDelete, "question_id"), contains(otherQuestionId));
     }
 
     @Test
     void ensureThatQuestionMustExist() {
         IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.markScheme(1L, "body").insert());
+                data.questionAttempt(1L, "sessionToken", "body").insert());
 
         assertThat(sqlStateOf(thrown), equalTo(FOREIGN_KEY_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("question_id"));
     }
 
     @Test
-    void ensureThatThereCanOnlyBeOneMarkSchemeForAQuestion() {
-        long questionId = 1L;
-        data.question(questionId).insert();
-
-        data.markScheme().questionId(questionId).body("body").insert();
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.markScheme(questionId, "body").insert());
-
-        assertThat(sqlStateOf(thrown), equalTo(UNIQUE_VIOLATION));
-    }
-
-    @Test
     void ensureThatQuestionIdMustBeSet() {
         IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.markScheme().body("Test").insert());
+                data.questionAttempt().sessionToken("sessionToken").body("Test").insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"question_id\""));
@@ -114,9 +102,20 @@ public class MarkSchemeDatabaseIT {
         long questionId = 1L;
         data.question(questionId).insert();
         IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.markScheme().questionId(1L).insert());
+                data.questionAttempt().questionId(1L).sessionToken("sessionToken").insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"body\""));
+    }
+
+    @Test
+    void ensureThatSessionTokenMustBeSet() {
+        long questionId = 1L;
+        data.question(questionId).insert();
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
+                data.questionAttempt().questionId(1L).body("body").insert());
+
+        assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
+        assertThat(thrown.getCause().getMessage(), containsString("\"session_token\""));
     }
 }

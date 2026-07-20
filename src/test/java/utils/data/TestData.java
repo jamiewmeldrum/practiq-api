@@ -15,6 +15,7 @@ public abstract class TestData {
     protected static final String QUESTION_TABLE = "question";
     protected static final String QUESTION_CONCEPT_TABLE = "question_concept";
     protected static final String MARK_SCHEME_TABLE = "mark_scheme";
+    protected static final String QUESTION_ATTEMPT = "question_attempt";
 
     protected static final String ISO_8601_UTC = "\\d{4}-\\d{2}-\\d{2}T.*Z";
 
@@ -170,6 +171,47 @@ public abstract class TestData {
 
         public void insert() {
             testDatabase.insert(MARK_SCHEME_TABLE, columns);
+        }
+    }
+
+    public final class QuestionAttemptRow {
+        private final Map<String, Object> columns = new HashMap<>();
+
+        QuestionAttemptRow() {}
+
+        QuestionAttemptRow(long questionId, String sessionToken, String body) {
+            columns.put("question_id", questionId);
+            columns.put("session_token", sessionToken);
+            columns.put("body", body);
+        }
+
+        public QuestionAttemptRow id(long id) {
+            columns.put("id", id);
+            return this;
+        }
+
+        public QuestionAttemptRow questionId(long questionId) {
+            columns.put("question_id", questionId);
+            return this;
+        }
+
+        public QuestionAttemptRow sessionToken(String sessionToken) {
+            columns.put("session_token", sessionToken);
+            return this;
+        }
+
+        public QuestionAttemptRow body(String body) {
+            columns.put("body", body);
+            return this;
+        }
+
+        public QuestionAttemptRow createdAt(OffsetDateTime createdAt) {
+            columns.put("created_at", createdAt);
+            return this;
+        }
+
+        public void insert() {
+            testDatabase.insert(QUESTION_ATTEMPT, columns);
         }
     }
 }

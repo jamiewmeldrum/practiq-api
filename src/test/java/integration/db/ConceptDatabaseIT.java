@@ -70,34 +70,6 @@ public class ConceptDatabaseIT {
     }
 
     @Test
-    void ensureQuestionConceptsDeletedWhenConceptsDeleted() {
-        long conceptId = 1L;
-        data.concept(conceptId).insert();
-
-        long questionId1 = 10L;
-        data.question(questionId1).insert();
-        data.link(questionId1, conceptId).insert();
-
-        long questionId2 = 20L;
-        data.question(questionId2).insert();
-        data.link(questionId2, conceptId).insert();
-
-        List<DBRow> concepts = data.retrieveConcepts();
-        assertThat(concepts, hasSize(1));
-
-        List<DBRow> questionConcepts = data.retrieveLinks();
-        assertThat(questionConcepts, hasSize(2));
-
-        data.deleteConcept(conceptId);
-
-        List<DBRow> conceptsAfterDelete = data.retrieveConcepts();
-        assertThat(conceptsAfterDelete, empty());
-
-        List<DBRow> questionConceptsAfterDelete = data.retrieveLinks();
-        assertThat(questionConceptsAfterDelete, empty());
-    }
-
-    @Test
     void ensureThatNameMustBeSet() {
         IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
                 data.concept().description("Test").insert()

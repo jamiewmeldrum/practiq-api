@@ -1,15 +1,14 @@
 package utils.data;
 
+import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class DBRow {
 
@@ -59,4 +58,18 @@ public class DBRow {
 
         return new DBRow(values);
     }
+
+    public static List<Object> collectColumn(List<DBRow> rows, String column) {
+        return rows.stream().map(q -> q.get(column)).collect(Collectors.toList());
+    }
+
+    public static <T> Matcher<DBRow> hasColumn(String column, Matcher<? super T> matcher) {
+        return new FeatureMatcher<DBRow, T>(matcher, column, column) {
+            @Override
+            protected T featureValueOf(DBRow row) {
+                return row.get(column);
+            }
+        };
+    }
 }
+
