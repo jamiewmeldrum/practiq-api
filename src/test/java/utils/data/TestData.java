@@ -11,6 +11,8 @@ import java.util.Map;
 
 public abstract class TestData {
 
+    public static final String SESSION_TOKEN_HEADER = "X-Session-Token";
+
     protected static final String CONCEPT_TABLE = "concept";
     protected static final String QUESTION_TABLE = "question";
     protected static final String QUESTION_CONCEPT_TABLE = "question_concept";
