@@ -277,7 +277,7 @@ which is true of all three; "integration" is a conceptual promise the suffix nev
   consciously when a query is legitimately added, with a comment saying what the number is made of. Don't
   decompose it into named constants — that asserts a composition which stops being true once branching exists.
 - **Current pins:** `/concepts` 1 · `/concepts/{id}` 1 · `/questions` 3 · `/questions/{id}` 2 ·
-  `/questions/{id}/mark-scheme` 2.
+  `/questions/{id}/mark-scheme` 2 · `/questions/{id}/attempts` 2 (+ row-count invariance).
 - Runs in `check`/`build` by default; `-PskipPerf` opts out. `mustRunAfter(integrationTest)` — both share one
   Test Resources Postgres, and `shouldRunAfter` is only advisory (would race under `--parallel`).
 

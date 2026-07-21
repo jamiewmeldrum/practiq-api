@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static utils.TestReflection.setField;
+import static utils.data.TestData.SESSION_TOKEN_HEADER;
 
 @ComponentTest
 public class QuestionAttemptControllerCT {
@@ -76,7 +77,7 @@ public class QuestionAttemptControllerCT {
                 .then()
                 .statusCode(BAD_REQUEST.getCode())
                 .contentType(ContentType.JSON)
-                .body("error", equalTo("Required Header [X-Session-Token] not specified"))
+                .body("error", equalTo("Required Header [" + SESSION_TOKEN_HEADER + "] not specified"))
                 .body("status", equalTo(400));
     }
 
@@ -88,7 +89,7 @@ public class QuestionAttemptControllerCT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
         given()
-                .header(new Header("X-Session-Token", "test"))
+                .header(new Header(SESSION_TOKEN_HEADER,"test"))
                 .when()
                 .get(path)
                 .then()
@@ -111,7 +112,7 @@ public class QuestionAttemptControllerCT {
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
 
         given()
-                .header(new Header("X-Session-Token", sessionToken))
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -172,7 +173,7 @@ public class QuestionAttemptControllerCT {
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
 
         given()
-                .header(new Header("X-Session-Token", sessionToken))
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .when()
                 .get(path)
                 .then()

@@ -18,6 +18,7 @@ import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static io.micronaut.http.HttpStatus.OK;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
+import static utils.data.TestData.SESSION_TOKEN_HEADER;
 
 @IntegrationTest
 public class QuestionAttemptControllerIT {
@@ -56,7 +57,7 @@ public class QuestionAttemptControllerIT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(9L);
         given()
-                .header(new Header("X-Session-Token", "test"))
+                .header(new Header(SESSION_TOKEN_HEADER,"test"))
                 .when()
                 .get(path)
                 .then()
@@ -77,7 +78,7 @@ public class QuestionAttemptControllerIT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
         given()
-                .header(new Header("X-Session-Token", "test"))
+                .header(new Header(SESSION_TOKEN_HEADER,"test"))
                 .when()
                 .get(path)
                 .then()
@@ -99,7 +100,7 @@ public class QuestionAttemptControllerIT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
         given()
-                .header(new Header("X-Session-Token", "test"))
+                .header(new Header(SESSION_TOKEN_HEADER,"test"))
                 .when()
                 .get(path)
                 .then()
@@ -128,7 +129,7 @@ public class QuestionAttemptControllerIT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(question1Id);
         given()
-                .header(new Header("X-Session-Token", sessionToken))
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -164,7 +165,7 @@ public class QuestionAttemptControllerIT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(question2Id);
         given()
-                .header(new Header("X-Session-Token", sessionToken))
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -196,7 +197,7 @@ public class QuestionAttemptControllerIT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
         Response response = given()
-                .header(new Header("X-Session-Token", sessionToken))
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -212,7 +213,7 @@ public class QuestionAttemptControllerIT {
         OffsetDateTime fixedNow = OffsetDateTime.now();
         data.updateQuestionAttempt(secondId, "created_at", fixedNow);
         given()
-                .header(new Header("X-Session-Token", sessionToken))
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -224,7 +225,7 @@ public class QuestionAttemptControllerIT {
         String attemptBody4 = "attempt 4";
         data.questionAttempt(questionId, sessionToken, attemptBody4).id(secondId + 100).createdAt(fixedNow).insert();
         given()
-                .header(new Header("X-Session-Token", sessionToken))
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .when()
                 .get(path)
                 .then()

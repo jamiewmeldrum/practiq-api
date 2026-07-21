@@ -2,6 +2,7 @@ package com.practiq.controller;
 
 import com.practiq.dto.filter.UserRequestFilter;
 import com.practiq.dto.response.QuestionAttemptResponse;
+import com.practiq.http.HttpConstants;
 import com.practiq.service.QuestionAttemptService;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
@@ -26,7 +27,7 @@ public class QuestionAttemptController {
 
     @Get("/{questionId}/attempts")
     public List<QuestionAttemptResponse> getForQuestionId(
-            @Header("X-Session-Token") String sessionToken,
+            @Header(HttpConstants.SESSION_TOKEN_HEADER) String sessionToken,
             long questionId
     ) {
         log.debug("Requested to GET question attempts for question id: {}", questionId);
