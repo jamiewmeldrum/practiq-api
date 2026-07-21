@@ -88,4 +88,8 @@ public class QuestionTestData extends TestData {
     public List<DBRow> retrieveQuestionAttempts() {
         return testDatabase.selectAll(QUESTION_ATTEMPT);
     }
+
+    public void updateQuestionAttempt(long id, String column, Object value) {
+        testDatabase.update(QUESTION_ATTEMPT, id, column, value);
+    }
 }

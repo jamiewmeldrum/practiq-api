@@ -18,7 +18,7 @@ public class QuestionAttemptQuerySpecificationFactory
     protected QuerySpecification<QuestionAttempt> applyDomain(
             QuerySpecification<QuestionAttempt> specification,
             QuestionAttemptQuery query) {
-        return specification.and(hasQuestionId(query.getQuestionId()));
+        return specification.and(hasQuestionId(query.questionId()));
     }
 
     @Override

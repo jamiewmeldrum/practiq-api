@@ -13,7 +13,7 @@ public final class SessionTokenRestriction<T> implements QueryRestriction<T, Use
 
     @Override
     public QuerySpecification<T> restrict(UserRestrictedQuery query) {
-        String sessionToken = query.getSessionToken();
+        String sessionToken = query.sessionToken();
         if (sessionToken == null) {
             throw new IllegalStateException("Session token is required");
         }
