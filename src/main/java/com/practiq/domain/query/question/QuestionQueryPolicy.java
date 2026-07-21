@@ -1,4 +1,4 @@
-package com.practiq.domain.query;
+package com.practiq.domain.query.question;
 
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionType;

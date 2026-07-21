@@ -1,10 +1,11 @@
-package com.practiq.domain.query;
+package com.practiq.domain.query.question;
 
 import com.practiq.domain.Question;
 import com.practiq.domain.QuestionConcept;
 import com.practiq.domain.QuestionConcept_;
 import com.practiq.domain.QuestionConceptId_;
 import com.practiq.domain.Question_;
+import com.practiq.domain.query.QuerySpecificationFactory;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
@@ -14,20 +15,14 @@ import jakarta.inject.Singleton;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 
-import java.util.Collections;
 import java.util.List;
 
 @Singleton
-public class QuestionSpecificationFactory {
+public class QuestionSpecificationFactory extends QuerySpecificationFactory<Question, QuestionQuery> {
 
-    // Produces only the WHERE predicate. Ordering and the concept-link load live outside the spec now
-    // (in the service), so this no longer fetch-joins, no longer needs distinct, and no longer has to
-    // guard against the paged count query.
-    public QuerySpecification<Question> forQuery(QuestionQuery query) {
-
-        QuerySpecification<Question> specification =
-                (root, criteriaQuery, cb) -> cb.conjunction();
-        if (query.getStatus() != null) {
+    @Override
+    protected QuerySpecification<Question> applyDomain(QuerySpecification<Question> specification, QuestionQuery query) {
+         if (query.getStatus() != null) {
             specification = specification.and(hasStatus(query.getStatus()));
         }
 

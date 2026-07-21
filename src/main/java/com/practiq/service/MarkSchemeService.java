@@ -1,6 +1,6 @@
 package com.practiq.service;
 
-import com.practiq.domain.query.StudentQuestionQueryRunner;
+import com.practiq.domain.query.question.StudentQuestionQueryRunner;
 import com.practiq.dto.mapper.MarkSchemeResponseMapper;
 import com.practiq.dto.response.MarkSchemeResponse;
 import com.practiq.repository.MarkSchemeRepository;

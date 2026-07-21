@@ -1,7 +1,7 @@
 package com.practiq.service;
 
 import com.practiq.domain.MarkScheme;
-import com.practiq.domain.query.StudentQuestionQueryRunner;
+import com.practiq.domain.query.question.StudentQuestionQueryRunner;
 import com.practiq.dto.response.MarkSchemeResponse;
 import com.practiq.repository.MarkSchemeRepository;
 import org.junit.jupiter.api.Test;

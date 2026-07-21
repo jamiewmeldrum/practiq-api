@@ -3,7 +3,7 @@ package com.practiq.service;
 import com.practiq.domain.Question;
 import com.practiq.domain.projection.LinkedQuestion;
 import com.practiq.domain.projection.QuestionConceptLink;
-import com.practiq.domain.query.StudentQuestionQueryRunner;
+import com.practiq.domain.query.question.StudentQuestionQueryRunner;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
