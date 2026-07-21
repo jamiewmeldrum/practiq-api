@@ -12,7 +12,7 @@ public abstract class QuerySpecificationFactory<T, U> {
         return List.of();
     }
 
-    public final QuerySpecification<T> forQuery(U query) {
+    public QuerySpecification<T> forQuery(U query) {
         QuerySpecification<T> specification =
                 (root, criteriaQuery, cb) -> cb.conjunction();
         specification = applyDomain(specification, query);
