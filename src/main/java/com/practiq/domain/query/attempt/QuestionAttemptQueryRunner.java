@@ -14,22 +14,22 @@ public class QuestionAttemptQueryRunner {
 
     private static final Sort STABLE_ORDER = Sort.of(Sort.Order.desc("createdAt"), Sort.Order.asc("id"));
 
-    private final QuestionAttemptQuerySpecificationFactory questionAttemptQuerySpecificationFactory;
+    private final QuestionAttemptSpecificationFactory questionAttemptSpecificationFactory;
     private final QuestionAttemptRepository questionAttemptRepository;
 
     public QuestionAttemptQueryRunner(
             QuestionAttemptRepository questionAttemptRepository,
-            QuestionAttemptQuerySpecificationFactory questionAttemptQuerySpecificationFactory
+            QuestionAttemptSpecificationFactory questionAttemptSpecificationFactory
     ) {
         this.questionAttemptRepository = questionAttemptRepository;
-        this.questionAttemptQuerySpecificationFactory = questionAttemptQuerySpecificationFactory;
+        this.questionAttemptSpecificationFactory = questionAttemptSpecificationFactory;
     }
 
     public List<QuestionAttempt> getQuestionAttempts(
             UserRequestFilter userRequestFilter,
             long questionId) {
         QuestionAttemptQuery questionAttemptQuery = new QuestionAttemptQuery(questionId, userRequestFilter.sessionToken());
-        QuerySpecification<QuestionAttempt> spec = questionAttemptQuerySpecificationFactory.forQuery(questionAttemptQuery);
+        QuerySpecification<QuestionAttempt> spec = questionAttemptSpecificationFactory.forQuery(questionAttemptQuery);
 
         return questionAttemptRepository.findAll(spec, STABLE_ORDER);
     }

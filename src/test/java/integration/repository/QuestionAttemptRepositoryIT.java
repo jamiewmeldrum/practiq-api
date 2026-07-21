@@ -2,7 +2,7 @@ package integration.repository;
 
 import com.practiq.domain.QuestionAttempt;
 import com.practiq.domain.query.attempt.QuestionAttemptQuery;
-import com.practiq.domain.query.attempt.QuestionAttemptQuerySpecificationFactory;
+import com.practiq.domain.query.attempt.QuestionAttemptSpecificationFactory;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.repository.QuestionAttemptRepository;
 import io.micronaut.data.model.Sort;
@@ -18,8 +18,10 @@ import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.empty;
 
+// Repository-method concerns for attempts. What forQuery filters on lives in
+// QuestionAttemptSpecificationFactoryIT; this pins how the repository methods themselves behave — starting
+// with the stable order findAll applies, and growing as the write path (POST attempts) adds persistence.
 @IntegrationTest
 public class QuestionAttemptRepositoryIT {
 
@@ -32,7 +34,7 @@ public class QuestionAttemptRepositoryIT {
     private QuestionAttemptRepository questionAttemptRepository;
 
     @Inject
-    private QuestionAttemptQuerySpecificationFactory questionAttemptQuerySpecificationFactory;
+    private QuestionAttemptSpecificationFactory questionAttemptSpecificationFactory;
 
     @BeforeEach
     void setUp() {
@@ -40,29 +42,7 @@ public class QuestionAttemptRepositoryIT {
     }
 
     @Test
-    void findByQuestionIdAndSessionTokenReturnsEmptyIfNoMatches() {
-        long conceptId = 10L;
-        data.concept(conceptId).insert();
-
-        long questionId = 7L;
-        data.question(questionId).insert();
-
-        long otherQuestionId = 2L;
-        data.question(otherQuestionId).insert();
-
-        String sessionToken = "sessionToken";
-        data.questionAttempt(questionId, "error", "body").insert();
-        data.questionAttempt(otherQuestionId, sessionToken, "body").insert();
-
-        QuestionAttemptQuery query = new QuestionAttemptQuery(questionId, sessionToken);
-        QuerySpecification<QuestionAttempt> spec = questionAttemptQuerySpecificationFactory.forQuery(query);
-
-        List<QuestionAttempt> attempts = questionAttemptRepository.findAll(spec, STABLE_ORDER);
-        assertThat(attempts, empty());
-    }
-
-    @Test
-    void findByQuestionIdAndSessionTokenReturnsOrderedMatches() {
+    void findAllAppliesTheStableCreatedAtThenIdOrder() {
         long conceptId = 10L;
         data.concept(conceptId).insert();
 
@@ -84,9 +64,11 @@ public class QuestionAttemptRepositoryIT {
         data.questionAttempt(questionId, sessionToken, "body").id(attemptId3).createdAt(day2).insert();
 
         QuestionAttemptQuery query = new QuestionAttemptQuery(questionId, sessionToken);
-        QuerySpecification<QuestionAttempt> spec = questionAttemptQuerySpecificationFactory.forQuery(query);
+        QuerySpecification<QuestionAttempt> spec = questionAttemptSpecificationFactory.forQuery(query);
 
         List<QuestionAttempt> attempts = questionAttemptRepository.findAll(spec, STABLE_ORDER);
+
+        // Newest created_at first; the day1 tie between attempts 1 and 2 is broken by ascending id.
         List<Long> ids = attempts.stream().map(QuestionAttempt::getId).toList();
         assertThat(ids, contains(attemptId3, attemptId1, attemptId2));
     }

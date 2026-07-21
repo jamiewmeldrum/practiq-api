@@ -2,7 +2,7 @@ package com.practiq.controller;
 
 import com.practiq.domain.QuestionAttempt;
 import com.practiq.domain.query.attempt.QuestionAttemptQuery;
-import com.practiq.domain.query.attempt.QuestionAttemptQuerySpecificationFactory;
+import com.practiq.domain.query.attempt.QuestionAttemptSpecificationFactory;
 import com.practiq.repository.QuestionAttemptRepository;
 import com.practiq.repository.QuestionRepository;
 import io.micronaut.data.model.Sort;
@@ -43,7 +43,7 @@ public class QuestionAttemptControllerCT {
     private QuestionAttemptRepository questionAttemptRepository;
 
     @Inject
-    private QuestionAttemptQuerySpecificationFactory questionAttemptQuerySpecificationFactory;
+    private QuestionAttemptSpecificationFactory questionAttemptSpecificationFactory;
 
     @Inject
     private EmbeddedServer embeddedServer;
@@ -58,9 +58,9 @@ public class QuestionAttemptControllerCT {
         return mock(QuestionAttemptRepository.class);
     }
 
-    @MockBean(QuestionAttemptQuerySpecificationFactory.class)
-    QuestionAttemptQuerySpecificationFactory questionAttemptQuerySpecificationFactory() {
-        return spy(new QuestionAttemptQuerySpecificationFactory());
+    @MockBean(QuestionAttemptSpecificationFactory.class)
+    QuestionAttemptSpecificationFactory questionAttemptSpecificationFactory() {
+        return spy(new QuestionAttemptSpecificationFactory());
     }
 
     @BeforeEach
@@ -123,7 +123,7 @@ public class QuestionAttemptControllerCT {
         verify(questionRepository).exists(any(QuerySpecification.class));
 
         QuestionAttemptQuery questionAttemptQuery = new QuestionAttemptQuery(questionId, sessionToken);
-        verify(questionAttemptQuerySpecificationFactory).forQuery(questionAttemptQuery);
+        verify(questionAttemptSpecificationFactory).forQuery(questionAttemptQuery);
 
         verify(questionAttemptRepository).findAll(any(QuerySpecification.class), eq(STABLE_ORDER));
     }
@@ -191,7 +191,7 @@ public class QuestionAttemptControllerCT {
         verify(questionRepository).exists(any(QuerySpecification.class));
 
         QuestionAttemptQuery questionAttemptQuery = new QuestionAttemptQuery(questionId, sessionToken);
-        verify(questionAttemptQuerySpecificationFactory).forQuery(questionAttemptQuery);
+        verify(questionAttemptSpecificationFactory).forQuery(questionAttemptQuery);
 
         verify(questionAttemptRepository).findAll(any(QuerySpecification.class), eq(STABLE_ORDER));
     }

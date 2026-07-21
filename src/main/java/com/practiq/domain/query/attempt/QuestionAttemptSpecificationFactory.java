@@ -11,7 +11,7 @@ import jakarta.inject.Singleton;
 import java.util.List;
 
 @Singleton
-public class QuestionAttemptQuerySpecificationFactory
+public class QuestionAttemptSpecificationFactory
         extends QuerySpecificationFactory<QuestionAttempt, QuestionAttemptQuery> {
 
     @Override
