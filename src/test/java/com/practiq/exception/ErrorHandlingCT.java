@@ -1,40 +1,29 @@
 package com.practiq.exception;
 
-import com.practiq.service.ConceptService;
+import io.micronaut.context.annotation.Property;
 import io.micronaut.runtime.server.EmbeddedServer;
-import io.micronaut.test.annotation.MockBean;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
-import jakarta.persistence.OptimisticLockException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.ComponentTest;
 
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 @ComponentTest
+@Property(name = "spec.name", value = "ErrorHandlingCT")
 class ErrorHandlingCT {
 
-    private static final String CONCEPTS_PATH = "/api/v1/concepts";
     private static final String INVALID_RESOURCES_PATH = "/api/v1/invalid_resource";
 
     @Inject
     private EmbeddedServer embeddedServer;
-
-    @Inject
-    private ConceptService conceptService;
-
-    @MockBean(ConceptService.class)
-    ConceptService conceptService() {
-        return mock(ConceptService.class);
-    }
 
     @BeforeEach
     void setUp() {
@@ -55,11 +44,38 @@ class ErrorHandlingCT {
     }
 
     @Test
-    void unexpectedRuntimeErrorReturnsInternalServerErrorEnvelope() {
-        when(conceptService.get()).thenThrow(new RuntimeException("Test Error"));
+    void missingRequiredHeaderReturnsBadRequestEnvelope() {
         given()
                 .when()
-                .get(CONCEPTS_PATH)
+                .get("/test/errors/required-header")
+                .then()
+                .statusCode(BAD_REQUEST.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("Required Header [X-Required-Header] not specified"))
+                .body("status", equalTo(400));
+    }
+
+    // A sibling of the missing-header case: both are UnsatisfiedRouteException subtypes, so one handler
+    // serves both. Two flavours prove the handler's breadth end to end without covering every subtype.
+    @Test
+    void missingRequiredQueryValueReturnsBadRequestEnvelope() {
+        given()
+                .when()
+                .get("/test/errors/required-query")
+                .then()
+                .statusCode(BAD_REQUEST.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("Required QueryValue [requiredParam] not specified"))
+                .body("status", equalTo(400));
+    }
+
+    @Test
+    void unexpectedRuntimeErrorReturnsInternalServerErrorEnvelope() {
+        given()
+                .when()
+                .get("/test/errors/runtime-error")
                 .then()
                 .statusCode(INTERNAL_SERVER_ERROR.getCode())
                 .contentType(ContentType.JSON)
@@ -69,15 +85,13 @@ class ErrorHandlingCT {
     }
 
     // Pins what a caller sees if a stale @Version write escapes to the web layer: the generic 500
-    // envelope, because no OptimisticLockException-specific handler exists. No current endpoint can
-    // trigger this (the API is read-only so far) — when the first write endpoint lands, the right
-    // answer is a 409 Conflict handler, and this test is the tripwire forcing that decision.
+    // envelope, because no OptimisticLockException-specific handler exists yet. The right answer is a
+    // 409 Conflict handler; this test is the tripwire forcing that decision when it lands.
     @Test
     void optimisticLockFailureCurrentlyReturnsTheGenericErrorEnvelope() {
-        when(conceptService.get()).thenThrow(new OptimisticLockException("stale version"));
         given()
                 .when()
-                .get(CONCEPTS_PATH)
+                .get("/test/errors/optimistic-lock")
                 .then()
                 .statusCode(INTERNAL_SERVER_ERROR.getCode())
                 .contentType(ContentType.JSON)
