@@ -1,15 +1,18 @@
 package com.practiq.controller;
 
+import com.practiq.dto.filter.UserRequestFilter;
 import com.practiq.dto.response.QuestionAttemptResponse;
 import com.practiq.service.QuestionAttemptService;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.Header;
 import io.micronaut.http.server.exceptions.NotFoundException;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import lombok.extern.slf4j.Slf4j;
 
-//TODO - CT testing to shadow MarkSchemeControllerCT
+import java.util.List;
+
 @Slf4j
 @ExecuteOn(TaskExecutors.BLOCKING)
 @Controller("api/v1/questions")
@@ -21,10 +24,15 @@ public class QuestionAttemptController {
         this.questionAttemptService = questionAttemptService;
     }
 
-    @Get("/{questionId}/attempt")
-    public QuestionAttemptResponse getForQuestionId(long questionId) {
-        log.debug("Requested to GET question attempt for question id: {}", questionId);
-        return questionAttemptService.getForQuestionId(questionId)
+    @Get("/{questionId}/attempts")
+    public List<QuestionAttemptResponse> getForQuestionId(
+            @Header("X-Session-Token") String sessionToken,
+            long questionId
+    ) {
+        log.debug("Requested to GET question attempts for question id: {}", questionId);
+
+        UserRequestFilter userRequestFilter = new UserRequestFilter(sessionToken);
+        return questionAttemptService.getForQuestionId(userRequestFilter, questionId)
                 .orElseThrow(NotFoundException::new);
     }
 }

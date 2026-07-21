@@ -1,7 +1,7 @@
 package com.practiq.service;
 
 import com.practiq.domain.projection.LinkedQuestion;
-import com.practiq.domain.query.StudentQuestionQueryRunner;
+import com.practiq.domain.query.question.StudentQuestionQueryRunner;
 import com.practiq.dto.mapper.QuestionResponseMapper;
 import com.practiq.dto.request.QuestionRequest;
 import com.practiq.dto.response.PageResponse;

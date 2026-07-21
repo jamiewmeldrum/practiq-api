@@ -1,8 +1,11 @@
-package com.practiq.domain.query;
+package com.practiq.domain.query.question;
 
 import com.practiq.domain.Question;
 import com.practiq.domain.projection.LinkedQuestion;
 import com.practiq.domain.projection.QuestionConceptLink;
+import com.practiq.domain.query.question.QuestionQuery;
+import com.practiq.domain.query.question.QuestionQueryPolicy;
+import com.practiq.domain.query.question.QuestionSpecificationFactory;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionType;
 import com.practiq.repository.QuestionConceptRepository;
