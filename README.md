@@ -389,6 +389,27 @@ Why each piece is needed:
 Test bodies are scaffolded with `fail("not yet implemented")` so unwritten coverage shows
 red rather than a misleading green.
 
+**Provoking framework-level failures (test-scoped controller).** A global exception handler
+(e.g. the `UnsatisfiedRouteException` → 400 envelope handler) is a cross-cutting concern, not
+the property of any one endpoint. Triggering it through a real app controller couples the
+error-handling test to that controller's unrelated behaviour. Instead `ErrorHandlingCT` owns a
+`ErrorHandlingTestController` whose only job is to fail on demand — a missing required
+`@Header`, a missing `@QueryValue`, a thrown `RuntimeException`, etc. It is scoped to that one
+test with the Micronaut `spec.name` idiom so it never pollutes other contexts:
+
+```java
+@Requires(property = "spec.name", value = "ErrorHandlingCT")   // on the test controller
+@Controller("/test/errors") ...
+
+@Property(name = "spec.name", value = "ErrorHandlingCT")        // on the test class
+class ErrorHandlingCT { ... }
+```
+
+Only the context whose `spec.name` matches loads the controller. Handling the abstract
+`UnsatisfiedRouteException` (not the header-specific subclass) means one handler serves every
+missing-binding flavour; the CT proves that breadth by exercising two siblings (header + query
+value) rather than every subtype.
+
 **Writing an integration test.** `*IT` tests drive the full stack over real HTTP against a
 real Postgres, and arrange their data with **raw SQL**, not the repositories — so a failure
 points at the code under test, not at the persistence code used to set it up (and we avoid
