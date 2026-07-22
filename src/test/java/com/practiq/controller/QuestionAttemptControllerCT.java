@@ -19,7 +19,9 @@ import org.junit.jupiter.api.Test;
 import utils.ComponentTest;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static io.micronaut.http.HttpStatus.*;
 import static io.restassured.RestAssured.given;
@@ -82,6 +84,52 @@ public class QuestionAttemptControllerCT {
     }
 
     @Test
+    void getQuestionAttemptsReturnsUnprocessableEntityIfSessionTokenBlank() {
+        String path = QUESTION_ATTEMPTS_PATH.formatted(1L);
+
+        //Empty
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,""))
+                .when()
+                .get(path)
+                .then()
+                .statusCode(UNPROCESSABLE_ENTITY.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("sessionToken: must not be blank"))
+                .body("status", equalTo(422));
+
+        //Blank
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,"   "))
+                .when()
+                .get(path)
+                .then()
+                .statusCode(UNPROCESSABLE_ENTITY.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("sessionToken: must not be blank"))
+                .body("status", equalTo(422));
+    }
+
+    @Test
+    void getQuestionAttemptsReturnsBadRequestIfQuestionIdNotNaturalNumber() {
+        String questionId = "error";
+        String sessionToken = "test";
+        String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+                .when()
+                .get(path)
+                .then()
+                .statusCode(BAD_REQUEST.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("questionId: invalid value"))
+                .body("status", equalTo(400));
+    }
+
+    @Test
     void getQuestionAttemptsReturns404IfQuestionDoesNotExistForId() {
         long questionId = 5L;
 
@@ -126,52 +174,6 @@ public class QuestionAttemptControllerCT {
         verify(questionAttemptSpecificationFactory).forQuery(questionAttemptQuery);
 
         verify(questionAttemptRepository).findAll(any(QuerySpecification.class), eq(STABLE_ORDER));
-    }
-
-    @Test
-    void getQuestionAttemptsReturnsBadRequestIfQuestionIdNotNaturalNumber() {
-        String questionId = "error";
-        String sessionToken = "test";
-        String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
-                .when()
-                .get(path)
-                .then()
-                .statusCode(BAD_REQUEST.getCode())
-                .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("error", "status"))
-                .body("error", equalTo("questionId: invalid value"))
-                .body("status", equalTo(400));
-    }
-
-    @Test
-    void getQuestionAttemptsReturnsUnprocessableEntityIfSessionTokenBlank() {
-        String path = QUESTION_ATTEMPTS_PATH.formatted(1L);
-
-        //Empty
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,""))
-                .when()
-                .get(path)
-                .then()
-                .statusCode(UNPROCESSABLE_ENTITY.getCode())
-                .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("error", "status"))
-                .body("error", equalTo("sessionToken: must not be blank"))
-                .body("status", equalTo(422));
-
-        //Blank
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,"   "))
-                .when()
-                .get(path)
-                .then()
-                .statusCode(UNPROCESSABLE_ENTITY.getCode())
-                .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("error", "status"))
-                .body("error", equalTo("sessionToken: must not be blank"))
-                .body("status", equalTo(422));
     }
 
     @Test
@@ -225,5 +227,158 @@ public class QuestionAttemptControllerCT {
         verify(questionAttemptSpecificationFactory).forQuery(questionAttemptQuery);
 
         verify(questionAttemptRepository).findAll(any(QuerySpecification.class), eq(STABLE_ORDER));
+    }
+
+    @Test
+    void postQuestionAttemptReturns400IfNoSessionToken() {
+        String attemptBody = "attempt 1";
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("body", attemptBody);
+
+        String path = QUESTION_ATTEMPTS_PATH.formatted(9L);
+        given()
+                .when()
+                .body(requestBody)
+                .post(path)
+                .then()
+                .statusCode(BAD_REQUEST.getCode())
+                .contentType(ContentType.JSON)
+                .body("error", equalTo("Required Header [" + SESSION_TOKEN_HEADER + "] not specified"))
+                .body("status", equalTo(400));
+    }
+
+    @Test
+    void postQuestionAttemptReturnsUnprocessableEntityIfSessionTokenBlank() {
+        String attemptBody = "attempt 1";
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("body", attemptBody);
+
+        String path = QUESTION_ATTEMPTS_PATH.formatted(1L);
+
+        //Empty
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,""))
+                .when()
+                .body(requestBody)
+                .post(path)
+                .then()
+                .statusCode(UNPROCESSABLE_ENTITY.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("sessionToken: must not be blank"))
+                .body("status", equalTo(422));
+
+        //Blank
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,"   "))
+                .when()
+                .body(requestBody)
+                .post(path)
+                .then()
+                .statusCode(UNPROCESSABLE_ENTITY.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("sessionToken: must not be blank"))
+                .body("status", equalTo(422));
+    }
+
+    @Test
+    void postQuestionAttemptReturnsBadRequestIfQuestionIdNotNaturalNumber() {
+        String questionId = "error";
+        String sessionToken = "test";
+
+        String attemptBody = "attempt 1";
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("body", attemptBody);
+
+        String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+                .when()
+                .body(requestBody)
+                .post(path)
+                .then()
+                .statusCode(BAD_REQUEST.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("questionId: invalid value"))
+                .body("status", equalTo(400));
+    }
+
+    @Test
+    void postQuestionAttemptReturnsUnprocessableEntityIfBodyBlank() {
+        String sessionToken = "test";
+
+        String path = QUESTION_ATTEMPTS_PATH.formatted(1L);
+
+        //Empty
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+                .when()
+                .body(Map.of("body", ""))
+                .post(path)
+                .then()
+                .statusCode(UNPROCESSABLE_ENTITY.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("body: must not be blank"))
+                .body("status", equalTo(422));
+
+        //Blank
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+                .when()
+                .body(Map.of("body", "   "))
+                .post(path)
+                .then()
+                .statusCode(UNPROCESSABLE_ENTITY.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("body: must not be blank"))
+                .body("status", equalTo(422));
+    }
+
+    @Test
+    void postQuestionAttemptSavesAttemptAndSerialisesResponse() {
+        long questionId = 1L;
+        String sessionToken = "test";
+        String attemptBody = "body 1";
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("body", attemptBody);
+
+        QuestionAttempt attemptToSave = new QuestionAttempt(questionId, sessionToken, attemptBody);
+
+        long attemptId = 10L;
+        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+        QuestionAttempt attemptDB = new QuestionAttempt(questionId, sessionToken, attemptBody);
+        setField(attemptDB, "createdAt", createdAt);
+        setField(attemptDB, "id", attemptId);
+
+        when(questionRepository.exists(any(QuerySpecification.class))).thenReturn(true);
+        when(questionAttemptRepository.update(attemptToSave)).thenReturn(attemptDB);
+
+        String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
+
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+                .when()
+                .body(requestBody)
+                .post(path)
+                .then()
+                .statusCode(CREATED.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("id", "questionId", "body", "createdAt"))
+                .body("id", equalTo(attemptId))
+                .body("find { it.id == " + attemptId + " }.questionId", equalTo((int) questionId))
+                .body("find { it.id == " + attemptId + " }.body", equalTo(attemptBody))
+                .body("find { it.id == " + attemptId + " }.createdAt", equalTo(createdAt.toString()));
+
+        verify(questionRepository).exists(any(QuerySpecification.class));
+
+        QuestionAttemptQuery questionAttemptQuery = new QuestionAttemptQuery(questionId, sessionToken);
+        verify(questionAttemptSpecificationFactory).forQuery(questionAttemptQuery);
+
+        verify(questionAttemptRepository).update(attemptToSave);
     }
 }

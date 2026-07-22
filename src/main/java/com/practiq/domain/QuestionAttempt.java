@@ -2,6 +2,7 @@ package com.practiq.domain;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
@@ -13,6 +14,7 @@ import static jakarta.persistence.GenerationType.IDENTITY;
 @Table(name = "question_attempt")
 @Getter
 @ToString
+@EqualsAndHashCode
 public class QuestionAttempt {
 
     @Id
