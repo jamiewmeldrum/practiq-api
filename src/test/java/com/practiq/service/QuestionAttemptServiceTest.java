@@ -1,12 +1,8 @@
 package com.practiq.service;
 
-import com.practiq.domain.Question;
 import com.practiq.domain.QuestionAttempt;
-import com.practiq.domain.QuestionAttempt_;
 import com.practiq.domain.query.attempt.QuestionAttemptQueryRunner;
 import com.practiq.domain.query.question.StudentQuestionQueryRunner;
-import com.practiq.domain.types.QuestionSource;
-import com.practiq.domain.types.QuestionStatus;
 import com.practiq.dto.filter.UserRequestFilter;
 import com.practiq.dto.response.QuestionAttemptResponse;
 import org.junit.jupiter.api.Test;
