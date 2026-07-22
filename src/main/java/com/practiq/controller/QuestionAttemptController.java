@@ -21,8 +21,6 @@ import java.util.List;
 @Controller("api/v1/questions")
 public class QuestionAttemptController {
 
-    //TODO - consider @ValidSessionToken - this will have test knock on effects, so do on new commit
-
     private final QuestionAttemptService questionAttemptService;
 
     public QuestionAttemptController(QuestionAttemptService questionAttemptService) {
