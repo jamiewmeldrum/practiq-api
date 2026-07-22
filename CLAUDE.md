@@ -297,7 +297,9 @@ which is true of all three; "integration" is a conceptual promise the suffix nev
   consciously when a query is legitimately added, with a comment saying what the number is made of. Don't
   decompose it into named constants — that asserts a composition which stops being true once branching exists.
 - **Current pins:** `/concepts` 1 · `/concepts/{id}` 1 · `/questions` 3 · `/questions/{id}` 2 ·
-  `/questions/{id}/mark-scheme` 2.
+  `/questions/{id}/mark-scheme` 2 · `/questions/{id}/attempts` GET 2 (+ row-count invariance) · POST 2.
+  The POST pin is 2 (visibility `exists` + the INSERT) because `@Generated` read-back of `id`/`created_at`
+  rides Postgres's `insert … returning` — a third statement appearing means that mechanism broke.
 - Runs in `check`/`build` by default; `-PskipPerf` opts out. `mustRunAfter(integrationTest)` — both share one
   Test Resources Postgres, and `shouldRunAfter` is only advisory (would race under `--parallel`).
 
@@ -337,10 +339,10 @@ Sprint sequence: **0.1** skeleton + Concept endpoint + CI *(complete)* → **0.2
 
 > **Current sprint: 0.2 — Question read API + attempts (self-assessed)** *(update this line as sprints complete)*
 >
-> **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged, filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept stitch · JPA static metamodel · `GET /api/v1/questions/{id}` · `mark_scheme` entity + `V3__mark_scheme.sql` + `GET /api/v1/questions/{id}/mark-scheme` (ungated) — **D-018 closed in code** · `QuestionQueryRunner`/`StudentQuestionQueryPolicy` (replaced `QuestionQueryManager`) + `LinkedQuestion` projection · performance tier (`*PT`) · `question_attempt` table + `GET /api/v1/questions/{id}/attempts` (per-session, newest-first, visibility-gated via the runner) · `X-Session-Token` handling (absent → 400, blank → 422).
+> **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged, filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept stitch · JPA static metamodel · `GET /api/v1/questions/{id}` · `mark_scheme` entity + `V3__mark_scheme.sql` + `GET /api/v1/questions/{id}/mark-scheme` (ungated) — **D-018 closed in code** · `QuestionQueryRunner`/`StudentQuestionQueryPolicy` (replaced `QuestionQueryManager`) + `LinkedQuestion` projection · performance tier (`*PT`) · `question_attempt` table + `GET /api/v1/questions/{id}/attempts` (per-session, newest-first, visibility-gated via the runner) · `X-Session-Token` handling (absent → 400, blank → 422) · `POST /api/v1/questions/{id}/attempts` (201 + created attempt, `@Body`-bound, visibility-gated via the same runner `exists`; body length: 20k business rule on the DTO, 100k entity-level backstop — **attempts feature complete**).
 >
-> **Remaining:** `POST /api/v1/questions/{id}/attempts` (feedback table deferred to Phase 3) · **409 handler for `OptimisticLockException`** (owed with it, D-027) · write up CT persistence-disable as a D-007 sub-decision.
+> **Remaining:** write up CT persistence-disable as a D-007 sub-decision. (**409 handler for `OptimisticLockException`** moved to Sprint 1.3 with the first `@Version`-bearing write path — `question_attempt` has no `@Version`, so the attempts POST can't produce a conflict. D-027.)
 >
-> **Deliberately out of scope:** `question_attempt_feedback` — whole table deferred to Phase 3 (D-019 amendment; no consumer for a self-score yet) · MCQ auto-marking (separate feature, unscheduled) · idempotency keys (D-021) · unique constraint on attempts (would break the revision loop) · server-issued session tokens (D-020) · async grading / `202` / polling · batch submission · strict `Pageable` binder (D-028).
+> **Deliberately out of scope:** `question_attempt_feedback` — whole table deferred to Phase 3 (D-019 amendment; no consumer for a self-score yet) · MCQ auto-marking (separate feature, unscheduled) · idempotency keys (D-021) · unique constraint on attempts (would break the revision loop) · server-issued session tokens (D-020) · async grading / `202` / polling · batch submission · strict `Pageable` binder (D-028) · DB `CHECK` on attempt body length (the backstop lives at the entity as `@Size(max = 100000)`; a loose `CHECK` owes a migration if non-JPA writers ever appear).
 
 Full sprint briefs live in PRACTIQ_MASTER.md (the planning doc, kept outside the repo). If a sprint brief is pasted, it governs the session's scope.
