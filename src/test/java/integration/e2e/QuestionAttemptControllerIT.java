@@ -261,6 +261,7 @@ public class QuestionAttemptControllerIT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(9L);
         given()
+                .contentType(ContentType.JSON)
                 .header(new Header(SESSION_TOKEN_HEADER,"test"))
                 .body(requestBody)
                 .when()
@@ -286,6 +287,7 @@ public class QuestionAttemptControllerIT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
         given()
+                .contentType(ContentType.JSON)
                 .header(new Header(SESSION_TOKEN_HEADER,"test"))
                 .body(requestBody)
                 .when()
@@ -312,6 +314,7 @@ public class QuestionAttemptControllerIT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
         given()
+                .contentType(ContentType.JSON)
                 .header(new Header(SESSION_TOKEN_HEADER,"test"))
                 .body(requestBody)
                 .when()
@@ -324,7 +327,50 @@ public class QuestionAttemptControllerIT {
     }
 
     @Test
-    void getCreatedResponseWithResponseBodyWhenPostingValidQuestionAttemptTwice() {
+    void getCreatedResponseWithResponseBodyWhenPostingValidQuestion() {
+        String sessionToken = "865726f9-2f79-4789-940f-412db1fb5be1";
+
+        long conceptId = 10L;
+        data.concept(conceptId).insert();
+
+        long questionId = 1L;
+        data.question(questionId).status(QuestionStatus.APPROVED).insert();
+        data.link(questionId, conceptId).insert();
+
+        List<DBRow> questionAttemptsBeforePost = data.retrieveQuestionAttempts();
+        assertThat(questionAttemptsBeforePost.size(), is(0));
+
+        //Test first post
+        String attemptBody = "attempt 1";
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("body", attemptBody);
+        String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
+        given()
+                .contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+                .body(requestBody)
+                .when()
+                .post(path)
+                .then()
+                .statusCode(CREATED.getCode())
+                .contentType(ContentType.JSON)
+                .body("id", instanceOf(Integer.class))
+                .body("questionId", equalTo((int) questionId))
+                .body("body", equalTo(attemptBody))
+                .body("createdAt", matchesPattern(data.getInstantPattern()));
+
+        List<DBRow> questionAttemptsAfterFirstPost = data.retrieveQuestionAttempts();
+        assertThat(questionAttemptsAfterFirstPost.size(), is(1));
+
+        DBRow savedAttempt = questionAttemptsAfterFirstPost.getFirst();
+        assertThat(savedAttempt.get("id"), instanceOf(Long.class));
+        assertThat(savedAttempt.get("question_id"), equalTo(questionId));
+        assertThat(savedAttempt.get("body"), is(attemptBody));
+        assertThat(savedAttempt.get("created_at").toString(), matchesPattern(data.getInstantPattern()));
+    }
+
+    @Test
+    void canPostValidQuestionAttemptTwice() {
         String sessionToken = "865726f9-2f79-4789-940f-412db1fb5be1";
 
         long conceptId = 10L;
@@ -343,6 +389,7 @@ public class QuestionAttemptControllerIT {
         requestBody1.put("body", attemptBody1);
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
         given()
+                .contentType(ContentType.JSON)
                 .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .body(requestBody1)
                 .when()
@@ -350,17 +397,17 @@ public class QuestionAttemptControllerIT {
                 .then()
                 .statusCode(CREATED.getCode())
                 .contentType(ContentType.JSON)
-                .body("body", contains(attemptBody1));
+                .body("body", equalTo(attemptBody1));
 
         List<DBRow> questionAttemptsAfterFirstPost = data.retrieveQuestionAttempts();
         assertThat(questionAttemptsAfterFirstPost.size(), is(1));
-        assertThat(questionAttemptsAfterFirstPost.getFirst().get("body"), is(attemptBody1));
 
         //Test second post
         String attemptBody2 = "attempt 2";
         Map<String, Object> requestBody2 = new HashMap<>();
         requestBody2.put("body", attemptBody2);
         given()
+                .contentType(ContentType.JSON)
                 .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .body(requestBody2)
                 .when()
@@ -368,12 +415,10 @@ public class QuestionAttemptControllerIT {
                 .then()
                 .statusCode(CREATED.getCode())
                 .contentType(ContentType.JSON)
-                .body("body", contains(attemptBody2));
+                .body("body", equalTo(attemptBody2));
 
         List<DBRow> questionAttemptsAfterSecondPost = data.retrieveQuestionAttempts();
         assertThat(questionAttemptsAfterSecondPost.size(), is(2));
-        assertThat(questionAttemptsAfterSecondPost.get(0).get("body"), is(attemptBody1));
-        assertThat(questionAttemptsAfterSecondPost.get(1).get("body"), is(attemptBody2));
-        assertThat(questionAttemptsAfterSecondPost.get(1).get("id"), not(questionAttemptsAfterSecondPost.get(0).get("id")));
+        assertThat(DBRow.collectColumn(questionAttemptsAfterSecondPost, "body"), containsInAnyOrder(attemptBody1, attemptBody2));
     }
 }

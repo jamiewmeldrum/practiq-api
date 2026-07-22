@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
+import org.hibernate.annotations.Generated;
 
 import java.time.Instant;
 
@@ -33,6 +34,7 @@ public class QuestionAttempt {
     private String body;
 
     @Column(name = "created_at", insertable = false, updatable = false)
+    @Generated
     private Instant createdAt;
 
     public QuestionAttempt() {}

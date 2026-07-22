@@ -1,9 +1,11 @@
 package com.practiq.service;
 
+import com.practiq.domain.QuestionAttempt;
 import com.practiq.domain.query.attempt.QuestionAttemptQueryRunner;
 import com.practiq.domain.query.question.StudentQuestionQueryRunner;
 import com.practiq.dto.filter.UserRequestFilter;
 import com.practiq.dto.mapper.QuestionAttemptResponseMapper;
+import com.practiq.dto.request.QuestionAttemptRequest;
 import com.practiq.dto.response.QuestionAttemptResponse;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
@@ -40,6 +42,23 @@ public class QuestionAttemptService {
                     .map(QuestionAttemptResponseMapper::toQuestionAttemptResponse)
                     .toList()
             );
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<QuestionAttemptResponse> postForQuestionId(
+            String sessionToken,
+            QuestionAttemptRequest request,
+            long questionId)
+    {
+        log.debug("Posting question attempt for question id: {}", questionId);
+
+        if (questionQueryRunner.doesQuestionExistForId(questionId)) {
+            QuestionAttempt attempt = new QuestionAttempt(questionId, sessionToken, request.getBody());
+            QuestionAttempt savedAttempt = questionAttemptQueryRunner.postQuestionAttempt(attempt);
+            QuestionAttemptResponse response = QuestionAttemptResponseMapper.toQuestionAttemptResponse(savedAttempt);
+            return Optional.of(response);
         } else {
             return Optional.empty();
         }
