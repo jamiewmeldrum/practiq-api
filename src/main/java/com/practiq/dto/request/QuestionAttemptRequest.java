@@ -1,8 +1,9 @@
 package com.practiq.dto.request;
 
-import io.micronaut.core.annotation.Introspected;
+import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
-@Introspected
-public record QuestionAttemptRequest(@NotBlank String body) {
+@Serdeable
+public record QuestionAttemptRequest(@NotBlank @Size(max = 20000) String body) {
 }

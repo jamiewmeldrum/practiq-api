@@ -6,7 +6,6 @@ import com.practiq.domain.query.question.StudentQuestionQueryRunner;
 import com.practiq.dto.filter.UserRequestFilter;
 import com.practiq.dto.request.QuestionAttemptRequest;
 import com.practiq.dto.response.QuestionAttemptResponse;
-import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -147,7 +146,7 @@ class QuestionAttemptServiceTest {
         setField(attemptDB, "id", attemptId);
 
         when(questionQueryRunner.doesQuestionExistForId(questionId)).thenReturn(true);
-        when(questionAttemptQueryRunner.postQuestionAttempt(incomingAttempt)).thenReturn(attemptDB);
+        when(questionAttemptQueryRunner.createQuestionAttempt(incomingAttempt)).thenReturn(attemptDB);
 
         Optional<QuestionAttemptResponse> attempt = questionAttemptService.postForQuestionId(sessionToken, request, questionId);
 
@@ -160,6 +159,6 @@ class QuestionAttemptServiceTest {
         assertThat(response.getCreatedAt(), is(createdAt));
 
         verify(questionQueryRunner).doesQuestionExistForId(questionId);
-        verify(questionAttemptQueryRunner).postQuestionAttempt(incomingAttempt);
+        verify(questionAttemptQueryRunner).createQuestionAttempt(incomingAttempt);
     }
 }

@@ -43,7 +43,7 @@ public class QuestionAttemptController {
     @Status(HttpStatus.CREATED)
     public QuestionAttemptResponse postForQuestionId(
             @NotBlank @Header(HttpConstants.SESSION_TOKEN_HEADER) String sessionToken,
-            @Valid @RequestBean QuestionAttemptRequest request,
+            @Valid @Body QuestionAttemptRequest request,
             long questionId
     ) {
         log.debug("Requested to POST question attempt for question id: {}", questionId);

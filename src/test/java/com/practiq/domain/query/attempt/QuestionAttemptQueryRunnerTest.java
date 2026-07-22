@@ -2,7 +2,6 @@ package com.practiq.domain.query.attempt;
 
 import com.practiq.domain.QuestionAttempt;
 import com.practiq.dto.filter.UserRequestFilter;
-import com.practiq.dto.response.QuestionAttemptResponse;
 import com.practiq.repository.QuestionAttemptRepository;
 import io.micronaut.data.model.Sort;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
@@ -14,7 +13,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -60,7 +58,7 @@ class QuestionAttemptQueryRunnerTest {
     }
 
     @Test
-    void postQuestionAttemptUsesSavedEntity() {
+    void createQuestionAttemptUsesSavedEntity() {
         long questionId = 5L;
         String sessionToken = "session-token";
         String body = "attempt";
@@ -74,7 +72,7 @@ class QuestionAttemptQueryRunnerTest {
 
         when(questionAttemptRepository.save(incomingAttempt)).thenReturn(attemptDB);
 
-        QuestionAttempt attempt = runner.postQuestionAttempt(incomingAttempt);
+        QuestionAttempt attempt = runner.createQuestionAttempt(incomingAttempt);
 
         assertThat(attempt, is(attemptDB));
 

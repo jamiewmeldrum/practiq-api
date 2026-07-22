@@ -47,6 +47,7 @@ public class QuestionAttemptService {
         }
     }
 
+    @Transactional
     public Optional<QuestionAttemptResponse> postForQuestionId(
             String sessionToken,
             QuestionAttemptRequest request,
@@ -56,7 +57,7 @@ public class QuestionAttemptService {
 
         if (questionQueryRunner.doesQuestionExistForId(questionId)) {
             QuestionAttempt attempt = new QuestionAttempt(questionId, sessionToken, request.body());
-            QuestionAttempt savedAttempt = questionAttemptQueryRunner.postQuestionAttempt(attempt);
+            QuestionAttempt savedAttempt = questionAttemptQueryRunner.createQuestionAttempt(attempt);
             QuestionAttemptResponse response = QuestionAttemptResponseMapper.toQuestionAttemptResponse(savedAttempt);
             return Optional.of(response);
         } else {

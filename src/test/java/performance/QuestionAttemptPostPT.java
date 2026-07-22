@@ -26,7 +26,6 @@ import static utils.data.TestData.SESSION_TOKEN_HEADER;
 public class QuestionAttemptPostPT {
     private static final String QUESTION_ATTEMPTS_PATH = "/api/v1/questions/%s/attempts";
 
-    // The exists(spec) visibility gate + the findAll(spec, sort) attempt fetch.
     private static final long EXPECTED_STATEMENTS = 2L;
 
     @Inject
@@ -58,8 +57,6 @@ public class QuestionAttemptPostPT {
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("body", "body 1");
-
-        String sessionToken = "865726f9-2f79-4789-940f-412db1fb5be1";
 
         long count = statements.countDuring(() ->
                 given()
