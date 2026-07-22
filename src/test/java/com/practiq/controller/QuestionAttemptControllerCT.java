@@ -131,8 +131,10 @@ public class QuestionAttemptControllerCT {
     @Test
     void getQuestionAttemptsReturnsBadRequestIfQuestionIdNotNaturalNumber() {
         String questionId = "error";
+        String sessionToken = "test";
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
         given()
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -141,6 +143,35 @@ public class QuestionAttemptControllerCT {
                 .body("keySet()", containsInAnyOrder("error", "status"))
                 .body("error", equalTo("questionId: invalid value"))
                 .body("status", equalTo(400));
+    }
+
+    @Test
+    void getQuestionAttemptsReturnsUnprocessableEntityIfSessionTokenBlank() {
+        String path = QUESTION_ATTEMPTS_PATH.formatted(1L);
+
+        //Empty
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,""))
+                .when()
+                .get(path)
+                .then()
+                .statusCode(UNPROCESSABLE_ENTITY.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("sessionToken: must not be blank"))
+                .body("status", equalTo(422));
+
+        //Blank
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,"   "))
+                .when()
+                .get(path)
+                .then()
+                .statusCode(UNPROCESSABLE_ENTITY.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("sessionToken: must not be blank"))
+                .body("status", equalTo(422));
     }
 
     @Test

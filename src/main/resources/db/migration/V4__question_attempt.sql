@@ -6,3 +6,6 @@ create table question_attempt
     body          text        not null,
     created_at    timestamptz not null default now()
 );
+
+create index idx_question_attempt_question_session
+    on question_attempt (question_id, session_token, created_at desc, id asc);
