@@ -201,7 +201,7 @@ the question tells you whether it's worth having.
 | `*Test` | Does this logic do what it should? |
 | `*CT` | Does the web layer bind, serialise, and map correctly? |
 | `*ControllerIT` | **Does the DoD actually hold, end to end?** |
-| `*RepositoryIT` / `*SpecificationFactoryIT` | Do I understand the method I'm calling? (a unit test — the DB is part of the unit) |
+| `*RepositoryIT` | Does querying this table behave as I think — filters, ordering, locking? One class per table (a unit test; the DB is part of the unit) |
 | `*DatabaseIT` | Does the migration say what I think it says? |
 | `*PT` | Is the query plan the shape I think it is? |
 
@@ -225,6 +225,26 @@ which is true of all three; "integration" is a conceptual promise the suffix nev
 - **ITs are the DoD in executable form.** An endpoint owes **one IT per clause of what you said you'd build** —
   not one per predicate, code path, or data condition. If the DoD doesn't name a case, it doesn't earn an IT.
   (D-018's DoD names both mark-scheme 404 arms, so both get one.)
+- **The runner is the unit-test entry point.** A runner (e.g. `StudentQuestionQueryRunner`) is tested as one
+  collaborative unit with its **real** internal parts inside it — policy, specification factory — mocking only
+  the database boundary. Internal classes are implementation details tested *through* the runner, not seams
+  that each earn a test file. **A seam is not automatically a test boundary**: a test file per internal
+  collaborator produces tests that assert which objects were passed between internals, break on every
+  refactor, and catch nothing.
+- **One `*RepositoryIT` per table.** Everything about how that table is queried — filters, ordering, locking —
+  proven against real Postgres in one class. (`*SpecificationFactoryIT` is retired as a flavour and folded in.)
+  **`*DatabaseIT` stays separate**: it answers what the *migration* guarantees, which is a different question
+  from how the table is queried.
+- **Standalone unit tests only where a guarantee is invisible from a higher boundary.** Kept for reusable
+  components — `SessionTokenRestriction`, difficulty mapping, response mappers, the serving-policy object.
+  Dropped for abstract base classes, which are proven through their concrete implementations (so each concrete
+  subclass re-proves the shared mechanics — deliberate duplication, not an oversight).
+- **Assert outcomes, not mechanisms.** A service test asserts the full response the caller receives,
+  independent of how it was produced. Asserting the objects passed between internals is the coupling that made
+  change disproportionately expensive.
+- **Harnesses that lower the marginal cost of the next contract test are worth building** (e.g. `CriteriaProbe`,
+  so future query restrictions get contract tests cheaply). A fixture that *bypasses* the intended path is not —
+  see the runner/policy note above.
 - **A new repository query owes a repo test** — not because the IT misses it, but because "do I understand this
   method" is otherwise unasked, and the repo tier drifts to testing methods production no longer calls.
 - **By-id tests insert two rows with distinct, fixed, non-1 ids** and assert the correct one came back. With one
@@ -277,7 +297,7 @@ which is true of all three; "integration" is a conceptual promise the suffix nev
   consciously when a query is legitimately added, with a comment saying what the number is made of. Don't
   decompose it into named constants — that asserts a composition which stops being true once branching exists.
 - **Current pins:** `/concepts` 1 · `/concepts/{id}` 1 · `/questions` 3 · `/questions/{id}` 2 ·
-  `/questions/{id}/mark-scheme` 2 · `/questions/{id}/attempts` 2 (+ row-count invariance).
+  `/questions/{id}/mark-scheme` 2.
 - Runs in `check`/`build` by default; `-PskipPerf` opts out. `mustRunAfter(integrationTest)` — both share one
   Test Resources Postgres, and `shouldRunAfter` is only advisory (would race under `--parallel`).
 
@@ -317,9 +337,9 @@ Sprint sequence: **0.1** skeleton + Concept endpoint + CI *(complete)* → **0.2
 
 > **Current sprint: 0.2 — Question read API + attempts (self-assessed)** *(update this line as sprints complete)*
 >
-> **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged, filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept stitch · JPA static metamodel · `GET /api/v1/questions/{id}` · `mark_scheme` entity + `V3__mark_scheme.sql` + `GET /api/v1/questions/{id}/mark-scheme` (ungated) — **D-018 closed in code** · `QuestionQueryRunner`/`StudentQuestionQueryPolicy` (replaced `QuestionQueryManager`) + `LinkedQuestion` projection · performance tier (`*PT`).
+> **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged, filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept stitch · JPA static metamodel · `GET /api/v1/questions/{id}` · `mark_scheme` entity + `V3__mark_scheme.sql` + `GET /api/v1/questions/{id}/mark-scheme` (ungated) — **D-018 closed in code** · `QuestionQueryRunner`/`StudentQuestionQueryPolicy` (replaced `QuestionQueryManager`) + `LinkedQuestion` projection · performance tier (`*PT`) · `question_attempt` table + `GET /api/v1/questions/{id}/attempts` (per-session, newest-first, visibility-gated via the runner) · `X-Session-Token` handling (absent → 400, blank → 422).
 >
-> **Remaining:** `question_attempt` migration/entity/repository/service (feedback table deferred to Phase 3) · `POST`/`GET /api/v1/questions/{id}/attempts` · **409 handler for `OptimisticLockException`** (owed with the first write endpoint) · `X-Session-Token` handling · write up CT persistence-disable as a D-007 sub-decision.
+> **Remaining:** `POST /api/v1/questions/{id}/attempts` (feedback table deferred to Phase 3) · **409 handler for `OptimisticLockException`** (owed with it, D-027) · write up CT persistence-disable as a D-007 sub-decision.
 >
 > **Deliberately out of scope:** `question_attempt_feedback` — whole table deferred to Phase 3 (D-019 amendment; no consumer for a self-score yet) · MCQ auto-marking (separate feature, unscheduled) · idempotency keys (D-021) · unique constraint on attempts (would break the revision loop) · server-issued session tokens (D-020) · async grading / `202` / polling · batch submission · strict `Pageable` binder (D-028).
 
