@@ -15,7 +15,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -72,44 +71,28 @@ class QuestionAttemptServiceTest {
     }
 
     @Test
-    void getQuestionAttemptByIdReturnsOptionalListIfAttemptsForQuestion() {
+    void getQuestionAttemptByIdReturnsTheMappedAttemptsInOrderWhenTheQuestionExists() {
         long questionId = 5L;
         String sessionToken = "session-token";
         UserRequestFilter userRequestFilter = new UserRequestFilter(sessionToken);
 
         long attemptId1 = 10L;
-        String attemptBody1 = "attempt1";
-        Instant createdAt1 = Instant.parse("2026-01-01T00:00:00Z");
-        QuestionAttempt attempt1 =  new QuestionAttempt(questionId, sessionToken, attemptBody1);
+        QuestionAttempt attempt1 = new QuestionAttempt(questionId, sessionToken, "attempt1");
         setField(attempt1, "id", attemptId1);
-        setField(attempt1, "createdAt", createdAt1);
 
         long attemptId2 = 20L;
-        String attemptBody2 = "attempt2";
-        Instant createdAt2 = Instant.parse("2026-01-02T00:00:00Z");
-        QuestionAttempt attempt2 =  new QuestionAttempt(questionId, sessionToken, attemptBody2);
+        QuestionAttempt attempt2 = new QuestionAttempt(questionId, sessionToken, "attempt2");
         setField(attempt2, "id", attemptId2);
-        setField(attempt2, "createdAt", createdAt2);
 
         when(questionQueryRunner.doesQuestionExistForId(questionId)).thenReturn(true);
         when(questionAttemptQueryRunner.getQuestionAttempts(userRequestFilter, questionId)).thenReturn(List.of(attempt1, attempt2));
 
         Optional<List<QuestionAttemptResponse>> attempts = questionAttemptService.getForQuestionId(userRequestFilter, questionId);
 
+        // The service maps each attempt and preserves the runner's order; the per-field mapping is
+        // QuestionAttemptResponseMapperTest's contract, so assert identity and order here, not every field.
         assertThat(attempts.isPresent(), is(true));
-        assertThat(attempts.get().size(), is(2));
-
-        QuestionAttemptResponse attemptResponse1 = attempts.get().get(0);
-        assertThat(attemptResponse1.getId(), equalTo(attemptId1));
-        assertThat(attemptResponse1.getQuestionId(), equalTo(questionId));
-        assertThat(attemptResponse1.getBody(), equalTo(attemptBody1));
-        assertThat(attemptResponse1.getCreatedAt(), equalTo(createdAt1));
-
-        QuestionAttemptResponse attemptResponse2 = attempts.get().get(1);
-        assertThat(attemptResponse2.getId(), equalTo(attemptId2));
-        assertThat(attemptResponse2.getQuestionId(), equalTo(questionId));
-        assertThat(attemptResponse2.getBody(), equalTo(attemptBody2));
-        assertThat(attemptResponse2.getCreatedAt(), equalTo(createdAt2));
+        assertThat(attempts.get().stream().map(QuestionAttemptResponse::getId).toList(), contains(attemptId1, attemptId2));
 
         verify(questionQueryRunner).doesQuestionExistForId(questionId);
         verify(questionAttemptQueryRunner).getQuestionAttempts(userRequestFilter, questionId);

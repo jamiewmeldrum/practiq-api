@@ -3,8 +3,10 @@ package integration.repository;
 import com.practiq.domain.Question;
 import com.practiq.domain.query.question.QuestionQuery;
 import com.practiq.domain.query.question.QuestionSpecificationFactory;
+import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
+import com.practiq.domain.types.QuestionType;
 import com.practiq.repository.QuestionRepository;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.Sort;
@@ -121,6 +123,148 @@ class QuestionRepositoryIT {
         assertThat(ids(results), contains(earliestByTime, sameTimeLowId, sameTimeHighId));
     }
 
+    // --- Specification filtering, run through findAll against a real DB. The spec is part of the repository's
+    // DB interaction, so what each constructed QuestionQuery selects is pinned here rather than in a separate
+    // spec-factory IT. ---
+
+    @Test
+    void forQueryFiltersToTheStatusOnTheQuery() {
+        long approvedOneId = 1L;
+        long approvedTwoId = 2L;
+        long pendingId = 3L;
+        long rejectedId = 4L;
+        data.question(approvedOneId).status(QuestionStatus.APPROVED).insert();
+        data.question(approvedTwoId).status(QuestionStatus.APPROVED).insert();
+        data.question(pendingId).status(QuestionStatus.PENDING).insert();
+        data.question(rejectedId).status(QuestionStatus.REJECTED).insert();
+
+        // Each status returns only its own rows — the filter is driven by the query's status, not a hard-coded one.
+        assertThat(ids(findQuestions(QuestionQuery.builder().status(QuestionStatus.APPROVED).build())),
+                containsInAnyOrder(approvedOneId, approvedTwoId));
+        assertThat(ids(findQuestions(QuestionQuery.builder().status(QuestionStatus.PENDING).build())),
+                containsInAnyOrder(pendingId));
+        assertThat(ids(findQuestions(QuestionQuery.builder().status(QuestionStatus.REJECTED).build())),
+                containsInAnyOrder(rejectedId));
+    }
+
+    @Test
+    void forQueryFiltersToTheTypesOnTheQuery() {
+        long shortAnswerId = 1L;
+        long extendedId = 2L;
+        long mcqId = 3L;
+        data.question(shortAnswerId).type(QuestionType.SHORT_ANSWER).insert();
+        data.question(extendedId).type(QuestionType.EXTENDED).insert();
+        data.question(mcqId).type(QuestionType.MCQ).insert();
+
+        QuestionQuery query = QuestionQuery.builder()
+                .types(List.of(QuestionType.SHORT_ANSWER, QuestionType.EXTENDED))
+                .build();
+
+        assertThat(ids(findQuestions(query)), containsInAnyOrder(shortAnswerId, extendedId));
+    }
+
+    @Test
+    void forQueryFiltersToTheDifficultiesOnTheQuery() {
+        long trivialId = 1L;
+        long mediumId = 2L;
+        long veryHardId = 3L;
+        data.question(trivialId).difficulty(QuestionDifficulty.TRIVIAL).insert();
+        data.question(mediumId).difficulty(QuestionDifficulty.MEDIUM).insert();
+        data.question(veryHardId).difficulty(QuestionDifficulty.VERY_HARD).insert();
+
+        QuestionQuery query = QuestionQuery.builder()
+                .difficulties(List.of(QuestionDifficulty.TRIVIAL, QuestionDifficulty.VERY_HARD))
+                .build();
+
+        // The stored integer difficulty (1/3/5) is matched via the attribute converter: MEDIUM (3) is out.
+        assertThat(ids(findQuestions(query)), containsInAnyOrder(trivialId, veryHardId));
+    }
+
+    @Test
+    void forQueryFiltersToTheConceptIdAndCountsSynopticQuestionsOnce() {
+        long conceptA = 100L;
+        long conceptB = 101L;
+        data.concept(conceptA).insert();
+        data.concept(conceptB).insert();
+
+        long linkedToA = 1L;
+        long linkedToB = 2L;
+        long synoptic = 3L;
+        data.question(linkedToA).insert();
+        data.question(linkedToB).insert();
+        data.question(synoptic).insert();
+        data.link(linkedToA, conceptA).insert();
+        data.link(linkedToB, conceptB).insert();
+        data.link(synoptic, conceptA).insert();
+        data.link(synoptic, conceptB).insert();
+
+        QuestionQuery query = QuestionQuery.builder().conceptId(conceptA).build();
+
+        // The A-only and synoptic (A+B) questions survive; the synoptic one appears exactly once despite matching
+        // two of concept A's link rows — a join would double it and corrupt the count, EXISTS doesn't.
+        assertThat(ids(findQuestions(query)), containsInAnyOrder(linkedToA, synoptic));
+    }
+
+    @Test
+    void forQueryFiltersToTheQuestionIdOnTheQuery() {
+        long idA = 1L;
+        long idB = 2L;
+        data.question(idA).insert();
+        data.question(idB).insert();
+
+        QuestionQuery query = QuestionQuery.builder().questionId(idB).build();
+
+        assertThat(ids(findQuestions(query)), contains(idB));
+    }
+
+    @Test
+    void requiresConceptLinkFiltersOutUnlinkedQuestions() {
+        long linkedId = 1L;
+        long unlinkedId = 2L;
+        data.question(linkedId).insert();
+        data.question(unlinkedId).insert();
+
+        long concept = 100L;
+        data.concept(concept).insert();
+        data.link(linkedId, concept).insert();
+
+        // The flag flips behaviour: off returns both, on drops the unlinked question.
+        assertThat(ids(findQuestions(QuestionQuery.builder().requiresConceptLink(false).build())),
+                containsInAnyOrder(linkedId, unlinkedId));
+        assertThat(ids(findQuestions(QuestionQuery.builder().requiresConceptLink(true).build())),
+                containsInAnyOrder(linkedId));
+    }
+
+    @Test
+    void forQueryAppliesAllFiltersConjunctively() {
+        long matches = 1L;
+        long wrongType = 2L;
+        long wrongStatus = 3L;
+        long unlinked = 4L;
+
+        long concept = 100L;
+        data.concept(concept).insert();
+
+        data.question(matches).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
+        data.question(wrongType).status(QuestionStatus.APPROVED).type(QuestionType.MCQ).difficulty(QuestionDifficulty.EASY).insert();
+        data.question(wrongStatus).status(QuestionStatus.PENDING).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
+        data.question(unlinked).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
+        data.link(matches, concept).insert();
+        data.link(wrongType, concept).insert();
+        data.link(wrongStatus, concept).insert();
+
+        QuestionQuery query = QuestionQuery.builder()
+                .types(List.of(QuestionType.SHORT_ANSWER))
+                .difficulties(List.of(QuestionDifficulty.EASY))
+                .status(QuestionStatus.APPROVED)
+                .conceptId(concept)
+                .requiresConceptLink(true)
+                .build();
+
+        // Only the row matching every predicate survives: each other row fails exactly one.
+        assertThat(ids(findQuestions(query)), containsInAnyOrder(matches));
+    }
+
     // Every by-id case below carries a second, fully-servable question (id 8). Without it a spec that
     // dropped its id predicate would still answer "found"/"true" from the other row and pass.
     @Test
@@ -232,6 +376,10 @@ class QuestionRepositoryIT {
     private void servableQuestion(long id, long conceptId) {
         data.question(id).status(QuestionStatus.APPROVED).insert();
         data.link(id, conceptId).insert();
+    }
+
+    private List<Question> findQuestions(QuestionQuery query) {
+        return questionRepository.findAll(questionSpecificationFactory.forQuery(query));
     }
 
     private Optional<Question> findForQuestionId(long questionId) {
