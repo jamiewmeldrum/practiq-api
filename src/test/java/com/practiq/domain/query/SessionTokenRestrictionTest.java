@@ -6,7 +6,6 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.metamodel.SingularAttribute;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import utils.CriteriaProbe;
 
@@ -15,6 +14,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 // SessionTokenRestriction is a reusable component — any factory whose entity carries a session token can
@@ -28,17 +28,9 @@ class SessionTokenRestrictionTest {
     private static final class TestEntity {
     }
 
-    @Mock
-    private SingularAttribute<TestEntity, String> sessionTokenAttribute;
-
-    @Mock
-    private Path<String> sessionTokenPath;
-
-    @Mock
-    private Predicate equality;
-
     @Test
     void restrictRejectsANullSessionToken() {
+        SingularAttribute<TestEntity, String> sessionTokenAttribute = mock(SingularAttribute.class);
         SessionTokenRestriction<TestEntity> restriction = new SessionTokenRestriction<>(sessionTokenAttribute);
 
         // Fails fast at query-build time: a null token silently becoming match-nothing (or worse, match-all)
@@ -52,11 +44,16 @@ class SessionTokenRestrictionTest {
     void restrictBuildsAnEqualityBetweenTheGivenAttributeAndTheQuerysToken() {
         String sessionToken = "session-token";
         CriteriaProbe<TestEntity> probe = new CriteriaProbe<>();
+
+        SingularAttribute<TestEntity, String> sessionTokenAttribute = mock(SingularAttribute.class);
+        Path<String> sessionTokenPath = mock(Path.class);
+        Predicate equality = mock(Predicate.class);
+
         when(probe.root().get(sessionTokenAttribute)).thenReturn(sessionTokenPath);
         when(probe.criteriaBuilder().equal(sessionTokenPath, sessionToken)).thenReturn(equality);
 
         QuerySpecification<TestEntity> specification =
-                new SessionTokenRestriction<TestEntity>(sessionTokenAttribute).restrict(() -> sessionToken);
+                new SessionTokenRestriction<>(sessionTokenAttribute).restrict(() -> sessionToken);
 
         // The resolved predicate IS the equality built from the given attribute and the query's token — the
         // exact-arg stubs above only match if both reached the criteria builder unchanged.
