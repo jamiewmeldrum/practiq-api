@@ -5,9 +5,6 @@ import io.micronaut.core.bind.exceptions.UnsatisfiedArgumentException;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
-import io.micronaut.web.router.exceptions.UnsatisfiedHeaderRouteException;
-import io.micronaut.web.router.exceptions.UnsatisfiedQueryValueRouteException;
-import io.micronaut.web.router.exceptions.UnsatisfiedRouteException;
 import org.junit.jupiter.api.Test;
 
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;

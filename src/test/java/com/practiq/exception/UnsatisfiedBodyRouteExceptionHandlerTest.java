@@ -1,7 +1,6 @@
 package com.practiq.exception;
 
 import com.practiq.dto.response.ErrorResponse;
-import io.micronaut.core.bind.exceptions.UnsatisfiedArgumentException;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
