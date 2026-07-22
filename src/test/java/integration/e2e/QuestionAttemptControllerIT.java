@@ -245,19 +245,18 @@ public class QuestionAttemptControllerIT {
 
         long question1Id = 1L;
         data.question(question1Id).insert();
-        data.questionAttempt(question1Id, "session token", "body").insert();
 
         long question2Id = 2L;
         data.question(question2Id).status(QuestionStatus.APPROVED).insert();
-        data.questionAttempt(question2Id, "session token", "body").insert();
 
         long question3Id = 3L;
         data.question(question3Id).status(QuestionStatus.APPROVED).insert();
         data.link(question3Id, conceptId).insert();
-        data.questionAttempt(question3Id, "session token", "body").insert();
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("body", "attempt");
+
+        assertThat(data.retrieveQuestionAttempts().size(), is(0));
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(9L);
         given()
@@ -271,6 +270,8 @@ public class QuestionAttemptControllerIT {
                 .contentType(ContentType.JSON)
                 .body("error", equalTo("Could not find resource for path: " + path))
                 .body("status", equalTo(404));
+
+        assertThat(data.retrieveQuestionAttempts().size(), is(0));
     }
 
     @Test
@@ -285,6 +286,8 @@ public class QuestionAttemptControllerIT {
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("body", "attempt");
 
+        assertThat(data.retrieveQuestionAttempts().size(), is(1));
+
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
         given()
                 .contentType(ContentType.JSON)
@@ -297,6 +300,8 @@ public class QuestionAttemptControllerIT {
                 .contentType(ContentType.JSON)
                 .body("error", equalTo("Could not find resource for path: " + path))
                 .body("status", equalTo(404));
+
+        assertThat(data.retrieveQuestionAttempts().size(), is(1));
     }
 
     @Test
@@ -312,6 +317,8 @@ public class QuestionAttemptControllerIT {
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("body", "attempt");
 
+        assertThat(data.retrieveQuestionAttempts().size(), is(1));
+
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
         given()
                 .contentType(ContentType.JSON)
@@ -324,6 +331,8 @@ public class QuestionAttemptControllerIT {
                 .contentType(ContentType.JSON)
                 .body("error", equalTo("Could not find resource for path: " + path))
                 .body("status", equalTo(404));
+
+        assertThat(data.retrieveQuestionAttempts().size(), is(1));
     }
 
     @Test

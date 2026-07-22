@@ -7,20 +7,22 @@ import com.practiq.repository.QuestionAttemptRepository;
 import io.micronaut.data.model.Sort;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.inject.Inject;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.QuestionTestData;
 
-import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Set;
 
 import static java.util.stream.Collectors.toList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
-import static org.mockito.Mockito.when;
-import static utils.TestReflection.setField;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 // How attempt queries behave against a real database: the question-id predicate and the session-token restriction
 // the specification carries, plus the stable newest-first order findAll applies. The spec is part of the
@@ -121,6 +123,56 @@ public class QuestionAttemptRepositoryIT {
         assertThat(attempt.getSessionToken(), is(sessionToken));
         assertThat(attempt.getBody(), is(body));
         assertThat(attempt.getCreatedAt().toString(), matchesPattern(data.getInstantPattern()));
+    }
+
+    @Test
+    void cannotSaveAttemptWithEmptyBody() {
+        long questionId = 5L;
+        data.question(questionId).insert();
+
+        String sessionToken = "session-token";
+
+        //Check 1 char saves
+        QuestionAttempt validAttempt = new QuestionAttempt(questionId, sessionToken, "a");
+        QuestionAttempt attempt = questionAttemptRepository.save(validAttempt);
+        assertThat(attempt.getId(), instanceOf(Long.class));
+
+        //Check empty doesn't save
+        QuestionAttempt invalidAttempt = new QuestionAttempt(questionId, sessionToken, "");
+        ConstraintViolationException thrown = assertThrows(ConstraintViolationException.class, () ->
+                questionAttemptRepository.save(invalidAttempt)
+        );
+
+        Set<ConstraintViolation<?>> constraintViolations = thrown.getConstraintViolations();
+        assertThat(constraintViolations.size(), is(1));
+        String message = constraintViolations.stream().findFirst().get().getMessage();
+        assertThat(message, equalTo("size must be between 1 and 100000"));
+    }
+
+    @Test
+    void cannotSaveAttemptWithTooLargeBody() {
+        long questionId = 5L;
+        data.question(questionId).insert();
+
+        String sessionToken = "session-token";
+
+        //Check 100000 char saves
+        String validBody = RandomStringUtils.insecure().nextAlphanumeric(100000);
+        QuestionAttempt validAttempt = new QuestionAttempt(questionId, sessionToken, validBody);
+        QuestionAttempt attempt = questionAttemptRepository.save(validAttempt);
+        assertThat(attempt.getId(), instanceOf(Long.class));
+
+        //Check 100001 chars doesn't save
+        String body = RandomStringUtils.insecure().nextAlphanumeric(100001);
+        QuestionAttempt invalidAttempt = new QuestionAttempt(questionId, sessionToken, body);
+        ConstraintViolationException thrown = assertThrows(ConstraintViolationException.class, () ->
+                questionAttemptRepository.save(invalidAttempt)
+        );
+
+        Set<ConstraintViolation<?>> constraintViolations = thrown.getConstraintViolations();
+        assertThat(constraintViolations.size(), is(1));
+        String message = constraintViolations.stream().findFirst().get().getMessage();
+        assertThat(message, equalTo("size must be between 1 and 100000"));
     }
 
     private List<QuestionAttempt> findAttempts(QuestionAttemptQuery query) {

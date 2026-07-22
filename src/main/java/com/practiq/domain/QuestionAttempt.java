@@ -2,6 +2,7 @@ package com.practiq.domain;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -31,6 +32,7 @@ public class QuestionAttempt {
 
     @NotNull
     @Column(name = "body", nullable = false)
+    @Size(min = 1, max = 100000)
     private String body;
 
     @Column(name = "created_at", insertable = false, updatable = false)

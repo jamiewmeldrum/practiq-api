@@ -34,7 +34,7 @@ public class QuestionAttemptQueryRunner {
         return questionAttemptRepository.findAll(spec, STABLE_ORDER);
     }
 
-    public QuestionAttempt postQuestionAttempt(QuestionAttempt questionAttempt) {
+    public QuestionAttempt createQuestionAttempt(QuestionAttempt questionAttempt) {
         return questionAttemptRepository.save(questionAttempt);
     }
 }

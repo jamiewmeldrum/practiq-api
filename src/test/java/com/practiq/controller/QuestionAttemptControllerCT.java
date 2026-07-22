@@ -6,11 +6,9 @@ import com.practiq.domain.query.attempt.QuestionAttemptQueryRunner;
 import com.practiq.domain.query.attempt.QuestionAttemptSpecificationFactory;
 import com.practiq.domain.query.question.StudentQuestionQueryRunner;
 import com.practiq.dto.request.QuestionAttemptRequest;
-import com.practiq.dto.request.QuestionRequest;
 import com.practiq.repository.QuestionAttemptRepository;
 import com.practiq.repository.QuestionRepository;
 import com.practiq.service.QuestionAttemptService;
-import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.Sort;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import io.micronaut.runtime.server.EmbeddedServer;
@@ -19,10 +17,10 @@ import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.http.Header;
 import jakarta.inject.Inject;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 import utils.ComponentTest;
 
 import java.time.Instant;
@@ -266,6 +264,9 @@ public class QuestionAttemptControllerCT {
                 .contentType(ContentType.JSON)
                 .body("error", equalTo("Required Header [" + SESSION_TOKEN_HEADER + "] not specified"))
                 .body("status", equalTo(400));
+
+        verifyNoInteractions(questionRepository);
+        verifyNoInteractions(questionAttemptRepository);
     }
 
     @Test
@@ -303,6 +304,9 @@ public class QuestionAttemptControllerCT {
                 .body("keySet()", containsInAnyOrder("error", "status"))
                 .body("error", equalTo("sessionToken: must not be blank"))
                 .body("status", equalTo(422));
+
+        verifyNoInteractions(questionRepository);
+        verifyNoInteractions(questionAttemptRepository);
     }
 
     @Test
@@ -327,10 +331,13 @@ public class QuestionAttemptControllerCT {
                 .body("keySet()", containsInAnyOrder("error", "status"))
                 .body("error", equalTo("questionId: invalid value"))
                 .body("status", equalTo(400));
+
+        verifyNoInteractions(questionRepository);
+        verifyNoInteractions(questionAttemptRepository);
     }
 
     @Test
-    void postQuestionAttemptReturnsUnprocessableEntityIfBodyBlank() {
+    void postQuestionAttemptReturnsUnprocessableEntityIfBodyFieldBlank() {
         String sessionToken = "test";
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(1L);
@@ -362,6 +369,55 @@ public class QuestionAttemptControllerCT {
                 .body("keySet()", containsInAnyOrder("error", "status"))
                 .body("error", equalTo("body: must not be blank"))
                 .body("status", equalTo(422));
+
+        verifyNoInteractions(questionRepository);
+        verifyNoInteractions(questionAttemptRepository);
+    }
+
+    @Test
+    void postQuestionAttemptReturnsUnprocessableEntityIfBodyTooLong() {
+        String sessionToken = "test";
+        String path = QUESTION_ATTEMPTS_PATH.formatted(1L);
+        String body = RandomStringUtils.insecure().nextAlphanumeric(20001);
+
+        given()
+                .contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+                .when()
+                .body(Map.of("body", body))
+                .post(path)
+                .then()
+                .statusCode(UNPROCESSABLE_ENTITY.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("body: size must be between 0 and 20000"))
+                .body("status", equalTo(422));
+
+        verifyNoInteractions(questionRepository);
+        verifyNoInteractions(questionAttemptRepository);
+    }
+
+    @Test
+    void postQuestionAttemptReturnsBadRequestIfRequestBodyMissing() {
+        String sessionToken = "test";
+
+        String path = QUESTION_ATTEMPTS_PATH.formatted(1L);
+
+        given()
+                .contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+                .when()
+                .body("")
+                .post(path)
+                .then()
+                .statusCode(BAD_REQUEST.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("Request body not specified"))
+                .body("status", equalTo(400));
+
+        verifyNoInteractions(questionRepository);
+        verifyNoInteractions(questionAttemptRepository);
     }
 
     @Test
