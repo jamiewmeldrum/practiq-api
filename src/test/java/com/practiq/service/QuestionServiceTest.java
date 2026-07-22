@@ -19,7 +19,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -53,35 +52,25 @@ class QuestionServiceTest {
     }
 
     @Test
-    void getQuestionByIdMapsTheLinkedQuestionToAResponse() {
+    void getQuestionByIdReturnsTheMappedQuestionWhenOneIsFound() {
         long questionId = 1L;
-        long conceptId = 10L;
-        String body = "State Newton's first law.";
-        QuestionDifficulty difficulty = QuestionDifficulty.MEDIUM;
-        QuestionType type = QuestionType.SHORT_ANSWER;
-        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
         Question question = new Question(
-                body, difficulty, type, QuestionSource.SEED, QuestionStatus.APPROVED, "AQA GCSE Physics");
+                "State Newton's first law.", QuestionDifficulty.MEDIUM, QuestionType.SHORT_ANSWER,
+                QuestionSource.SEED, QuestionStatus.APPROVED, "AQA GCSE Physics");
         setField(question, "id", questionId);
-        setField(question, "createdAt", createdAt);
-        LinkedQuestion linkedQuestion =
-                new LinkedQuestion(question, Set.of(new QuestionConceptLink(questionId, conceptId)));
+        LinkedQuestion linkedQuestion = new LinkedQuestion(question, Set.of(new QuestionConceptLink(questionId, 10L)));
 
         when(questionQueryRunner.findQuestionById(questionId))
                 .thenReturn(Optional.of(linkedQuestion));
 
         Optional<QuestionResponse> response = questionService.get(questionId);
 
+        // The service's job is to present the found question, not to map its fields — the LinkedQuestion ->
+        // QuestionResponse field mapping is QuestionResponseMapperTest's contract. Assert enough to know the
+        // right question came through the mapper, no more.
         assertThat(response.isPresent(), equalTo(true));
-        QuestionResponse questionResponse = response.get();
-        assertThat(questionResponse.getId(), equalTo(questionId));
-        assertThat(questionResponse.getBody(), equalTo(body));
-        assertThat(questionResponse.getDifficulty().getValue(), equalTo(difficulty.value()));
-        assertThat(questionResponse.getDifficulty().getCode(), equalTo(difficulty.name()));
-        assertThat(questionResponse.getType(), equalTo(type));
-        assertThat(questionResponse.getCreatedAt(), equalTo(createdAt));
-        assertThat(questionResponse.getLinkedConceptIds(), equalTo(Set.of(conceptId)));
+        assertThat(response.get().getId(), equalTo(questionId));
 
         verify(questionQueryRunner).findQuestionById(questionId);
     }
