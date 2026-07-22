@@ -255,10 +255,11 @@ public class QuestionControllerCT {
                 .thenReturn(Page.of(Collections.emptyList(), Pageable.from(0), 0L));
 
         // The request we expect this URL to produce, with every field driven to a distinguishable value.
-        QuestionRequest expected = new QuestionRequest();
-        expected.setTypes(List.of(QuestionType.SHORT_ANSWER, QuestionType.EXTENDED, QuestionType.MCQ));
-        expected.setDifficulties(List.of(QuestionDifficulty.TRIVIAL, QuestionDifficulty.EASY, QuestionDifficulty.MEDIUM));
-        expected.setConceptId(99L);
+        QuestionRequest expected = new QuestionRequest(
+                List.of(QuestionType.SHORT_ANSWER, QuestionType.EXTENDED, QuestionType.MCQ),
+                List.of(QuestionDifficulty.TRIVIAL, QuestionDifficulty.EASY, QuestionDifficulty.MEDIUM),
+                99L
+        );
 
         given()
                 .when()

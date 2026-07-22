@@ -4,7 +4,9 @@ import com.practiq.domain.QuestionAttempt;
 import com.practiq.domain.query.attempt.QuestionAttemptQueryRunner;
 import com.practiq.domain.query.question.StudentQuestionQueryRunner;
 import com.practiq.dto.filter.UserRequestFilter;
+import com.practiq.dto.request.QuestionAttemptRequest;
 import com.practiq.dto.response.QuestionAttemptResponse;
+import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -18,6 +20,7 @@ import java.util.Optional;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.TestReflection.setField;
@@ -111,5 +114,52 @@ class QuestionAttemptServiceTest {
 
         verify(questionQueryRunner).doesQuestionExistForId(questionId);
         verify(questionAttemptQueryRunner).getQuestionAttempts(userRequestFilter, questionId);
+    }
+
+    @Test
+    void postQuestionAttemptByIdReturnsOptionalEmptyIfNoQuestionForId() {
+        long questionId = 5L;
+        String sessionToken = "session-token";
+        String body = "attempt";
+        QuestionAttemptRequest request = new QuestionAttemptRequest(body);
+
+        when(questionQueryRunner.doesQuestionExistForId(questionId)).thenReturn(false);
+
+        Optional<QuestionAttemptResponse> attempt = questionAttemptService.postForQuestionId(sessionToken, request, questionId);
+
+        assertThat(attempt.isPresent(), is(false));
+
+        verify(questionQueryRunner).doesQuestionExistForId(questionId);
+    }
+
+    @Test
+    void postQuestionAttemptReturnsUpdatedEntity() {
+        long questionId = 5L;
+        String sessionToken = "session-token";
+        String body = "attempt";
+        QuestionAttemptRequest request = new QuestionAttemptRequest(body);
+
+        QuestionAttempt incomingAttempt = new QuestionAttempt(questionId, sessionToken, body);
+        long attemptId = 20L;
+        Instant createdAt = Instant.parse("2026-01-03T00:00:00Z");
+        QuestionAttempt attemptDB = new QuestionAttempt(questionId, sessionToken, body);
+        setField(attemptDB, "createdAt", createdAt);
+        setField(attemptDB, "id", attemptId);
+
+        when(questionQueryRunner.doesQuestionExistForId(questionId)).thenReturn(true);
+        when(questionAttemptQueryRunner.postQuestionAttempt(incomingAttempt)).thenReturn(attemptDB);
+
+        Optional<QuestionAttemptResponse> attempt = questionAttemptService.postForQuestionId(sessionToken, request, questionId);
+
+        assertThat(attempt.isPresent(), is(true));
+
+        QuestionAttemptResponse response = attempt.get();
+        assertThat(response.getId(), is(attemptId));
+        assertThat(response.getQuestionId(), is(questionId));
+        assertThat(response.getBody(), is(body));
+        assertThat(response.getCreatedAt(), is(createdAt));
+
+        verify(questionQueryRunner).doesQuestionExistForId(questionId);
+        verify(questionAttemptQueryRunner).postQuestionAttempt(incomingAttempt);
     }
 }

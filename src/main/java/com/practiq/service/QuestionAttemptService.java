@@ -55,7 +55,7 @@ public class QuestionAttemptService {
         log.debug("Posting question attempt for question id: {}", questionId);
 
         if (questionQueryRunner.doesQuestionExistForId(questionId)) {
-            QuestionAttempt attempt = new QuestionAttempt(questionId, sessionToken, request.getBody());
+            QuestionAttempt attempt = new QuestionAttempt(questionId, sessionToken, request.body());
             QuestionAttempt savedAttempt = questionAttemptQueryRunner.postQuestionAttempt(attempt);
             QuestionAttemptResponse response = QuestionAttemptResponseMapper.toQuestionAttemptResponse(savedAttempt);
             return Optional.of(response);
