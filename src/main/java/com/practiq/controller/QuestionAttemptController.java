@@ -47,7 +47,7 @@ public class QuestionAttemptController {
             long questionId
     ) {
         log.debug("Requested to POST question attempt for question id: {}", questionId);
-        log.trace("POST body: {}", request.getBody());
+        log.trace("POST body: {}", request.body());
 
         return questionAttemptService.postForQuestionId(sessionToken, request, questionId)
                 .orElseThrow(NotFoundException::new);

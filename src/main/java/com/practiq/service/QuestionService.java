@@ -37,7 +37,7 @@ public class QuestionService {
     public PageResponse<QuestionResponse> get(QuestionRequest request, Pageable pageable) {
         log.debug("Getting approved questions, page {}", pageable.getNumber());
         Page<LinkedQuestion> page = questionQueryRunner.findQuestionsPagedAndFiltered(
-                request.getTypes(), request.getDifficulties(), request.getConceptId(), pageable);
+                request.types(), request.difficulties(), request.conceptId(), pageable);
         return PageResponse.of(page, toQuestionResponses(page.getContent()));
     }
 }

@@ -105,10 +105,11 @@ class QuestionServiceTest {
         List<QuestionType> types = List.of(QuestionType.MCQ);
         List<QuestionDifficulty> difficulties = List.of(QuestionDifficulty.HARD);
         long conceptId = 3L;
-        QuestionRequest request = new QuestionRequest();
-        request.setTypes(types);
-        request.setDifficulties(difficulties);
-        request.setConceptId(conceptId);
+        QuestionRequest request = new QuestionRequest(
+                types,
+                difficulties,
+                conceptId
+        );
 
         Pageable requested = Pageable.from(2, 5);
 
@@ -134,7 +135,7 @@ class QuestionServiceTest {
 
     @Test
     void getQuestionsReturnsAnEmptyContentPageWithMetadataWhenTheRunnerFindsNothing() {
-        QuestionRequest request = new QuestionRequest();
+        QuestionRequest request = new QuestionRequest(null, null, null);
         Pageable requested = Pageable.from(3, 5);
 
         // An empty page that still reports a non-zero total — a page requested past the end of the data. The
