@@ -10,13 +10,17 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
+import utils.data.DBRow;
 import utils.data.QuestionTestData;
 
 import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import static io.micronaut.http.HttpStatus.NOT_FOUND;
-import static io.micronaut.http.HttpStatus.OK;
+import static io.micronaut.http.HttpStatus.*;
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static utils.data.TestData.SESSION_TOKEN_HEADER;
 
@@ -38,7 +42,7 @@ public class QuestionAttemptControllerIT {
     }
 
     @Test
-    void get404ResponseWhenApprovedAndLinkedQuestionDoesNotExistForId() {
+    void get404ResponseWhenApprovedAndLinkedQuestionDoesNotExistForIdGETAttempt() {
         long conceptId = 10L;
         data.concept(conceptId).insert();
 
@@ -68,7 +72,7 @@ public class QuestionAttemptControllerIT {
     }
 
     @Test
-    void get404ResponseWhenApprovedAndUnlinkedQuestionExistsForId() {
+    void get404ResponseWhenApprovedAndUnlinkedQuestionExistsForIdGETAttempt() {
         long conceptId = 10L;
         data.concept(conceptId).insert();
 
@@ -89,7 +93,7 @@ public class QuestionAttemptControllerIT {
     }
 
     @Test
-    void get404ResponseWhenPendingAndLinkedQuestionExistsForId() {
+    void get404ResponseWhenPendingAndLinkedQuestionExistsForIdGETAttempt() {
         long conceptId = 10L;
         data.concept(conceptId).insert();
 
@@ -111,7 +115,7 @@ public class QuestionAttemptControllerIT {
     }
 
     @Test
-    void getEmptyResponseWhenQuestionExistsForIdButNoAttemptsForSessionToken() {
+    void getEmptyResponseWhenQuestionExistsForIdButNoAttemptsForSessionTokenGETAttempt() {
         String sessionToken = "test";
 
         long conceptId = 10L;
@@ -139,7 +143,7 @@ public class QuestionAttemptControllerIT {
     }
 
     @Test
-    void getResponseWhenLinkedAndApprovedQuestionHasAttempts() {
+    void getResponseWhenLinkedAndApprovedQuestionHasAttemptsGETAttempt() {
         String sessionToken = "865726f9-2f79-4789-940f-412db1fb5be1";
 
         long conceptId = 10L;
@@ -176,7 +180,7 @@ public class QuestionAttemptControllerIT {
     }
 
     @Test
-    void getResponseEntriesOrderedByCreatedAtDesc() {
+    void getResponseEntriesOrderedByCreatedAtDescGETAttempt() {
         String sessionToken = "865726f9-2f79-4789-940f-412db1fb5be1";
 
         long conceptId = 10L;
@@ -232,5 +236,125 @@ public class QuestionAttemptControllerIT {
                 .statusCode(OK.getCode())
                 .contentType(ContentType.JSON)
                 .body("body", contains(attemptBody2, attemptBody4, attemptBody3, attemptBody1));
+    }
+
+    @Test
+    void get404ResponseWhenApprovedAndLinkedQuestionDoesNotExistForIdPOSTAttempt() {
+        long conceptId = 10L;
+        data.concept(conceptId).insert();
+
+        long question1Id = 1L;
+        data.question(question1Id).insert();
+        data.questionAttempt(question1Id, "session token", "body").insert();
+
+        long question2Id = 2L;
+        data.question(question2Id).status(QuestionStatus.APPROVED).insert();
+        data.questionAttempt(question2Id, "session token", "body").insert();
+
+        long question3Id = 3L;
+        data.question(question3Id).status(QuestionStatus.APPROVED).insert();
+        data.link(question3Id, conceptId).insert();
+        data.questionAttempt(question3Id, "session token", "body").insert();
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("body", "attempt");
+
+        String path = QUESTION_ATTEMPTS_PATH.formatted(9L);
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,"test"))
+                .body(requestBody)
+                .when()
+                .post(path)
+                .then()
+                .statusCode(NOT_FOUND.getCode())
+                .contentType(ContentType.JSON)
+                .body("error", equalTo("Could not find resource for path: " + path))
+                .body("status", equalTo(404));
+    }
+
+    @Test
+    void get404ResponseWhenApprovedAndUnlinkedQuestionExistsForIdPOSTAttempt() {
+        long conceptId = 10L;
+        data.concept(conceptId).insert();
+
+        long questionId = 2L;
+        data.question(questionId).status(QuestionStatus.APPROVED).insert();
+        data.questionAttempt(questionId, "session token", "body").insert();
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("body", "attempt");
+
+        String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,"test"))
+                .body(requestBody)
+                .when()
+                .post(path)
+                .then()
+                .statusCode(NOT_FOUND.getCode())
+                .contentType(ContentType.JSON)
+                .body("error", equalTo("Could not find resource for path: " + path))
+                .body("status", equalTo(404));
+    }
+
+    @Test
+    void get404ResponseWhenPendingAndLinkedQuestionExistsForIdPOSTAttempt() {
+        long conceptId = 10L;
+        data.concept(conceptId).insert();
+
+        long questionId = 2L;
+        data.question(questionId).status(QuestionStatus.PENDING).insert();
+        data.link(questionId, conceptId).insert();
+        data.questionAttempt(questionId, "session token", "body").insert();
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("body", "attempt");
+
+        String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,"test"))
+                .body(requestBody)
+                .when()
+                .post(path)
+                .then()
+                .statusCode(NOT_FOUND.getCode())
+                .contentType(ContentType.JSON)
+                .body("error", equalTo("Could not find resource for path: " + path))
+                .body("status", equalTo(404));
+    }
+
+    @Test
+    void getCreatedResponseWithResponseBodyWhenPostingValidQuestionAttempt() {
+        String sessionToken = "865726f9-2f79-4789-940f-412db1fb5be1";
+
+        long conceptId = 10L;
+        data.concept(conceptId).insert();
+
+        long questionId = 1L;
+        data.question(questionId).status(QuestionStatus.APPROVED).insert();
+        data.link(questionId, conceptId).insert();
+
+        String attemptBody = "attempt 1";
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("body", attemptBody);
+
+        List<DBRow> questionAttemptsBeforePost = data.retrieveQuestionAttempts();
+        assertThat(questionAttemptsBeforePost.size(), is(0));
+
+        String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
+        given()
+                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+                .body(requestBody)
+                .when()
+                .post(path)
+                .then()
+                .statusCode(CREATED.getCode())
+                .contentType(ContentType.JSON)
+                .body("body", contains(attemptBody));
+
+        List<DBRow> questionAttemptsAfterPost = data.retrieveQuestionAttempts();
+        assertThat(questionAttemptsAfterPost.size(), is(1));
+        assertThat(questionAttemptsAfterPost.getFirst().get("body"), is(attemptBody));
     }
 }
