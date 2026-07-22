@@ -2,6 +2,7 @@ package com.practiq.domain.query.attempt;
 
 import com.practiq.domain.QuestionAttempt;
 import com.practiq.dto.filter.UserRequestFilter;
+import com.practiq.dto.response.QuestionAttemptResponse;
 import com.practiq.repository.QuestionAttemptRepository;
 import io.micronaut.data.model.Sort;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
@@ -11,13 +12,18 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static utils.TestReflection.setField;
 
 // Runner as the unit entry point: the real QuestionAttemptSpecificationFactory (question-id predicate + session
 // restriction) is exercised through it, and only the repository is mocked. What the query FILTERS on — question id
@@ -51,6 +57,28 @@ class QuestionAttemptQueryRunnerTest {
 
         assertEquals(found, result);
         verify(questionAttemptRepository).findAll(anySpec(), eq(STABLE_ORDER));
+    }
+
+    @Test
+    void postQuestionAttemptUsesSavedEntity() {
+        long questionId = 5L;
+        String sessionToken = "session-token";
+        String body = "attempt";
+
+        QuestionAttempt incomingAttempt = new QuestionAttempt(questionId, sessionToken, body);
+        long attemptId = 20L;
+        Instant createdAt = Instant.parse("2026-01-03T00:00:00Z");
+        QuestionAttempt attemptDB = new QuestionAttempt(questionId, sessionToken, body);
+        setField(attemptDB, "createdAt", createdAt);
+        setField(attemptDB, "id", attemptId);
+
+        when(questionAttemptRepository.save(incomingAttempt)).thenReturn(attemptDB);
+
+        QuestionAttempt attempt = runner.postQuestionAttempt(incomingAttempt);
+
+        assertThat(attempt, is(attemptDB));
+
+        verify(questionAttemptRepository).save(incomingAttempt);
     }
 
     // Typed matcher so overload resolution picks findAll(QuerySpecification, Sort) over its siblings; the runner
