@@ -237,6 +237,7 @@ public class QuestionAttemptControllerCT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(9L);
         given()
+                .contentType(ContentType.JSON)
                 .when()
                 .body(requestBody)
                 .post(path)
@@ -257,6 +258,7 @@ public class QuestionAttemptControllerCT {
 
         //Empty
         given()
+                .contentType(ContentType.JSON)
                 .header(new Header(SESSION_TOKEN_HEADER,""))
                 .when()
                 .body(requestBody)
@@ -270,6 +272,7 @@ public class QuestionAttemptControllerCT {
 
         //Blank
         given()
+                .contentType(ContentType.JSON)
                 .header(new Header(SESSION_TOKEN_HEADER,"   "))
                 .when()
                 .body(requestBody)
@@ -293,6 +296,7 @@ public class QuestionAttemptControllerCT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
         given()
+                .contentType(ContentType.JSON)
                 .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .when()
                 .body(requestBody)
@@ -313,6 +317,7 @@ public class QuestionAttemptControllerCT {
 
         //Empty
         given()
+                .contentType(ContentType.JSON)
                 .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .when()
                 .body(Map.of("body", ""))
@@ -326,6 +331,7 @@ public class QuestionAttemptControllerCT {
 
         //Blank
         given()
+                .contentType(ContentType.JSON)
                 .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .when()
                 .body(Map.of("body", "   "))
@@ -356,11 +362,12 @@ public class QuestionAttemptControllerCT {
         setField(attemptDB, "id", attemptId);
 
         when(questionRepository.exists(any(QuerySpecification.class))).thenReturn(true);
-        when(questionAttemptRepository.update(attemptToSave)).thenReturn(attemptDB);
+        when(questionAttemptRepository.save(attemptToSave)).thenReturn(attemptDB);
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
 
         given()
+                .contentType(ContentType.JSON)
                 .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
                 .when()
                 .body(requestBody)
@@ -369,16 +376,13 @@ public class QuestionAttemptControllerCT {
                 .statusCode(CREATED.getCode())
                 .contentType(ContentType.JSON)
                 .body("keySet()", containsInAnyOrder("id", "questionId", "body", "createdAt"))
-                .body("id", equalTo(attemptId))
-                .body("find { it.id == " + attemptId + " }.questionId", equalTo((int) questionId))
-                .body("find { it.id == " + attemptId + " }.body", equalTo(attemptBody))
-                .body("find { it.id == " + attemptId + " }.createdAt", equalTo(createdAt.toString()));
+                .body("id", equalTo((int) attemptId))
+                .body("questionId", equalTo((int) questionId))
+                .body("body", equalTo(attemptBody))
+                .body("createdAt", equalTo(createdAt.toString()));
 
         verify(questionRepository).exists(any(QuerySpecification.class));
 
-        QuestionAttemptQuery questionAttemptQuery = new QuestionAttemptQuery(questionId, sessionToken);
-        verify(questionAttemptSpecificationFactory).forQuery(questionAttemptQuery);
-
-        verify(questionAttemptRepository).update(attemptToSave);
+        verify(questionAttemptRepository).save(attemptToSave);
     }
 }

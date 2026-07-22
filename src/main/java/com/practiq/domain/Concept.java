@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.ToString;
+import org.hibernate.annotations.Generated;
 
 import java.time.Instant;
 import java.util.HashSet;
@@ -33,6 +34,7 @@ public class Concept {
     private String description;
 
     @Column(name = "created_at", insertable = false, updatable = false)
+    @Generated
     private Instant createdAt;
 
     protected Concept() {}
