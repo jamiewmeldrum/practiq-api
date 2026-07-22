@@ -25,7 +25,9 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.TestReflection.setField;
@@ -128,5 +130,28 @@ class QuestionServiceTest {
         assertThat(response.totalCount(), equalTo(11L));
 
         verify(questionQueryRunner).findQuestionsPagedAndFiltered(types, difficulties, conceptId, requested);
+    }
+
+    @Test
+    void getQuestionsReturnsAnEmptyContentPageWithMetadataWhenTheRunnerFindsNothing() {
+        QuestionRequest request = new QuestionRequest();
+        Pageable requested = Pageable.from(3, 5);
+
+        // An empty page that still reports a non-zero total — a page requested past the end of the data. The
+        // service must map the empty content without falling over and carry the metadata through rather than
+        // zeroing it out. An empty page is an input the runner genuinely produces, so it is the service's own
+        // contract to handle, not something to assume the mapping tolerates.
+        Page<LinkedQuestion> emptyPage = Page.of(List.of(), requested, 11L);
+        when(questionQueryRunner.findQuestionsPagedAndFiltered(null, null, null, requested))
+                .thenReturn(emptyPage);
+
+        PageResponse<QuestionResponse> response = questionService.get(request, requested);
+
+        assertThat(response.content(), is(empty()));
+        assertThat(response.page(), equalTo(3));
+        assertThat(response.size(), equalTo(5));
+        assertThat(response.totalCount(), equalTo(11L));
+
+        verify(questionQueryRunner).findQuestionsPagedAndFiltered(null, null, null, requested);
     }
 }
