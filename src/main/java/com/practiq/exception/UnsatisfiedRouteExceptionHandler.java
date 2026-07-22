@@ -3,7 +3,6 @@ package com.practiq.exception;
 import com.practiq.dto.response.ErrorResponse;
 import io.micronaut.context.annotation.Replaces;
 import io.micronaut.context.annotation.Requires;
-import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpResponseFactory;
