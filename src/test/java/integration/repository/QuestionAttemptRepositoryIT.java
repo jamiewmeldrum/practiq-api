@@ -12,13 +12,15 @@ import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.QuestionTestData;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.*;
+import static org.mockito.Mockito.when;
+import static utils.TestReflection.setField;
 
 // How attempt queries behave against a real database: the question-id predicate and the session-token restriction
 // the specification carries, plus the stable newest-first order findAll applies. The spec is part of the
@@ -101,6 +103,24 @@ public class QuestionAttemptRepositoryIT {
 
         // Newest created_at first; the day1 tie is broken by ascending id.
         assertThat(ids(attempts), contains(day2Attempt, day1LowId, day1HighId));
+    }
+
+    @Test
+    void savingAttemptSetsAndReturnsDBDelegatedFields() {
+        long questionId = 5L;
+        data.question(questionId).insert();
+
+        String sessionToken = "session-token";
+        String body = "attempt";
+
+        QuestionAttempt incomingAttempt = new QuestionAttempt(questionId, sessionToken, body);
+        QuestionAttempt attempt = questionAttemptRepository.save(incomingAttempt);
+
+        assertThat(attempt.getId(), instanceOf(Long.class));
+        assertThat(attempt.getQuestionId(), is(questionId));
+        assertThat(attempt.getSessionToken(), is(sessionToken));
+        assertThat(attempt.getBody(), is(body));
+        assertThat(attempt.getCreatedAt().toString(), matchesPattern(data.getInstantPattern()));
     }
 
     private List<QuestionAttempt> findAttempts(QuestionAttemptQuery query) {

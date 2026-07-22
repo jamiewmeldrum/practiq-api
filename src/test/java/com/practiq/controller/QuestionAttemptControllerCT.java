@@ -2,9 +2,15 @@ package com.practiq.controller;
 
 import com.practiq.domain.QuestionAttempt;
 import com.practiq.domain.query.attempt.QuestionAttemptQuery;
+import com.practiq.domain.query.attempt.QuestionAttemptQueryRunner;
 import com.practiq.domain.query.attempt.QuestionAttemptSpecificationFactory;
+import com.practiq.domain.query.question.StudentQuestionQueryRunner;
+import com.practiq.dto.request.QuestionAttemptRequest;
+import com.practiq.dto.request.QuestionRequest;
 import com.practiq.repository.QuestionAttemptRepository;
 import com.practiq.repository.QuestionRepository;
+import com.practiq.service.QuestionAttemptService;
+import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.Sort;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import io.micronaut.runtime.server.EmbeddedServer;
@@ -12,10 +18,11 @@ import io.micronaut.test.annotation.MockBean;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.http.Header;
-import io.restassured.response.Response;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import utils.ComponentTest;
 
 import java.time.Instant;
@@ -26,8 +33,10 @@ import java.util.Map;
 import static io.micronaut.http.HttpStatus.*;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static utils.TestReflection.assertAllFieldsSet;
 import static utils.TestReflection.setField;
 import static utils.data.TestData.SESSION_TOKEN_HEADER;
 
@@ -48,6 +57,9 @@ public class QuestionAttemptControllerCT {
     private QuestionAttemptSpecificationFactory questionAttemptSpecificationFactory;
 
     @Inject
+    private QuestionAttemptService questionAttemptService;
+
+    @Inject
     private EmbeddedServer embeddedServer;
 
     @MockBean(QuestionRepository.class)
@@ -63,6 +75,14 @@ public class QuestionAttemptControllerCT {
     @MockBean(QuestionAttemptSpecificationFactory.class)
     QuestionAttemptSpecificationFactory questionAttemptSpecificationFactory() {
         return spy(new QuestionAttemptSpecificationFactory());
+    }
+
+    @MockBean(QuestionAttemptService.class)
+    QuestionAttemptService questionAttemptService(
+            StudentQuestionQueryRunner questionQueryRunner,
+            QuestionAttemptQueryRunner questionAttemptQueryRunner
+    ) {
+        return spy(new QuestionAttemptService(questionQueryRunner, questionAttemptQueryRunner));
     }
 
     @BeforeEach
@@ -382,7 +402,16 @@ public class QuestionAttemptControllerCT {
                 .body("createdAt", equalTo(createdAt.toString()));
 
         verify(questionRepository).exists(any(QuerySpecification.class));
-
         verify(questionAttemptRepository).save(attemptToSave);
+
+        //Tripwire to ensure all fields on the incoming request are actually set. Mostly to make sure we don't accidentally
+        //break this happy path test by not providing future request fields that could be empty (at least in the catch all case).
+        ArgumentCaptor<QuestionAttemptRequest> captor = ArgumentCaptor.forClass(QuestionAttemptRequest.class);
+        verify(questionAttemptService).postForQuestionId(eq(sessionToken), captor.capture(), eq(questionId));
+        QuestionAttemptRequest actual = captor.getValue();
+
+        assertAllFieldsSet(actual);
+        QuestionAttemptRequest expected = new QuestionAttemptRequest(attemptBody);
+        assertEquals(expected, actual);
     }
 }
