@@ -9,10 +9,6 @@ public class ConceptResponseMapper {
     public static ConceptResponse toConceptResponse(Concept concept) {
         log.trace("Converting concept to ConceptResponse: {}", concept.getId());
         return new ConceptResponse(
-                concept.getId(),
-                concept.getName(),
-                concept.getDescription(),
-                concept.getCreatedAt()
-        );
+                concept.getId(), concept.getName(), concept.getDescription(), concept.getCreatedAt());
     }
 }

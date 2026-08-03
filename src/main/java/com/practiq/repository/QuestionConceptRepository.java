@@ -1,12 +1,11 @@
 package com.practiq.repository;
 
 import com.practiq.domain.QuestionConcept;
-import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.domain.QuestionConceptId;
+import com.practiq.domain.projection.QuestionConceptLink;
 import io.micronaut.data.annotation.Query;
 import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.repository.GenericRepository;
-
 import java.util.Collection;
 import java.util.List;
 

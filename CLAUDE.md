@@ -19,7 +19,7 @@
 
 Adaptive learning/practice platform. Students browse **Concepts**, answer **Questions**, self-assess against mark schemes (AI marking later). Content is ingested from uploaded documents (PDF/Word), structured and concept-labelled by AI, then **approved by a superuser** before students ever see it. Starts with GCSE Physics (AQA); the model scales across subjects/levels/exam boards.
 
-Dual purpose: (1) a deliberate skills-rebuild project, (2) a public portfolio piece — clean architecture, tests, green CI, 5-minute demo. Working demo beats feature count.
+Dual purpose: (1) a deliberate skills-rebuild project, (2) a public portfolio piece — clean architecture, tests, green CI, a decision log showing judgement. **There is no demo** — the artefact is the repo and a conversation about it (D-035). Readable code and defensible decisions beat feature count.
 
 ## 3. Architecture
 
@@ -106,13 +106,28 @@ note_concept:         note_id, concept_id
 question:  id, version (optimistic lock), body (TEXT, not null — Markdown, images via {{s3:key}}, MCQ via - [ ]/- [x]),
            difficulty int (nullable, 1-5),
            type (nullable — SHORT_ANSWER|EXTENDED|MCQ),
-           source (not null — SEED|EXTRACTED|GENERATED, see D-014),
            status (not null, default PENDING — PENDING|APPROVED|REJECTED),
-           source_spec (VARCHAR, nullable — provenance stopgap, see D-010),
            created_at
+           -- NO source / source_spec columns — origin moved to its own table (see D-036)
            -- NO mark_scheme column — it's its own entity now (see D-018)
            -- no level column (see D-010) · no content jsonb (see D-009)
-           -- source_document_id FK deferred to Sprint 0.3 (see D-014)
+
+document:  id, s3_key (not null), filename (not null), status (not null — enum,
+           incl. RETIRED soft-delete), + identity fields (board/year/etc, shape TBD in ticket),
+           created_at
+           -- The material source an EXTRACTED question came from (see D-036).
+           -- Never hard-deleted except by a deliberate GDPR "knife" procedure; RETIRED
+           -- takes it out of processing without losing the audit trail.
+
+question_origin: id, question_id (FK → question, not null, UNIQUE, ON DELETE CASCADE),
+           kind (not null — AUTHORED|EXTRACTED|GENERATED),
+           document_id (FK → document, nullable, non-null IFF kind=EXTRACTED),
+           created_at
+           -- One row per question, written at creation. Cold data — off the hot
+           -- question row deliberately (retrieved <1% of reads). Per-type table by
+           -- pattern (NoteOrigin later, same shape) — NOT a polymorphic table, so the
+           -- question→origin FK cascade is DB-enforced. See D-036.
+           -- Invariant (code-enforced): document_id present IFF kind=EXTRACTED.
 
 mark_scheme: id, question_id (FK, not null, UNIQUE — 1:1), version (optimistic lock),
              body (TEXT, not null — Markdown, {{s3:key}} refs), created_at
@@ -315,7 +330,7 @@ tests are owed per *new query*, not per endpoint.
 - No business logic in controllers or repositories.
 - No AI calls outside the `ai/` package / AIService interface.
 - Flyway only — never hbm2ddl create/update. Flyway owns schema, never content.
-- **Enum-backed columns are stored upper-case** (e.g. `'PENDING'`, `'APPROVED'`), matching Java enum constant names exactly, so `@Enumerated(EnumType.STRING)` works with no custom `AttributeConverter`. Applies to every enum-backed column project-wide, not case-by-case. Free-text columns (e.g. `source_spec`) are unaffected.
+- **Enum-backed columns are stored upper-case** (e.g. `'PENDING'`, `'APPROVED'`), matching Java enum constant names exactly, so `@Enumerated(EnumType.STRING)` works with no custom `AttributeConverter`. Applies to every enum-backed column project-wide, not case-by-case. Free-text columns (e.g. `body`, `filename`) are unaffected.
 - **Path nesting only for genuine ownership** (child meaningless outside a specific parent). **Many-to-many relationships or multi-dimension-filterable resources use a flat first-order collection with query-parameter filters**, not path nesting under one relationship. Controllers map to one entity each. See D-015.
 - **`difficulty` serialises as `{value, code}`** — DB column stays a plain integer; `code` is derived at the serialisation layer via `TRIVIAL(1), EASY(2), MEDIUM(3), HARD(4), VERY_HARD(5)`. Whole object is `null` when difficulty is unrated, not partially populated. Nominal enums (`type`/`source`/`status`) serialise as their bare string code — no wrapper. See D-017.
 - **Never add a unique constraint on `(question_id, session_token)`.** Repeated attempts at the same question are the core revision loop. Duplicates from network retries are accepted at this stage — see D-021. Idempotency keys are a hard prerequisite for AI grading, to be built *before* it, never as a follow-up.
@@ -323,10 +338,12 @@ tests are owed per *new query*, not per endpoint.
 - **Mark scheme is its own entity, served ungated.** Not a column on `question` (D-018). `GET /api/v1/questions/{id}/mark-scheme` never gates on an attempt; the "attempt before you peek" behaviour is a frontend nudge, never a backend 403.
 - **Never fetch-join a to-many collection in a paginated query.** Hibernate silently pages in memory. Use the two-query stitch: paged root query, then a keyed id-pair projection, stitched onto DTOs. See D-025.
 - **Use a correlated `EXISTS` subquery, not a join, to filter on a to-many.** A join multiplies rows and corrupts `totalCount`. See D-026.
-- **The student serving policy is an object invariant, not a filter.** `QuestionQuery.studentCatalogue(...)` bakes in `status=APPROVED` + concept-linked. `status` is never a client parameter. Filters narrow, never widen. See D-024.
+- **The student serving policy lives in `StudentQuestionQueryPolicy`, not in a controller filter.** It imposes `status=APPROVED` + concept-linked; request filters pass through. `status` is never a client parameter. Filters narrow, never widen. *(The `QuestionQuery.studentCatalogue(...)` named constructors are gone — removed in the D-033 refactor. Enforcement is **conventional**, not structural: see the D-024 note in §5.)* See D-024 as amended, D-033.
+- **Write endpoints bind their payload with `@Body`, never `@RequestBean`.** `@RequestBean` binds fields individually, so a write endpoint would silently accept its payload as a query parameter — putting user content into access logs, proxy logs, browser history and `Referer` headers. `@RequestBean` stays correct for read endpoints assembling filter parameters. Input limits are bounded twice on purpose: the product rule on the request DTO, a backstop on the entity, and the two numbers stay independent (the product rule may vary by question type; the storage guard won't). See D-034.
 - **Paged endpoints return `PageResponse<T>`; unpaged collections return bare arrays. Nulls always serialise.** See D-023.
 - **Framework paging behaviour is pinned once in `PagingCT`.** A new paginated endpoint adds an *ordering* IT only — never a fresh paging suite. See D-029.
 - **Cross-aggregate references are by scalar id, never associations.** `MarkScheme` holds `long questionId`, not `@OneToOne Question`; `Question` holds no reference to `MarkScheme` at all. The relationship is expressed exactly once — the `mark_scheme.question_id` FK and its DB constraint. Navigation is a repository query by id. `@OneToOne` defaults to EAGER and its inverse side can't be lazy without bytecode enhancement, so both directions fire wasted selects. **Carve-out:** `Question.conceptLinks` `@OneToMany` stays — that's *within* the aggregate, it's lazy, and the admin concepts write path needs it. See D-031.
+- **Origin is a separate per-type table, never columns on the content.** A question's provenance (`AUTHORED`/`EXTRACTED`/`GENERATED`, and the source document if extracted) lives in `question_origin`, not on `question`. Reasons: origin is *cold* (read <1% of the time — keep it off the hot catalogue row) and *polymorphic in shape but not in table* (`NoteOrigin` later, same columns, its own hard FK). Per-type tables, **shared writing logic in code** (an origin-writer the extraction job and manual authoring both call) — not a shared polymorphic table, so the content→origin FK cascade stays DB-enforced. `document_id` is non-null **iff** `kind=EXTRACTED` (generation is diffuse and unattributable; authoring has no document). Documents are never hard-deleted outside a deliberate GDPR procedure, so that invariant holds structurally. See D-036.
 - **Read projections are distinct types from write entities.** `QuestionConceptLink` (projection) ≠ `QuestionConcept` (entity). Don't reuse the entity where a lean projection is what the read path needs. See D-030.
 - No secrets in code, config, or commits.
 - **No copyrighted material committed — ever.** Real past papers may be used privately for local testing; all committed fixtures/seed content are self-written. Seed concept lists may mirror the published spec's topic structure (facts), not its prose.
@@ -335,14 +352,18 @@ tests are owed per *new query*, not per endpoint.
 
 ## 11. Plan & current position
 
-Sprint sequence: **0.1** skeleton + Concept endpoint + CI *(complete)* → **0.2** question read API + attempts (self-assessed) → **0.3** ingestion (stub AI) → **1.1** extractor (separate repo) → **1.2** upload + pipeline → **1.3** review API → **2.1** student UI → **2.2** superuser UI → **2.3** demo hardening = **demoable cut** → 3 AI marking → 4 service extraction → 5 AWS → 6 accounts/progress/generation.
+Sprint sequence: **0.1** skeleton + Concept endpoint + CI *(complete)* → **0.2** question read API + attempts *(complete)* → **0.3** ingestion (stub AI) → **0.4** deployed environment — correct topology in Terraform, run ephemerally (spin up / test / tear down on a timer) so it costs pennies; CI automated, CD manual (pulled forward, D-035) → **1.1** extractor (separate repo) → **1.2** upload + pipeline → **1.3** review API → **2.1** student UI *(non-load-bearing — delegate or skip)* → **2.2** superuser UI → **2.3** repo hardening → **3** AI marking → **4** service extraction → **5** infra depth (RDS/persistence, autoscaling, EC2→Fargate) → **6** accounts/progress/generation. **There is no demo — the artefact is the repo + a conversation (D-035).**
 
-> **Current sprint: 0.2 — Question read API + attempts (self-assessed)** *(update this line as sprints complete)*
+> **Current sprint: 0.3 — Ingestion (stub AI, in-process)** *(update this line as sprints complete)*
 >
-> **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged, filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept stitch · JPA static metamodel · `GET /api/v1/questions/{id}` · `mark_scheme` entity + `V3__mark_scheme.sql` + `GET /api/v1/questions/{id}/mark-scheme` (ungated) — **D-018 closed in code** · `QuestionQueryRunner`/`StudentQuestionQueryPolicy` (replaced `QuestionQueryManager`) + `LinkedQuestion` projection · performance tier (`*PT`) · `question_attempt` table + `GET /api/v1/questions/{id}/attempts` (per-session, newest-first, visibility-gated via the runner) · `X-Session-Token` handling (absent → 400, blank → 422) · `POST /api/v1/questions/{id}/attempts` (201 + created attempt, `@Body`-bound, visibility-gated via the same runner `exists`; body length: 20k business rule on the DTO, 100k entity-level backstop — **attempts feature complete**).
+> **Sprint 0.2 closed.** Question read API, mark scheme, and attempts all delivered.
 >
-> **Remaining:** write up CT persistence-disable as a D-007 sub-decision. (**409 handler for `OptimisticLockException`** moved to Sprint 1.3 with the first `@Version`-bearing write path — `question_attempt` has no `@Version`, so the attempts POST can't produce a conflict. D-027.)
+> **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged, filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept stitch · JPA static metamodel · `GET /api/v1/questions/{id}` · `mark_scheme` entity + `V3__mark_scheme.sql` + `GET /api/v1/questions/{id}/mark-scheme` (ungated) — **D-018 closed in code** · `QuestionQueryRunner`/`StudentQuestionQueryPolicy` (replaced `QuestionQueryManager`) + `LinkedQuestion` projection · performance tier (`*PT`) · `question_attempt` table + `GET /api/v1/questions/{id}/attempts` (per-session, newest-first, visibility-gated via the runner) · `X-Session-Token` handling (absent → 400, blank → 422) · `POST /api/v1/questions/{id}/attempts` (201 + created attempt, `@Body`-bound, visibility-gated via the same runner `exists`; body length 20k on the DTO, 100k entity-level backstop) — **attempts feature complete**.
 >
-> **Deliberately out of scope:** `question_attempt_feedback` — whole table deferred to Phase 3 (D-019 amendment; no consumer for a self-score yet) · MCQ auto-marking (separate feature, unscheduled) · idempotency keys (D-021) · unique constraint on attempts (would break the revision loop) · server-issued session tokens (D-020) · async grading / `202` / polling · batch submission · strict `Pageable` binder (D-028) · DB `CHECK` on attempt body length (the backstop lives at the entity as `@Size(max = 100000)`; a loose `CHECK` owes a migration if non-JPA writers ever appear).
+> **Carried into 0.3:** write up the CT persistence-disable mechanism as a D-007 sub-decision (first task of the sprint).
+>
+> **409 handler for `OptimisticLockException` moved to Sprint 1.3** — owed with the first write against a *versioned* entity (admin approve/reject). `question_attempt` has no `@Version`, so the attempts POST cannot produce a conflict (D-027 as corrected).
+>
+> **Deliberately out of scope:** `question_attempt_feedback` — whole table deferred to Phase 3 (D-019 amendment; no consumer for a self-score yet) · MCQ auto-marking (separate feature, unscheduled) · idempotency keys (D-021) · unique constraint on attempts (would break the revision loop) · server-issued session tokens (D-020) · async grading / `202` / polling · batch submission · strict `Pageable` binder (D-028) · DB `CHECK` on attempt body length (the backstop lives at the entity as `@Size(max = 100000)`; a loose `CHECK` owes a migration only if non-JPA writers ever appear — D-034).
 
 Full sprint briefs live in PRACTIQ_MASTER.md (the planning doc, kept outside the repo). If a sprint brief is pasted, it governs the session's scope.

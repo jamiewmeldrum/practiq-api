@@ -3,7 +3,6 @@ package com.practiq.dto.response;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.model.Page;
 import io.micronaut.serde.annotation.Serdeable;
-
 import java.util.List;
 
 // Envelope for paginated collections. Carries the paging contract alongside the rows so clients can

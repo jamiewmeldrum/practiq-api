@@ -1,5 +1,11 @@
 package com.practiq.controller;
 
+import static io.micronaut.http.HttpStatus.*;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
+import static org.mockito.Mockito.*;
+import static utils.TestReflection.setField;
+
 import com.practiq.domain.Concept;
 import com.practiq.repository.ConceptRepository;
 import io.micronaut.runtime.server.EmbeddedServer;
@@ -7,19 +13,12 @@ import io.micronaut.test.annotation.MockBean;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import utils.ComponentTest;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-
-import static io.micronaut.http.HttpStatus.*;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
-import static org.mockito.Mockito.*;
-import static utils.TestReflection.setField;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import utils.ComponentTest;
 
 @ComponentTest
 class ConceptControllerCT {
@@ -62,20 +61,23 @@ class ConceptControllerCT {
 
         when(conceptRepository.listOrderByCreatedAtAsc()).thenReturn(List.of(diffraction, acceleration));
 
-        given()
-            .when()
-            .get(CONCEPTS_PATH)
-            .then()
-            .statusCode(OK.getCode())
-            .contentType(ContentType.JSON)
-            .body("name", containsInAnyOrder(diffractionName, accelerationName))
-            .body("[0].keySet()", containsInAnyOrder("id", "name", "description", "createdAt"))
-            .body("find { it.name == '" + diffractionName + "' }.id", equalTo((int) diffractionId))
-            .body("find { it.name == '" + diffractionName + "' }.description", equalTo(diffractionDescription))
-            .body("find { it.name == '" + diffractionName + "' }.createdAt", equalTo(diffractionCreatedAt.toString()))
-            .body("find { it.name == '" + accelerationName + "' }.description", equalTo(accelerationDescription))
-            .body("find { it.name == '" + accelerationName + "' }.createdAt", equalTo(accelerationCreatedAt.toString()))
-            .body("find { it.name == '" + accelerationName + "' }.id", equalTo((int) accelerationId));
+        given().when()
+                .get(CONCEPTS_PATH)
+                .then()
+                .statusCode(OK.getCode())
+                .contentType(ContentType.JSON)
+                .body("name", containsInAnyOrder(diffractionName, accelerationName))
+                .body("[0].keySet()", containsInAnyOrder("id", "name", "description", "createdAt"))
+                .body("find { it.name == '" + diffractionName + "' }.id", equalTo((int) diffractionId))
+                .body("find { it.name == '" + diffractionName + "' }.description", equalTo(diffractionDescription))
+                .body(
+                        "find { it.name == '" + diffractionName + "' }.createdAt",
+                        equalTo(diffractionCreatedAt.toString()))
+                .body("find { it.name == '" + accelerationName + "' }.description", equalTo(accelerationDescription))
+                .body(
+                        "find { it.name == '" + accelerationName + "' }.createdAt",
+                        equalTo(accelerationCreatedAt.toString()))
+                .body("find { it.name == '" + accelerationName + "' }.id", equalTo((int) accelerationId));
 
         verify(conceptRepository).listOrderByCreatedAtAsc();
     }
@@ -84,13 +86,12 @@ class ConceptControllerCT {
     void getConceptsReturnsEmptyArrayWhenRepositoryEmpty() {
         when(conceptRepository.listOrderByCreatedAtAsc()).thenReturn(List.of());
 
-        given()
-            .when()
-            .get(CONCEPTS_PATH)
-            .then()
-            .statusCode(OK.getCode())
-            .contentType(ContentType.JSON)
-            .body("$", empty());
+        given().when()
+                .get(CONCEPTS_PATH)
+                .then()
+                .statusCode(OK.getCode())
+                .contentType(ContentType.JSON)
+                .body("$", empty());
 
         verify(conceptRepository).listOrderByCreatedAtAsc();
     }
@@ -107,8 +108,7 @@ class ConceptControllerCT {
 
         when(conceptRepository.findById(id)).thenReturn(Optional.of(concept));
 
-        given()
-                .when()
+        given().when()
                 .get(CONCEPTS_PATH + "/" + id)
                 .then()
                 .statusCode(OK.getCode())
@@ -129,8 +129,7 @@ class ConceptControllerCT {
         when(conceptRepository.findById(id)).thenReturn(Optional.empty());
 
         String path = CONCEPTS_PATH + "/" + id;
-        given()
-                .when()
+        given().when()
                 .get(path)
                 .then()
                 .statusCode(NOT_FOUND.getCode())
@@ -145,8 +144,7 @@ class ConceptControllerCT {
     @Test
     void getConceptByIdReturnsEnvelopeForIdNotBeingNaturalNumber() {
         String path = CONCEPTS_PATH + "/BAD";
-        given()
-                .when()
+        given().when()
                 .get(path)
                 .then()
                 .statusCode(BAD_REQUEST.getCode())

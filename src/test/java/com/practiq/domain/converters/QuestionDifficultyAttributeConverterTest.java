@@ -1,9 +1,9 @@
 package com.practiq.domain.converters;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.practiq.domain.types.QuestionDifficulty;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class QuestionDifficultyAttributeConverterTest {
 
@@ -36,10 +36,8 @@ class QuestionDifficultyAttributeConverterTest {
     @Test
     void convertToEntityAttributeRejectsOutOfRangeValues() {
         for (int value : OUT_OF_RANGE_VALUES) {
-            IllegalArgumentException exception = assertThrows(
-                    IllegalArgumentException.class,
-                    () -> converter.convertToEntityAttribute(value)
-            );
+            IllegalArgumentException exception =
+                    assertThrows(IllegalArgumentException.class, () -> converter.convertToEntityAttribute(value));
             assertEquals("Unknown difficulty: " + value, exception.getMessage());
         }
     }

@@ -1,5 +1,10 @@
 package performance;
 
+import static io.micronaut.http.HttpStatus.OK;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
 import jakarta.inject.Inject;
@@ -9,11 +14,6 @@ import org.junit.jupiter.api.Test;
 import utils.PerformanceTest;
 import utils.StatementCounter;
 import utils.data.QuestionTestData;
-
-import static io.micronaut.http.HttpStatus.OK;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
 
 // Pins the JDBC statement count for serving a single concept by id.
 @PerformanceTest
@@ -50,8 +50,8 @@ public class ConceptByIdPT {
         data.concept(conceptId).insert();
         data.concept(8L).insert();
 
-        long count = statements.countDuring(() ->
-                given().when().get(CONCEPTS_PATH + "/" + conceptId).then().statusCode(OK.getCode()));
+        long count = statements.countDuring(
+                () -> given().when().get(CONCEPTS_PATH + "/" + conceptId).then().statusCode(OK.getCode()));
 
         assertThat(count, equalTo(EXPECTED_STATEMENTS));
     }

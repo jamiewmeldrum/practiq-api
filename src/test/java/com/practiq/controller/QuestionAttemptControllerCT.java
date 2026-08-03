@@ -1,5 +1,15 @@
 package com.practiq.controller;
 
+import static io.micronaut.http.HttpStatus.*;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+import static utils.TestReflection.assertAllFieldsSet;
+import static utils.TestReflection.setField;
+import static utils.data.TestData.SESSION_TOKEN_HEADER;
+
 import com.practiq.domain.QuestionAttempt;
 import com.practiq.domain.query.attempt.QuestionAttemptQuery;
 import com.practiq.domain.query.attempt.QuestionAttemptQueryRunner;
@@ -17,26 +27,15 @@ import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.http.Header;
 import jakarta.inject.Inject;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import utils.ComponentTest;
-
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static io.micronaut.http.HttpStatus.*;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-import static utils.TestReflection.assertAllFieldsSet;
-import static utils.TestReflection.setField;
-import static utils.data.TestData.SESSION_TOKEN_HEADER;
 
 @ComponentTest
 public class QuestionAttemptControllerCT {
@@ -77,9 +76,7 @@ public class QuestionAttemptControllerCT {
 
     @MockBean(QuestionAttemptService.class)
     QuestionAttemptService questionAttemptService(
-            StudentQuestionQueryRunner questionQueryRunner,
-            QuestionAttemptQueryRunner questionAttemptQueryRunner
-    ) {
+            StudentQuestionQueryRunner questionQueryRunner, QuestionAttemptQueryRunner questionAttemptQueryRunner) {
         return spy(new QuestionAttemptService(questionQueryRunner, questionAttemptQueryRunner));
     }
 
@@ -91,8 +88,7 @@ public class QuestionAttemptControllerCT {
     @Test
     void getQuestionAttemptsReturns400IfNoSessionToken() {
         String path = QUESTION_ATTEMPTS_PATH.formatted(9L);
-        given()
-                .when()
+        given().when()
                 .get(path)
                 .then()
                 .statusCode(BAD_REQUEST.getCode())
@@ -105,9 +101,8 @@ public class QuestionAttemptControllerCT {
     void getQuestionAttemptsReturnsUnprocessableEntityIfSessionTokenBlank() {
         String path = QUESTION_ATTEMPTS_PATH.formatted(1L);
 
-        //Empty
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,""))
+        // Empty
+        given().header(new Header(SESSION_TOKEN_HEADER, ""))
                 .when()
                 .get(path)
                 .then()
@@ -117,9 +112,8 @@ public class QuestionAttemptControllerCT {
                 .body("error", equalTo("sessionToken: must not be blank"))
                 .body("status", equalTo(422));
 
-        //Blank
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,"   "))
+        // Blank
+        given().header(new Header(SESSION_TOKEN_HEADER, "   "))
                 .when()
                 .get(path)
                 .then()
@@ -135,8 +129,7 @@ public class QuestionAttemptControllerCT {
         String questionId = "error";
         String sessionToken = "test";
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        given().header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -154,8 +147,7 @@ public class QuestionAttemptControllerCT {
         when(questionRepository.exists(any(QuerySpecification.class))).thenReturn(false);
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,"test"))
+        given().header(new Header(SESSION_TOKEN_HEADER, "test"))
                 .when()
                 .get(path)
                 .then()
@@ -173,12 +165,12 @@ public class QuestionAttemptControllerCT {
         String sessionToken = "test";
 
         when(questionRepository.exists(any(QuerySpecification.class))).thenReturn(true);
-        when(questionAttemptRepository.findAll(any(QuerySpecification.class), eq(STABLE_ORDER))).thenReturn(List.of());
+        when(questionAttemptRepository.findAll(any(QuerySpecification.class), eq(STABLE_ORDER)))
+                .thenReturn(List.of());
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
 
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        given().header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -213,18 +205,15 @@ public class QuestionAttemptControllerCT {
         setField(attempt2, "createdAt", createdAt2);
         setField(attempt2, "id", attemptId2);
 
-        List<QuestionAttempt> attempts = List.of(
-                attempt1,
-                attempt2
-        );
+        List<QuestionAttempt> attempts = List.of(attempt1, attempt2);
 
         when(questionRepository.exists(any(QuerySpecification.class))).thenReturn(true);
-        when(questionAttemptRepository.findAll(any(QuerySpecification.class), eq(STABLE_ORDER))).thenReturn(attempts);
+        when(questionAttemptRepository.findAll(any(QuerySpecification.class), eq(STABLE_ORDER)))
+                .thenReturn(attempts);
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
 
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        given().header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -254,8 +243,7 @@ public class QuestionAttemptControllerCT {
         requestBody.put("body", attemptBody);
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(9L);
-        given()
-                .contentType(ContentType.JSON)
+        given().contentType(ContentType.JSON)
                 .when()
                 .body(requestBody)
                 .post(path)
@@ -277,10 +265,9 @@ public class QuestionAttemptControllerCT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(1L);
 
-        //Empty
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,""))
+        // Empty
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, ""))
                 .when()
                 .body(requestBody)
                 .post(path)
@@ -291,10 +278,9 @@ public class QuestionAttemptControllerCT {
                 .body("error", equalTo("sessionToken: must not be blank"))
                 .body("status", equalTo(422));
 
-        //Blank
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,"   "))
+        // Blank
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, "   "))
                 .when()
                 .body(requestBody)
                 .post(path)
@@ -319,9 +305,8 @@ public class QuestionAttemptControllerCT {
         requestBody.put("body", attemptBody);
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .body(requestBody)
                 .post(path)
@@ -342,10 +327,9 @@ public class QuestionAttemptControllerCT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(1L);
 
-        //Empty
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        // Empty
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .body(Map.of("body", ""))
                 .post(path)
@@ -356,10 +340,9 @@ public class QuestionAttemptControllerCT {
                 .body("error", equalTo("body: must not be blank"))
                 .body("status", equalTo(422));
 
-        //Blank
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        // Blank
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .body(Map.of("body", "   "))
                 .post(path)
@@ -380,9 +363,8 @@ public class QuestionAttemptControllerCT {
         String path = QUESTION_ATTEMPTS_PATH.formatted(1L);
         String body = RandomStringUtils.insecure().nextAlphanumeric(20001);
 
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .body(Map.of("body", body))
                 .post(path)
@@ -403,9 +385,8 @@ public class QuestionAttemptControllerCT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(1L);
 
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .body("")
                 .post(path)
@@ -442,9 +423,8 @@ public class QuestionAttemptControllerCT {
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
 
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .body(requestBody)
                 .post(path)
@@ -460,8 +440,10 @@ public class QuestionAttemptControllerCT {
         verify(questionRepository).exists(any(QuerySpecification.class));
         verify(questionAttemptRepository).save(attemptToSave);
 
-        //Tripwire to ensure all fields on the incoming request are actually set. Mostly to make sure we don't accidentally
-        //break this happy path test by not providing future request fields that could be empty (at least in the catch all case).
+        // Tripwire to ensure all fields on the incoming request are actually set. Mostly to make sure we don't
+        // accidentally
+        // break this happy path test by not providing future request fields that could be empty (at least in the catch
+        // all case).
         ArgumentCaptor<QuestionAttemptRequest> captor = ArgumentCaptor.forClass(QuestionAttemptRequest.class);
         verify(questionAttemptService).postForQuestionId(eq(sessionToken), captor.capture(), eq(questionId));
         QuestionAttemptRequest actual = captor.getValue();

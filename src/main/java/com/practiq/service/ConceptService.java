@@ -4,11 +4,10 @@ import com.practiq.dto.mapper.ConceptResponseMapper;
 import com.practiq.dto.response.ConceptResponse;
 import com.practiq.repository.ConceptRepository;
 import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Singleton

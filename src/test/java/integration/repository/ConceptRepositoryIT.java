@@ -1,22 +1,21 @@
 package integration.repository;
 
-import com.practiq.domain.Concept;
-import com.practiq.repository.ConceptRepository;
-import jakarta.inject.Inject;
-import jakarta.persistence.OptimisticLockException;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import utils.IntegrationTest;
-import utils.data.QuestionTestData;
-
-import java.time.OffsetDateTime;
-import java.util.List;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.TestReflection.setField;
+
+import com.practiq.domain.Concept;
+import com.practiq.repository.ConceptRepository;
+import jakarta.inject.Inject;
+import jakarta.persistence.OptimisticLockException;
+import java.time.OffsetDateTime;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import utils.IntegrationTest;
+import utils.data.QuestionTestData;
 
 @IntegrationTest
 public class ConceptRepositoryIT {
@@ -40,17 +39,9 @@ public class ConceptRepositoryIT {
         OffsetDateTime earlier = OffsetDateTime.parse("2026-01-01T00:00:00Z");
         OffsetDateTime later = OffsetDateTime.parse("2026-01-02T00:00:00Z");
 
-        data.concept()
-                .name("Later")
-                .description("d")
-                .createdAt(later)
-                .insert();
+        data.concept().name("Later").description("d").createdAt(later).insert();
 
-        data.concept()
-                .name("Earlier")
-                .description("d")
-                .createdAt(earlier)
-                .insert();
+        data.concept().name("Earlier").description("d").createdAt(earlier).insert();
 
         List<Concept> concepts = conceptRepository.listOrderByCreatedAtAsc();
 

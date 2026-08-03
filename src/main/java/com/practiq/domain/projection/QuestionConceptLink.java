@@ -7,5 +7,4 @@ import io.micronaut.core.annotation.Introspected;
 // question/concept associations. A dedicated projection is required because Micronaut Data can't map a
 // selected @EmbeddedId (SELECT qc.id) back to QuestionConceptId — it NPEs in its tuple collector.
 @Introspected
-public record QuestionConceptLink(long questionId, long conceptId) {
-}
+public record QuestionConceptLink(long questionId, long conceptId) {}

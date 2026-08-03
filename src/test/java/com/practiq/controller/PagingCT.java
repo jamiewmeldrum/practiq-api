@@ -1,5 +1,12 @@
 package com.practiq.controller;
 
+import static io.micronaut.http.HttpStatus.OK;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.practiq.repository.QuestionRepository;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -8,19 +15,11 @@ import io.micronaut.runtime.server.EmbeddedServer;
 import io.micronaut.test.annotation.MockBean;
 import io.restassured.RestAssured;
 import jakarta.inject.Inject;
+import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import utils.ComponentTest;
-
-import java.util.Collections;
-
-import static io.micronaut.http.HttpStatus.OK;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * A little bit hacky, but necessary.
@@ -57,8 +56,7 @@ public class PagingCT {
 
         // micronaut.data.pageable.max-page-size=50: an oversized request is capped, not rejected. The
         // envelope's size field is the requested-size echo, so the cap is observable on the wire.
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "?size=500")
                 .then()
                 .statusCode(OK.getCode())
@@ -69,8 +67,7 @@ public class PagingCT {
     void getQuestionsClampsNegativePageToZero() {
         stubRepositoryToEchoThePageable();
 
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "?page=-1")
                 .then()
                 .statusCode(OK.getCode())
@@ -85,9 +82,8 @@ public class PagingCT {
         // fall back to the defaults (page 0, size 10) rather than producing a 400. Pinned so a framework
         // upgrade changing this surfaces here — note the contrast with filter params (conceptId=abc is a
         // 400), which is a known inconsistency of the binder, not of our handlers.
-        for (String query : new String[]{"?size=0", "?size=-5", "?size=abc", "?page=abc"}) {
-            given()
-                    .when()
+        for (String query : new String[] {"?size=0", "?size=-5", "?size=abc", "?page=abc"}) {
+            given().when()
                     .get(QUESTIONS_PATH + query)
                     .then()
                     .statusCode(OK.getCode())
@@ -102,8 +98,7 @@ public class PagingCT {
 
         // Paging past the end is not an error: the envelope echoes the requested position with no rows,
         // which is what lets a client walk pages without a priori knowledge of the total.
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "?page=999")
                 .then()
                 .statusCode(OK.getCode())

@@ -1,5 +1,13 @@
 package com.practiq.service;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static utils.TestReflection.setField;
+
 import com.practiq.domain.Question;
 import com.practiq.domain.projection.LinkedQuestion;
 import com.practiq.domain.projection.QuestionConceptLink;
@@ -13,24 +21,15 @@ import com.practiq.dto.response.PageResponse;
 import com.practiq.dto.response.QuestionResponse;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static utils.TestReflection.setField;
 
 @ExtendWith(MockitoExtension.class)
 class QuestionServiceTest {
@@ -63,15 +62,14 @@ class QuestionServiceTest {
         QuestionType type = QuestionType.SHORT_ANSWER;
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
-        Question question = new Question(
-                body, difficulty, type, QuestionSource.SEED, QuestionStatus.APPROVED, "AQA GCSE Physics");
+        Question question =
+                new Question(body, difficulty, type, QuestionSource.SEED, QuestionStatus.APPROVED, "AQA GCSE Physics");
         setField(question, "id", questionId);
         setField(question, "createdAt", createdAt);
         LinkedQuestion linkedQuestion =
                 new LinkedQuestion(question, Set.of(new QuestionConceptLink(questionId, conceptId)));
 
-        when(questionQueryRunner.findQuestionById(questionId))
-                .thenReturn(Optional.of(linkedQuestion));
+        when(questionQueryRunner.findQuestionById(questionId)).thenReturn(Optional.of(linkedQuestion));
 
         Optional<QuestionResponse> response = questionService.get(questionId);
 
@@ -95,8 +93,7 @@ class QuestionServiceTest {
         long questionId = 7L;
         String body = "Explain what is meant by diffraction.";
 
-        Question question = new Question(
-                body, null, null, QuestionSource.SEED, QuestionStatus.APPROVED, null);
+        Question question = new Question(body, null, null, QuestionSource.SEED, QuestionStatus.APPROVED, null);
         setField(question, "id", questionId);
         LinkedQuestion linkedQuestion = new LinkedQuestion(question, Set.of());
 
@@ -105,11 +102,7 @@ class QuestionServiceTest {
         List<QuestionType> types = List.of(QuestionType.MCQ);
         List<QuestionDifficulty> difficulties = List.of(QuestionDifficulty.HARD);
         long conceptId = 3L;
-        QuestionRequest request = new QuestionRequest(
-                types,
-                difficulties,
-                conceptId
-        );
+        QuestionRequest request = new QuestionRequest(types, difficulties, conceptId);
 
         Pageable requested = Pageable.from(2, 5);
 

@@ -1,15 +1,14 @@
 package com.practiq.dto.converter;
 
-import com.practiq.domain.types.QuestionDifficulty;
-import io.micronaut.core.convert.ConversionContext;
-import org.junit.jupiter.api.Test;
-
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+
+import com.practiq.domain.types.QuestionDifficulty;
+import io.micronaut.core.convert.ConversionContext;
+import java.util.Optional;
+import org.junit.jupiter.api.Test;
 
 class QuestionDifficultyTypeConverterTest {
 

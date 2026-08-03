@@ -2,13 +2,12 @@ package utils.data;
 
 import io.micronaut.jdbc.DataSourceResolver;
 import jakarta.inject.Singleton;
-
-import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import javax.sql.DataSource;
 
 /**
  * Raw-JDBC test data helper for integration tests. Inserts and clears rows with hand-written
@@ -40,11 +39,9 @@ public class TestDatabase {
     public List<DBRow> selectAll(String table) {
         String sql = "SELECT * FROM " + table;
 
-        try (
-                Connection connection = dataSource.getConnection();
+        try (Connection connection = dataSource.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql);
-                ResultSet resultSet = statement.executeQuery()
-        ) {
+                ResultSet resultSet = statement.executeQuery()) {
             List<DBRow> DBRows = new ArrayList<>();
 
             while (resultSet.next()) {
@@ -53,10 +50,7 @@ public class TestDatabase {
 
             return DBRows;
         } catch (SQLException e) {
-            throw new IllegalStateException(
-                    "Failed to select from " + table,
-                    e
-            );
+            throw new IllegalStateException("Failed to select from " + table, e);
         }
     }
 
@@ -78,7 +72,8 @@ public class TestDatabase {
         String sql = "INSERT INTO " + table + " (" + String.join(", ", names) + ") OVERRIDING SYSTEM VALUE VALUES ("
                 + String.join(", ", Collections.nCopies(names.size(), "?")) + ")";
 
-        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
             connection.setAutoCommit(true);
             for (int i = 0; i < values.size(); i++) {
                 statement.setObject(i + 1, values.get(i));
@@ -93,13 +88,15 @@ public class TestDatabase {
      * Updates a single row. Must specify table name and id for unique identification
      */
     public void update(String table, long id, String column, Object value) {
-        String sql = """
+        String sql =
+                """
         UPDATE %s
         SET %s = ?
         WHERE id = ?;
         """.formatted(table, column);
 
-        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
             connection.setAutoCommit(true);
             statement.setObject(1, value);
             statement.setLong(2, id);
@@ -116,7 +113,8 @@ public class TestDatabase {
         WHERE id = ?;
         """.formatted(table);
 
-        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
             connection.setAutoCommit(true);
             statement.setLong(1, id);
             statement.executeUpdate();
@@ -144,7 +142,7 @@ public class TestDatabase {
     public void clear(String table) {
         String sql = "TRUNCATE TABLE " + table + " RESTART IDENTITY CASCADE";
         try (Connection connection = dataSource.getConnection();
-             Statement statement = connection.createStatement()) {
+                Statement statement = connection.createStatement()) {
             connection.setAutoCommit(true);
             statement.executeUpdate(sql);
         } catch (SQLException e) {

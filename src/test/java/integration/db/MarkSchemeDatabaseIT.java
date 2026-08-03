@@ -1,19 +1,18 @@
 package integration.db;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static utils.data.TestDatabase.*;
+
 import jakarta.inject.Inject;
+import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.DBRow;
 import utils.data.QuestionTestData;
-
-import java.time.Instant;
-import java.util.List;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static utils.data.TestDatabase.*;
 
 @IntegrationTest
 public class MarkSchemeDatabaseIT {
@@ -40,10 +39,7 @@ public class MarkSchemeDatabaseIT {
         markScheme.assertThat("question_id", equalTo(questionId));
         markScheme.assertThat("version", equalTo(0));
         markScheme.assertThat("body", equalTo(body));
-        markScheme.assertThat("created_at", allOf(
-                greaterThan(Instant.EPOCH),
-                lessThanOrEqualTo(Instant.now())
-        ));
+        markScheme.assertThat("created_at", allOf(greaterThan(Instant.EPOCH), lessThanOrEqualTo(Instant.now())));
         markScheme.assertAllColumnsChecked();
     }
 
@@ -53,7 +49,7 @@ public class MarkSchemeDatabaseIT {
         data.question(questionId).insert();
         data.markScheme(questionId, "body").insert();
 
-        //Add another question and attempt
+        // Add another question and attempt
         long otherQuestionId = 2L;
         data.question(otherQuestionId).insert();
         data.markScheme(otherQuestionId, "body").insert();
@@ -79,8 +75,8 @@ public class MarkSchemeDatabaseIT {
 
     @Test
     void ensureThatQuestionMustExist() {
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.markScheme(1L, "body").insert());
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class, () -> data.markScheme(1L, "body").insert());
 
         assertThat(sqlStateOf(thrown), equalTo(FOREIGN_KEY_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("question_id"));
@@ -92,16 +88,18 @@ public class MarkSchemeDatabaseIT {
         data.question(questionId).insert();
 
         data.markScheme().questionId(questionId).body("body").insert();
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.markScheme(questionId, "body").insert());
+        IllegalStateException thrown =
+                assertThrows(IllegalStateException.class, () -> data.markScheme(questionId, "body")
+                        .insert());
 
         assertThat(sqlStateOf(thrown), equalTo(UNIQUE_VIOLATION));
     }
 
     @Test
     void ensureThatQuestionIdMustBeSet() {
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.markScheme().body("Test").insert());
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class,
+                () -> data.markScheme().body("Test").insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"question_id\""));
@@ -111,8 +109,9 @@ public class MarkSchemeDatabaseIT {
     void ensureThatBodyMustBeSet() {
         long questionId = 1L;
         data.question(questionId).insert();
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.markScheme().questionId(1L).insert());
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class,
+                () -> data.markScheme().questionId(1L).insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"body\""));

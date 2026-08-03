@@ -1,10 +1,9 @@
 package com.practiq.domain;
 
 import jakarta.persistence.Embeddable;
+import java.io.Serializable;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-
-import java.io.Serializable;
 
 @Embeddable
 @Getter

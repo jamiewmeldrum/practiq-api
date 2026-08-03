@@ -1,15 +1,14 @@
 package com.practiq.dto.mapper;
 
-import com.practiq.domain.MarkScheme;
-import com.practiq.dto.response.MarkSchemeResponse;
-import org.junit.jupiter.api.Test;
-
-import java.time.Instant;
-
 import static com.practiq.dto.mapper.MarkSchemeResponseMapper.toMarkSchemeResponse;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static utils.TestReflection.setField;
+
+import com.practiq.domain.MarkScheme;
+import com.practiq.dto.response.MarkSchemeResponse;
+import java.time.Instant;
+import org.junit.jupiter.api.Test;
 
 class MarkSchemeResponseMapperTest {
 

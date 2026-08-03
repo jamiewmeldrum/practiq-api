@@ -7,6 +7,5 @@ public final class HttpConstants {
 
     public static final String SESSION_TOKEN_HEADER = "X-Session-Token";
 
-    private HttpConstants() {
-    }
+    private HttpConstants() {}
 }

@@ -1,5 +1,13 @@
 package com.practiq.domain.query;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
@@ -9,14 +17,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import utils.CriteriaProbe;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 // SessionTokenRestriction is a reusable component — any factory whose entity carries a session token can
 // declare it — so its contract is pinned here, entity-independent (synthetic TestEntity, mocked attribute),
 // rather than only through whichever factories currently use it. The spec's calls on the mocked criteria
@@ -25,8 +25,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class SessionTokenRestrictionTest {
 
-    private static final class TestEntity {
-    }
+    private static final class TestEntity {}
 
     @Test
     void restrictRejectsANullSessionToken() {

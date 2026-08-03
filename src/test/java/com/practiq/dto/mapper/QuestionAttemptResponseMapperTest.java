@@ -1,15 +1,14 @@
 package com.practiq.dto.mapper;
 
-import com.practiq.domain.QuestionAttempt;
-import com.practiq.dto.response.QuestionAttemptResponse;
-import org.junit.jupiter.api.Test;
-
-import java.time.Instant;
-
 import static com.practiq.dto.mapper.QuestionAttemptResponseMapper.toQuestionAttemptResponse;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static utils.TestReflection.setField;
+
+import com.practiq.domain.QuestionAttempt;
+import com.practiq.dto.response.QuestionAttemptResponse;
+import java.time.Instant;
+import org.junit.jupiter.api.Test;
 
 class QuestionAttemptResponseMapperTest {
 
@@ -21,7 +20,7 @@ class QuestionAttemptResponseMapperTest {
         long attemptId = 10L;
         String attemptBody = "attempt";
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
-        QuestionAttempt attempt =  new QuestionAttempt(questionId, sessionToken, attemptBody);
+        QuestionAttempt attempt = new QuestionAttempt(questionId, sessionToken, attemptBody);
         setField(attempt, "id", attemptId);
         setField(attempt, "createdAt", createdAt);
 
@@ -32,5 +31,4 @@ class QuestionAttemptResponseMapperTest {
         assertThat(attemptResponse.getBody(), equalTo(attemptBody));
         assertThat(attemptResponse.getCreatedAt(), equalTo(createdAt));
     }
-
 }

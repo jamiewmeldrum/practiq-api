@@ -13,7 +13,7 @@ public enum QuestionDifficulty {
         this.value = value;
     }
 
-    public int value(){
+    public int value() {
         return this.value;
     }
 

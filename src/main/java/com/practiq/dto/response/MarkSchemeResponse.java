@@ -1,10 +1,9 @@
 package com.practiq.dto.response;
 
 import io.micronaut.serde.annotation.Serdeable;
+import java.time.Instant;
 import lombok.Getter;
 import lombok.ToString;
-
-import java.time.Instant;
 
 @Serdeable
 @Getter
@@ -16,12 +15,7 @@ public class MarkSchemeResponse {
     private final String body;
     private final Instant createdAt;
 
-    public MarkSchemeResponse(
-            long id,
-            long questionId,
-            String body,
-            Instant createdAt
-    ) {
+    public MarkSchemeResponse(long id, long questionId, String body, Instant createdAt) {
         this.id = id;
         this.questionId = questionId;
         this.body = body;

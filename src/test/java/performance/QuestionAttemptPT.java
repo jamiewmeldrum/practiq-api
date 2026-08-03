@@ -1,5 +1,11 @@
 package performance;
 
+import static io.micronaut.http.HttpStatus.OK;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static utils.data.TestData.SESSION_TOKEN_HEADER;
+
 import com.practiq.domain.types.QuestionStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
@@ -11,12 +17,6 @@ import org.junit.jupiter.api.Test;
 import utils.PerformanceTest;
 import utils.StatementCounter;
 import utils.data.QuestionTestData;
-
-import static io.micronaut.http.HttpStatus.OK;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static utils.data.TestData.SESSION_TOKEN_HEADER;
 
 // Pins the JDBC statement count for serving a session's question attempts — a row-scaling path. Beyond the
 // fixed happy-path count it asserts the count does NOT grow with the number of attempts, which is the
@@ -59,13 +59,11 @@ public class QuestionAttemptPT {
         data.questionAttempt(questionId, sessionToken, "attempt 1").insert();
         data.questionAttempt(questionId, sessionToken, "attempt 2").insert();
 
-        long count = statements.countDuring(() ->
-                given()
-                        .header(new Header(SESSION_TOKEN_HEADER, sessionToken))
-                        .when()
-                        .get(QUESTION_ATTEMPTS_PATH.formatted(questionId))
-                        .then()
-                        .statusCode(OK.getCode()));
+        long count = statements.countDuring(() -> given().header(new Header(SESSION_TOKEN_HEADER, sessionToken))
+                .when()
+                .get(QUESTION_ATTEMPTS_PATH.formatted(questionId))
+                .then()
+                .statusCode(OK.getCode()));
 
         assertThat(count, equalTo(EXPECTED_STATEMENTS));
     }
@@ -82,26 +80,22 @@ public class QuestionAttemptPT {
         data.questionAttempt(questionId, sessionToken, "attempt 1").insert();
         data.questionAttempt(questionId, sessionToken, "attempt 2").insert();
 
-        long fewer = statements.countDuring(() ->
-                given()
-                        .header(new Header(SESSION_TOKEN_HEADER, sessionToken))
-                        .when()
-                        .get(QUESTION_ATTEMPTS_PATH.formatted(questionId))
-                        .then()
-                        .statusCode(OK.getCode()));
+        long fewer = statements.countDuring(() -> given().header(new Header(SESSION_TOKEN_HEADER, sessionToken))
+                .when()
+                .get(QUESTION_ATTEMPTS_PATH.formatted(questionId))
+                .then()
+                .statusCode(OK.getCode()));
 
         data.questionAttempt(questionId, sessionToken, "attempt 3").insert();
         data.questionAttempt(questionId, sessionToken, "attempt 4").insert();
         data.questionAttempt(questionId, sessionToken, "attempt 5").insert();
         data.questionAttempt(questionId, sessionToken, "attempt 6").insert();
 
-        long more = statements.countDuring(() ->
-                given()
-                        .header(new Header(SESSION_TOKEN_HEADER, sessionToken))
-                        .when()
-                        .get(QUESTION_ATTEMPTS_PATH.formatted(questionId))
-                        .then()
-                        .statusCode(OK.getCode()));
+        long more = statements.countDuring(() -> given().header(new Header(SESSION_TOKEN_HEADER, sessionToken))
+                .when()
+                .get(QUESTION_ATTEMPTS_PATH.formatted(questionId))
+                .then()
+                .statusCode(OK.getCode()));
 
         // The count is a property of the query plan, not the row count: more attempts, same statements.
         assertThat(more, equalTo(fewer));

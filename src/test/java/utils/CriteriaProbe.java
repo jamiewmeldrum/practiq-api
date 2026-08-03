@@ -1,12 +1,12 @@
 package utils;
 
+import static org.mockito.Mockito.mock;
+
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
-
-import static org.mockito.Mockito.mock;
 
 // A mocked criteria environment for unit-testing a QuerySpecification without a database. A specification is
 // an opaque lambda whose only observable surface is toPredicate, so its behaviour becomes visible exactly

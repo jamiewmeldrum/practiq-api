@@ -1,7 +1,6 @@
 package utils.data;
 
 import jakarta.inject.Singleton;
-
 import java.util.List;
 
 @Singleton

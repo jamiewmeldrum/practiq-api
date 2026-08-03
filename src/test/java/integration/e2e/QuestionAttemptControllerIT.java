@@ -1,5 +1,11 @@
 package integration.e2e;
 
+import static io.micronaut.http.HttpStatus.*;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static utils.data.TestData.SESSION_TOKEN_HEADER;
+
 import com.practiq.domain.types.QuestionStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
@@ -7,22 +13,15 @@ import io.restassured.http.ContentType;
 import io.restassured.http.Header;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
+import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.DBRow;
 import utils.data.QuestionTestData;
-
-import java.time.OffsetDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static io.micronaut.http.HttpStatus.*;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static utils.data.TestData.SESSION_TOKEN_HEADER;
 
 @IntegrationTest
 public class QuestionAttemptControllerIT {
@@ -60,8 +59,7 @@ public class QuestionAttemptControllerIT {
         data.questionAttempt(question3Id, "session token", "body").insert();
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(9L);
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,"test"))
+        given().header(new Header(SESSION_TOKEN_HEADER, "test"))
                 .when()
                 .get(path)
                 .then()
@@ -81,8 +79,7 @@ public class QuestionAttemptControllerIT {
         data.questionAttempt(questionId, "session token", "body").insert();
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,"test"))
+        given().header(new Header(SESSION_TOKEN_HEADER, "test"))
                 .when()
                 .get(path)
                 .then()
@@ -103,8 +100,7 @@ public class QuestionAttemptControllerIT {
         data.questionAttempt(questionId, "session token", "body").insert();
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,"test"))
+        given().header(new Header(SESSION_TOKEN_HEADER, "test"))
                 .when()
                 .get(path)
                 .then()
@@ -132,8 +128,7 @@ public class QuestionAttemptControllerIT {
         data.questionAttempt(question2Id, sessionToken, "body").insert();
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(question1Id);
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        given().header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -168,8 +163,7 @@ public class QuestionAttemptControllerIT {
         data.questionAttempt(question2Id, "not matching token", attemptBody3).insert();
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(question2Id);
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        given().header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -200,8 +194,7 @@ public class QuestionAttemptControllerIT {
         data.questionAttempt(questionId, sessionToken, attemptBody3).insert();
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
-        Response response = given()
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        Response response = given().header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -213,11 +206,10 @@ public class QuestionAttemptControllerIT {
 
         long secondId = ((Number) response.path("[1].id")).longValue();
 
-        //Now reorder and re check for created order
+        // Now reorder and re check for created order
         OffsetDateTime fixedNow = OffsetDateTime.now();
         data.updateQuestionAttempt(secondId, "created_at", fixedNow);
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        given().header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -225,11 +217,13 @@ public class QuestionAttemptControllerIT {
                 .contentType(ContentType.JSON)
                 .body("body", contains(attemptBody2, attemptBody3, attemptBody1));
 
-        //And for created at clashes
+        // And for created at clashes
         String attemptBody4 = "attempt 4";
-        data.questionAttempt(questionId, sessionToken, attemptBody4).id(secondId + 100).createdAt(fixedNow).insert();
-        given()
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        data.questionAttempt(questionId, sessionToken, attemptBody4)
+                .id(secondId + 100)
+                .createdAt(fixedNow)
+                .insert();
+        given().header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
                 .get(path)
                 .then()
@@ -259,9 +253,8 @@ public class QuestionAttemptControllerIT {
         assertThat(data.retrieveQuestionAttempts().size(), is(0));
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(9L);
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,"test"))
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, "test"))
                 .body(requestBody)
                 .when()
                 .post(path)
@@ -289,9 +282,8 @@ public class QuestionAttemptControllerIT {
         assertThat(data.retrieveQuestionAttempts().size(), is(1));
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,"test"))
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, "test"))
                 .body(requestBody)
                 .when()
                 .post(path)
@@ -320,9 +312,8 @@ public class QuestionAttemptControllerIT {
         assertThat(data.retrieveQuestionAttempts().size(), is(1));
 
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,"test"))
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, "test"))
                 .body(requestBody)
                 .when()
                 .post(path)
@@ -349,14 +340,13 @@ public class QuestionAttemptControllerIT {
         List<DBRow> questionAttemptsBeforePost = data.retrieveQuestionAttempts();
         assertThat(questionAttemptsBeforePost.size(), is(0));
 
-        //Test first post
+        // Test first post
         String attemptBody = "attempt 1";
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("body", attemptBody);
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .body(requestBody)
                 .when()
                 .post(path)
@@ -392,14 +382,13 @@ public class QuestionAttemptControllerIT {
         List<DBRow> questionAttemptsBeforePost = data.retrieveQuestionAttempts();
         assertThat(questionAttemptsBeforePost.size(), is(0));
 
-        //Test first post
+        // Test first post
         String attemptBody1 = "attempt 1";
         Map<String, Object> requestBody1 = new HashMap<>();
         requestBody1.put("body", attemptBody1);
         String path = QUESTION_ATTEMPTS_PATH.formatted(questionId);
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .body(requestBody1)
                 .when()
                 .post(path)
@@ -411,13 +400,12 @@ public class QuestionAttemptControllerIT {
         List<DBRow> questionAttemptsAfterFirstPost = data.retrieveQuestionAttempts();
         assertThat(questionAttemptsAfterFirstPost.size(), is(1));
 
-        //Test second post
+        // Test second post
         String attemptBody2 = "attempt 2";
         Map<String, Object> requestBody2 = new HashMap<>();
         requestBody2.put("body", attemptBody2);
-        given()
-                .contentType(ContentType.JSON)
-                .header(new Header(SESSION_TOKEN_HEADER,sessionToken))
+        given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .body(requestBody2)
                 .when()
                 .post(path)
@@ -428,6 +416,8 @@ public class QuestionAttemptControllerIT {
 
         List<DBRow> questionAttemptsAfterSecondPost = data.retrieveQuestionAttempts();
         assertThat(questionAttemptsAfterSecondPost.size(), is(2));
-        assertThat(DBRow.collectColumn(questionAttemptsAfterSecondPost, "body"), containsInAnyOrder(attemptBody1, attemptBody2));
+        assertThat(
+                DBRow.collectColumn(questionAttemptsAfterSecondPost, "body"),
+                containsInAnyOrder(attemptBody1, attemptBody2));
     }
 }

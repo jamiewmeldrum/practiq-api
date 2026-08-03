@@ -1,5 +1,11 @@
 package com.practiq.controller;
 
+import static io.micronaut.http.HttpStatus.*;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
+import static org.mockito.Mockito.*;
+import static utils.TestReflection.setField;
+
 import com.practiq.domain.MarkScheme;
 import com.practiq.repository.MarkSchemeRepository;
 import com.practiq.repository.QuestionConceptRepository;
@@ -10,19 +16,12 @@ import io.micronaut.test.annotation.MockBean;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
+import java.time.Instant;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import utils.ComponentTest;
-
-import java.time.Instant;
-import java.util.Optional;
-
-import static io.micronaut.http.HttpStatus.*;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
-import static org.mockito.Mockito.*;
-import static utils.TestReflection.setField;
 
 // Real web layer through to the real service, StudentQuestionQueryRunner, spec factory and mapper — only the
 // repositories (the persistence boundary) are mocked, so a single test exercises as much of the app as
@@ -85,8 +84,7 @@ public class MarkSchemeControllerCT {
         when(markSchemeRepository.findByQuestionId(questionId)).thenReturn(Optional.of(markScheme));
 
         String path = QUESTIONS_PATH + "/" + questionId + "/mark-scheme";
-        given()
-                .when()
+        given().when()
                 .get(path)
                 .then()
                 .statusCode(OK.getCode())
@@ -111,8 +109,7 @@ public class MarkSchemeControllerCT {
         when(questionRepository.exists(Mockito.any(QuerySpecification.class))).thenReturn(false);
 
         String path = QUESTIONS_PATH + "/" + questionId + "/mark-scheme";
-        given()
-                .when()
+        given().when()
                 .get(path)
                 .then()
                 .statusCode(NOT_FOUND.getCode())
@@ -128,8 +125,7 @@ public class MarkSchemeControllerCT {
     @Test
     void getMarkSchemeReturnsBadRequestIfQuestionIdNotNaturalNumber() {
         String path = QUESTIONS_PATH + "/error/mark-scheme";
-        given()
-                .when()
+        given().when()
                 .get(path)
                 .then()
                 .statusCode(BAD_REQUEST.getCode())

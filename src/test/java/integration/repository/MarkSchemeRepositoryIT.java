@@ -1,21 +1,20 @@
 package integration.repository;
 
-import com.practiq.domain.MarkScheme;
-import com.practiq.repository.MarkSchemeRepository;
-import jakarta.inject.Inject;
-import jakarta.persistence.OptimisticLockException;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import utils.IntegrationTest;
-import utils.data.QuestionTestData;
-
-import java.util.Optional;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.TestReflection.setField;
+
+import com.practiq.domain.MarkScheme;
+import com.practiq.repository.MarkSchemeRepository;
+import jakarta.inject.Inject;
+import jakarta.persistence.OptimisticLockException;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import utils.IntegrationTest;
+import utils.data.QuestionTestData;
 
 @IntegrationTest
 public class MarkSchemeRepositoryIT {

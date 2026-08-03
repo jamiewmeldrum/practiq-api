@@ -6,8 +6,7 @@ import java.lang.reflect.Modifier;
 // Test-only: sets otherwise-unsettable fields (e.g. DB-assigned, setter-less) by reflection.
 public final class TestReflection {
 
-    private TestReflection() {
-    }
+    private TestReflection() {}
 
     // Fails if any declared instance field on target is null. Used as an exhaustiveness tripwire:
     // an "all fields populated" expectation stays honest when new fields are added to the class,

@@ -1,5 +1,10 @@
 package performance;
 
+import static io.micronaut.http.HttpStatus.OK;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
@@ -11,11 +16,6 @@ import org.junit.jupiter.api.Test;
 import utils.PerformanceTest;
 import utils.StatementCounter;
 import utils.data.QuestionTestData;
-
-import static io.micronaut.http.HttpStatus.OK;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
 
 // Pins the JDBC statement count for serving the catalogue — the hot, row-scaling path. As well as a fixed
 // happy-path count it asserts the count does NOT grow with the number of rows, which is the property an
@@ -52,8 +52,8 @@ public class QuestionCataloguePT {
         data.concept(conceptId).insert();
         insertApprovedLinkedQuestions(3, conceptId);
 
-        long count = statements.countDuring(() ->
-                given().when().get(QUESTIONS_PATH).then().statusCode(OK.getCode()));
+        long count = statements.countDuring(
+                () -> given().when().get(QUESTIONS_PATH).then().statusCode(OK.getCode()));
 
         assertThat(count, equalTo(EXPECTED_STATEMENTS));
     }
@@ -64,15 +64,15 @@ public class QuestionCataloguePT {
         data.concept(conceptId).insert();
         insertApprovedLinkedQuestions(2, conceptId);
 
-        long fewer = statements.countDuring(() ->
-                given().when().get(QUESTIONS_PATH + "?size=50").then().statusCode(OK.getCode()));
+        long fewer = statements.countDuring(
+                () -> given().when().get(QUESTIONS_PATH + "?size=50").then().statusCode(OK.getCode()));
 
         data.clear();
         data.concept(conceptId).insert();
         insertApprovedLinkedQuestions(6, conceptId);
 
-        long more = statements.countDuring(() ->
-                given().when().get(QUESTIONS_PATH + "?size=50").then().statusCode(OK.getCode()));
+        long more = statements.countDuring(
+                () -> given().when().get(QUESTIONS_PATH + "?size=50").then().statusCode(OK.getCode()));
 
         // The count is a property of the query plan, not the row count: three times the rows, same statements.
         assertThat(more, equalTo(fewer));

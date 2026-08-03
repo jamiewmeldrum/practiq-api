@@ -1,5 +1,15 @@
 package com.practiq.domain.query.question;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import static utils.TestReflection.setField;
+
 import com.practiq.domain.Question;
 import com.practiq.domain.projection.LinkedQuestion;
 import com.practiq.domain.projection.QuestionConceptLink;
@@ -13,25 +23,14 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.Sort;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-import static utils.TestReflection.setField;
 
 // The runner is the unit entry point. Its policy (StudentQuestionQueryPolicy) and the QuestionSpecificationFactory
 // are real collaborators exercised through it — only the repositories, the DB boundary, are mocked. What the
@@ -97,10 +96,11 @@ class StudentQuestionQueryRunnerTest {
         when(questionRepository.findAll(anySpec(), any(Pageable.class)))
                 .thenReturn(Page.of(List.of(linked, bare), ORDERED_FIRST_PAGE, 2L));
         QuestionConceptLink link = new QuestionConceptLink(linkedId, 10L);
-        when(questionConceptRepository.findLinksByQuestionIds(Set.of(linkedId, bareId))).thenReturn(List.of(link));
+        when(questionConceptRepository.findLinksByQuestionIds(Set.of(linkedId, bareId)))
+                .thenReturn(List.of(link));
 
-        List<LinkedQuestion> content =
-                runner.findQuestionsPagedAndFiltered(null, null, null, Pageable.from(0, 20)).getContent();
+        List<LinkedQuestion> content = runner.findQuestionsPagedAndFiltered(null, null, null, Pageable.from(0, 20))
+                .getContent();
 
         // The linked question carries its link; the bare one defaults to an empty set rather than being dropped
         // or carrying null.
@@ -138,8 +138,12 @@ class StudentQuestionQueryRunnerTest {
 
     private static Question approvedQuestion(long id) {
         Question question = new Question(
-                "Body " + id, QuestionDifficulty.MEDIUM, QuestionType.SHORT_ANSWER,
-                QuestionSource.SEED, QuestionStatus.APPROVED, "AQA GCSE Physics");
+                "Body " + id,
+                QuestionDifficulty.MEDIUM,
+                QuestionType.SHORT_ANSWER,
+                QuestionSource.SEED,
+                QuestionStatus.APPROVED,
+                "AQA GCSE Physics");
         setField(question, "id", id);
         return question;
     }

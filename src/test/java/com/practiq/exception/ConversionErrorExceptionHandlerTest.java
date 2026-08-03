@@ -1,5 +1,9 @@
 package com.practiq.exception;
 
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 import com.practiq.domain.types.QuestionType;
 import com.practiq.dto.response.ErrorResponse;
 import io.micronaut.core.convert.ConversionError;
@@ -7,13 +11,8 @@ import io.micronaut.core.convert.exceptions.ConversionErrorException;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
-
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import org.junit.jupiter.api.Test;
 
 class ConversionErrorExceptionHandlerTest {
 

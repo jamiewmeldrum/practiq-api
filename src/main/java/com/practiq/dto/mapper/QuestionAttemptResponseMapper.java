@@ -13,7 +13,6 @@ public class QuestionAttemptResponseMapper {
                 questionAttempt.getId(),
                 questionAttempt.getQuestionId(),
                 questionAttempt.getBody(),
-                questionAttempt.getCreatedAt()
-        );
+                questionAttempt.getCreatedAt());
     }
 }

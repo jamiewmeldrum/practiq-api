@@ -4,7 +4,6 @@ import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
-
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -94,8 +93,7 @@ public abstract class TestData {
     public final class ConceptRow {
         private final Map<String, Object> columns = new HashMap<>();
 
-        ConceptRow() {
-        }
+        ConceptRow() {}
 
         ConceptRow(long id) {
             columns.put("id", id);

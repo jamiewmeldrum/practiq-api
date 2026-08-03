@@ -1,23 +1,22 @@
 package com.practiq.service;
 
-import com.practiq.domain.Concept;
-import com.practiq.dto.response.ConceptResponse;
-import com.practiq.repository.ConceptRepository;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 import static utils.TestReflection.setField;
+
+import com.practiq.domain.Concept;
+import com.practiq.dto.response.ConceptResponse;
+import com.practiq.repository.ConceptRepository;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class ConceptServiceTest {
@@ -42,28 +41,25 @@ class ConceptServiceTest {
         String accelerationDescription = "The rate of change of velocity over time.";
         Instant accelerationCreatedAt = Instant.parse("2026-06-29T10:15:30Z");
 
-        Concept acceleration = concept(accelerationId, accelerationName, accelerationDescription, accelerationCreatedAt);
+        Concept acceleration =
+                concept(accelerationId, accelerationName, accelerationDescription, accelerationCreatedAt);
 
-        when(conceptRepository.listOrderByCreatedAtAsc()).thenReturn(List.of(
-                diffraction,
-                acceleration
-        ));
+        when(conceptRepository.listOrderByCreatedAtAsc()).thenReturn(List.of(diffraction, acceleration));
 
         List<ConceptResponse> conceptResponses = conceptService.get();
-        assertThat(conceptResponses, containsInAnyOrder(
-                allOf(
-                        hasProperty("id", equalTo(diffractionId)),
-                        hasProperty("name", equalTo(diffractionName)),
-                        hasProperty("description", equalTo(diffractionDescription)),
-                        hasProperty("createdAt", equalTo(diffractionCreatedAt))
-                ),
-                allOf(
-                        hasProperty("id", equalTo(accelerationId)),
-                        hasProperty("name", equalTo(accelerationName)),
-                        hasProperty("description", equalTo(accelerationDescription)),
-                        hasProperty("createdAt", equalTo(accelerationCreatedAt))
-                )
-        ));
+        assertThat(
+                conceptResponses,
+                containsInAnyOrder(
+                        allOf(
+                                hasProperty("id", equalTo(diffractionId)),
+                                hasProperty("name", equalTo(diffractionName)),
+                                hasProperty("description", equalTo(diffractionDescription)),
+                                hasProperty("createdAt", equalTo(diffractionCreatedAt))),
+                        allOf(
+                                hasProperty("id", equalTo(accelerationId)),
+                                hasProperty("name", equalTo(accelerationName)),
+                                hasProperty("description", equalTo(accelerationDescription)),
+                                hasProperty("createdAt", equalTo(accelerationCreatedAt)))));
 
         verify(conceptRepository).listOrderByCreatedAtAsc();
     }
@@ -89,13 +85,13 @@ class ConceptServiceTest {
 
         Optional<ConceptResponse> conceptDto = conceptService.get(id);
         assertThat(conceptDto.isPresent(), is(true));
-        assertThat(conceptDto.get(), allOf(
+        assertThat(
+                conceptDto.get(),
+                allOf(
                         hasProperty("id", equalTo(id)),
                         hasProperty("name", equalTo(name)),
                         hasProperty("description", equalTo(description)),
-                        hasProperty("createdAt", equalTo(createdAt))
-                )
-        );
+                        hasProperty("createdAt", equalTo(createdAt))));
 
         verify(conceptRepository).findById(id);
     }

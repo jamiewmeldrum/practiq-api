@@ -1,14 +1,13 @@
 package com.practiq.domain;
 
+import static jakarta.persistence.GenerationType.IDENTITY;
+
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import lombok.Getter;
 import lombok.ToString;
 import org.hibernate.annotations.Generated;
-
-import java.time.Instant;
-
-import static jakarta.persistence.GenerationType.IDENTITY;
 
 @Entity
 @Table(name = "mark_scheme")
@@ -26,8 +25,7 @@ public class MarkScheme {
     @Version
     private int version;
 
-    @NotNull
-    @Column(name = "body", nullable = false)
+    @NotNull @Column(name = "body", nullable = false)
     private String body;
 
     @Column(name = "created_at", insertable = false, updatable = false)

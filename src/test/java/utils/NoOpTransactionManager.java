@@ -10,9 +10,8 @@ import io.micronaut.transaction.TransactionStatus;
 import io.micronaut.transaction.hibernate.HibernateTransactionManager;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import org.hibernate.Session;
-
 import java.util.Optional;
+import org.hibernate.Session;
 
 // Inert transaction manager for the component-test slice. A @Transactional service method opens a
 // transaction *above* the mocked repositories, and readOnly=true eagerly acquires a JDBC connection to
@@ -45,8 +44,7 @@ public class NoOpTransactionManager implements SynchronousTransactionManager<Ses
         }
 
         @Override
-        public void setRollbackOnly() {
-        }
+        public void setRollbackOnly() {}
 
         @Override
         public boolean isRollbackOnly() {
@@ -75,12 +73,10 @@ public class NoOpTransactionManager implements SynchronousTransactionManager<Ses
     }
 
     @Override
-    public void commit(TransactionStatus<Session> status) {
-    }
+    public void commit(TransactionStatus<Session> status) {}
 
     @Override
-    public void rollback(TransactionStatus<Session> status) {
-    }
+    public void rollback(TransactionStatus<Session> status) {}
 
     @Override
     public Session getConnection() {

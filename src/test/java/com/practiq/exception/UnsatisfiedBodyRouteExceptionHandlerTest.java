@@ -1,14 +1,14 @@
 package com.practiq.exception;
 
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.practiq.dto.response.ErrorResponse;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.web.router.exceptions.UnsatisfiedBodyRouteException;
 import org.junit.jupiter.api.Test;
-
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
-import static org.junit.jupiter.api.Assertions.*;
 
 class UnsatisfiedBodyRouteExceptionHandlerTest {
     private final UnsatisfiedBodyRouteExceptionHandler handler = new UnsatisfiedBodyRouteExceptionHandler();

@@ -2,11 +2,10 @@ package com.practiq.dto.response;
 
 import com.practiq.domain.types.QuestionType;
 import io.micronaut.serde.annotation.Serdeable;
-import lombok.Getter;
-import lombok.ToString;
-
 import java.time.Instant;
 import java.util.Set;
+import lombok.Getter;
+import lombok.ToString;
 
 @Serdeable
 @Getter
@@ -25,11 +24,10 @@ public class QuestionResponse {
             QuestionDifficultyResponse difficulty,
             QuestionType type,
             Instant createdAt,
-            Set<Long> linkedConceptIds
-    ) {
+            Set<Long> linkedConceptIds) {
         this.id = id;
         this.body = body;
-        this.difficulty =  difficulty;
+        this.difficulty = difficulty;
         this.type = type;
         this.createdAt = createdAt;
         this.linkedConceptIds = linkedConceptIds;
