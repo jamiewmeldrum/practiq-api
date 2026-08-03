@@ -1,0 +1,8 @@
+# Normalise every text file to LF in the repository. Without this, files created by the
+# IDE on Windows land as CRLF while everything written from WSL is LF, so the same file
+# reads as a whole-file diff depending on who touched it last.
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF to stay executable by cmd.exe.
+*.bat text eol=crlf
+*.cmd text eol=crlf
