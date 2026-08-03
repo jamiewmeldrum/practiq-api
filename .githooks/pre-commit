@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# Reformats Java sources with Spotless before a commit.
+#
+# Nothing is ever staged automatically. If Spotless changed anything, the commit is
+# aborted and the reformatting is left in the working tree to be reviewed and staged
+# deliberately — an auto-staging hook would put unreviewed changes into a commit, and
+# would silently swallow the unstaged half of a partially staged file (`git add -p`).
+#
+# Enable with:  git config core.hooksPath .githooks
+# Bypass with:  git commit --no-verify
+#
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+
+# "<blob hash> <path>" for every tracked Java file, so the post-run comparison can name
+# the files that changed rather than just detecting that something did.
+hash_java_sources() {
+    git ls-files -- '*.java' | while IFS= read -r file; do
+        [ -f "$file" ] && printf '%s %s\n' "$(git hash-object -- "$file")" "$file"
+    done
+}
+
+before=$(mktemp)
+after=$(mktemp)
+trap 'rm -f "$before" "$after"' EXIT
+
+hash_java_sources > "$before"
+
+if ! ./gradlew --quiet spotlessApply; then
+    echo "pre-commit: spotlessApply failed — commit aborted." >&2
+    exit 1
+fi
+
+hash_java_sources > "$after"
+
+changed=$(diff "$before" "$after" | sed -n 's/^> [0-9a-f]* //p')
+
+if [ -n "$changed" ]; then
+    echo >&2
+    echo "pre-commit: Spotless reformatted these files:" >&2
+    echo "$changed" | sed 's/^/  /' >&2
+    echo >&2
+    echo "They are NOT staged. Review the changes, stage them, and commit again." >&2
+    exit 1
+fi
+
+exit 0

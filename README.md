@@ -283,6 +283,43 @@ binder is lenient — `?page=abc` or `?size=0` silently fall back to the default
 (`?conceptId=abc`) fail loudly with the 400 envelope. Making paging params strict would
 need a custom `Pageable` binder; not worth the machinery yet.
 
+## Formatting
+
+Formatting is owned by [Spotless](https://github.com/diffplug/spotless) using
+[palantir-java-format](https://github.com/palantir/palantir-java-format). There is no house style to
+learn and nothing to argue about in review — the formatter decides.
+
+```bash
+./gradlew spotlessApply     # fix formatting
+./gradlew spotlessCheck     # report violations (runs as part of `check` / `build`)
+```
+
+### Enable the pre-commit hook
+
+**Do this once per clone:**
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Git never clones hook configuration — only the scripts in `.githooks/` travel with the repo, and the
+setting that points git at them lives in `.git/config`, which doesn't. So a fresh clone has the hook
+sitting there inert until the command above is run.
+
+The hook runs `spotlessApply` before each commit. If it changed nothing, the commit proceeds. If it
+did change something, **the commit is aborted** and the reformatting is left unstaged in your working
+tree, with the affected files listed. Review it, stage it, commit again.
+
+It deliberately never stages anything for you. An auto-staging hook puts changes into a commit that
+nobody looked at, and if you had staged a file partially (`git add -p`), re-adding the whole file
+after reformatting would silently drag in the hunks you meant to leave out.
+
+Bypass with `git commit --no-verify` when you need to.
+
+The hook is a convenience, not a gate — it can be skipped, unset, or never enabled. **CI is the
+enforcement**: `./gradlew build` runs `spotlessCheck`, so badly formatted code fails the pipeline
+regardless of anyone's local setup.
+
 ## Testing
 
 Four tiers. The guiding rule: **put each test where it can actually observe the behaviour it claims to
