@@ -10,6 +10,10 @@ public class StudentQuestionQueryRunner extends QuestionQueryRunner<StudentQuest
             QuestionRepository questionRepository,
             QuestionConceptRepository questionConceptRepository,
             QuestionSpecificationFactory questionSpecificationFactory) {
-        super(questionRepository, questionConceptRepository, questionSpecificationFactory, new StudentQuestionQueryPolicy());
+        super(
+                questionRepository,
+                questionConceptRepository,
+                questionSpecificationFactory,
+                new StudentQuestionQueryPolicy());
     }
 }

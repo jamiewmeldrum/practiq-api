@@ -1,5 +1,7 @@
 package com.practiq.exception;
 
+import static io.micronaut.http.HttpStatus.UNPROCESSABLE_ENTITY;
+
 import com.practiq.dto.response.ErrorResponse;
 import io.micronaut.context.annotation.Replaces;
 import io.micronaut.context.annotation.Requires;
@@ -13,19 +15,17 @@ import jakarta.inject.Singleton;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Path;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.List;
 import java.util.Set;
-
-import static io.micronaut.http.HttpStatus.UNPROCESSABLE_ENTITY;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Produces
 @Singleton
 @Replaces(io.micronaut.validation.exceptions.ConstraintExceptionHandler.class)
 @Requires(classes = {ConstraintViolationException.class, ExceptionHandler.class})
-public class ConstraintViolationExceptionHandler implements ExceptionHandler<ConstraintViolationException, HttpResponse<ErrorResponse>> {
+public class ConstraintViolationExceptionHandler
+        implements ExceptionHandler<ConstraintViolationException, HttpResponse<ErrorResponse>> {
     @Override
     public HttpResponse<ErrorResponse> handle(HttpRequest request, ConstraintViolationException exception) {
         Set<ConstraintViolation<?>> constraintViolations = exception.getConstraintViolations();
@@ -40,9 +40,7 @@ public class ConstraintViolationExceptionHandler implements ExceptionHandler<Con
         log.debug(message);
 
         return HttpResponseFactory.INSTANCE.status(
-                HttpStatus.UNPROCESSABLE_ENTITY,
-                new ErrorResponse(message, UNPROCESSABLE_ENTITY.getCode())
-        );
+                HttpStatus.UNPROCESSABLE_ENTITY, new ErrorResponse(message, UNPROCESSABLE_ENTITY.getCode()));
     }
 
     private String formatViolation(ConstraintViolation<?> violation) {

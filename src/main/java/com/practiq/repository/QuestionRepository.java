@@ -6,5 +6,4 @@ import io.micronaut.data.repository.CrudRepository;
 import io.micronaut.data.repository.jpa.JpaSpecificationExecutor;
 
 @Repository
-public interface QuestionRepository extends CrudRepository<Question, Long>, JpaSpecificationExecutor<Question> {
-}
+public interface QuestionRepository extends CrudRepository<Question, Long>, JpaSpecificationExecutor<Question> {}

@@ -3,7 +3,6 @@ package com.practiq.repository;
 import com.practiq.domain.MarkScheme;
 import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.repository.CrudRepository;
-
 import java.util.Optional;
 
 @Repository

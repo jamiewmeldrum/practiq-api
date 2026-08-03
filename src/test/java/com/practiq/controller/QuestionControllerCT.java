@@ -1,5 +1,13 @@
 package com.practiq.controller;
 
+import static io.micronaut.http.HttpStatus.*;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.*;
+import static utils.TestReflection.assertAllFieldsSet;
+import static utils.TestReflection.setField;
+
 import com.practiq.domain.Question;
 import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.domain.query.question.StudentQuestionQueryRunner;
@@ -19,25 +27,16 @@ import io.micronaut.test.annotation.MockBean;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
-import utils.ComponentTest;
-
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
-import static io.micronaut.http.HttpStatus.*;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.*;
-import static utils.TestReflection.assertAllFieldsSet;
-import static utils.TestReflection.setField;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
+import utils.ComponentTest;
 
 @ComponentTest
 public class QuestionControllerCT {
@@ -90,14 +89,7 @@ public class QuestionControllerCT {
         String sourceSpecA = "GCSE Physics";
         Instant createdAtA = Instant.parse("2026-01-01T00:00:00Z");
 
-        Question questionA = new Question(
-                bodyA,
-                difficultyA,
-                typeA,
-                sourceA,
-                statusA,
-                sourceSpecA
-        );
+        Question questionA = new Question(bodyA, difficultyA, typeA, sourceA, statusA, sourceSpecA);
         setField(questionA, "id", idA);
         setField(questionA, "createdAt", createdAtA);
 
@@ -110,14 +102,7 @@ public class QuestionControllerCT {
         String sourceSpecB = "GCSE Maths";
         Instant createdAtB = Instant.parse("2026-01-01T00:00:00Z");
 
-        Question questionB = new Question(
-                bodyB,
-                difficultyB,
-                typeB,
-                sourceB,
-                statusB,
-                sourceSpecB
-        );
+        Question questionB = new Question(bodyB, difficultyB, typeB, sourceB, statusB, sourceSpecB);
         setField(questionB, "id", idB);
         setField(questionB, "createdAt", createdAtB);
 
@@ -129,17 +114,19 @@ public class QuestionControllerCT {
         when(questionRepository.findAll(Mockito.any(QuerySpecification.class), Mockito.any(Pageable.class)))
                 .thenReturn(Page.of(List.of(questionA, questionB), Pageable.from(0), 2L));
         when(questionConceptRepository.findLinksByQuestionIds(Mockito.any()))
-                .thenReturn(List.of(new QuestionConceptLink(idB, conceptIdB1), new QuestionConceptLink(idB, conceptIdB2)));
+                .thenReturn(
+                        List.of(new QuestionConceptLink(idB, conceptIdB1), new QuestionConceptLink(idB, conceptIdB2)));
 
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH)
                 .then()
                 .statusCode(OK.getCode())
                 .contentType(ContentType.JSON)
                 .body("keySet()", containsInAnyOrder("content", "page", "size", "totalCount"))
                 .body("content.id", containsInAnyOrder((int) idA, (int) idB))
-                .body("content[0].keySet()", containsInAnyOrder("id", "body", "difficulty", "type", "createdAt", "linkedConceptIds"))
+                .body(
+                        "content[0].keySet()",
+                        containsInAnyOrder("id", "body", "difficulty", "type", "createdAt", "linkedConceptIds"))
                 .body("content.find { it.id == " + idA + " }.body", equalTo(bodyA))
                 .body("content.find { it.id == " + idA + " }.difficulty.value", equalTo(difficultyA.value()))
                 .body("content.find { it.id == " + idA + " }.difficulty.code", equalTo(difficultyA.name()))
@@ -151,7 +138,9 @@ public class QuestionControllerCT {
                 .body("content.find { it.id == " + idB + " }.difficulty.code", equalTo(difficultyB.name()))
                 .body("content.find { it.id == " + idB + " }.type", equalTo(typeB.name()))
                 .body("content.find { it.id == " + idB + " }.createdAt", equalTo(createdAtB.toString()))
-                .body("content.find { it.id == " + idB + " }.linkedConceptIds", containsInAnyOrder((int) conceptIdB1, (int) conceptIdB2));
+                .body(
+                        "content.find { it.id == " + idB + " }.linkedConceptIds",
+                        containsInAnyOrder((int) conceptIdB1, (int) conceptIdB2));
 
         verify(questionRepository).findAll(Mockito.any(QuerySpecification.class), Mockito.any(Pageable.class));
         verify(questionConceptRepository).findLinksByQuestionIds(Mockito.any());
@@ -163,8 +152,7 @@ public class QuestionControllerCT {
         when(questionRepository.findAll(Mockito.any(QuerySpecification.class), Mockito.any(Pageable.class)))
                 .thenReturn(Page.of(Collections.emptyList(), Pageable.from(0), 0L));
 
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH)
                 .then()
                 .statusCode(OK.getCode())
@@ -184,8 +172,7 @@ public class QuestionControllerCT {
 
         // A filtered request that binds cleanly but matches nothing: the empty page must serialise to [],
         // and with no question ids there's no second query for links to run.
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "?types=MCQ&difficulties=5&conceptId=99")
                 .then()
                 .statusCode(OK.getCode())
@@ -220,24 +207,26 @@ public class QuestionControllerCT {
                 .thenReturn(Page.of(List.of(linked, bare), Pageable.from(0), 2L));
         // Only the linked question has concept rows; the bare one is absent, so its links serialise as [].
         when(questionConceptRepository.findLinksByQuestionIds(Mockito.any()))
-                .thenReturn(List.of(new QuestionConceptLink(linkedId, conceptA), new QuestionConceptLink(linkedId, conceptB)));
+                .thenReturn(List.of(
+                        new QuestionConceptLink(linkedId, conceptA), new QuestionConceptLink(linkedId, conceptB)));
 
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "?types=SHORT_ANSWER,EXTENDED")
                 .then()
                 .statusCode(OK.getCode())
                 .contentType(ContentType.JSON)
                 .body("content.id", containsInAnyOrder((int) linkedId, (int) bareId))
-                .body("content[0].keySet()", containsInAnyOrder("id", "body", "difficulty", "type", "createdAt", "linkedConceptIds"))
-
+                .body(
+                        "content[0].keySet()",
+                        containsInAnyOrder("id", "body", "difficulty", "type", "createdAt", "linkedConceptIds"))
                 .body("content.find { it.id == " + linkedId + " }.body", equalTo(linkedBody))
                 .body("content.find { it.id == " + linkedId + " }.difficulty.value", equalTo(linkedDifficulty.value()))
                 .body("content.find { it.id == " + linkedId + " }.difficulty.code", equalTo(linkedDifficulty.name()))
                 .body("content.find { it.id == " + linkedId + " }.type", equalTo(linkedType.name()))
                 .body("content.find { it.id == " + linkedId + " }.createdAt", equalTo(createdAt.toString()))
-                .body("content.find { it.id == " + linkedId + " }.linkedConceptIds", containsInAnyOrder((int) conceptA, (int) conceptB))
-
+                .body(
+                        "content.find { it.id == " + linkedId + " }.linkedConceptIds",
+                        containsInAnyOrder((int) conceptA, (int) conceptB))
                 .body("content.find { it.id == " + bareId + " }.body", equalTo(bareBody))
                 .body("content.find { it.id == " + bareId + " }.difficulty.value", equalTo(bareDifficulty.value()))
                 .body("content.find { it.id == " + bareId + " }.difficulty.code", equalTo(bareDifficulty.name()))
@@ -258,11 +247,9 @@ public class QuestionControllerCT {
         QuestionRequest expected = new QuestionRequest(
                 List.of(QuestionType.SHORT_ANSWER, QuestionType.EXTENDED, QuestionType.MCQ),
                 List.of(QuestionDifficulty.TRIVIAL, QuestionDifficulty.EASY, QuestionDifficulty.MEDIUM),
-                99L
-        );
+                99L);
 
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "?types=SHORT_ANSWER,EXTENDED,MCQ&difficulties=1,2,3&conceptId=99")
                 .then()
                 .statusCode(OK.getCode());
@@ -281,8 +268,7 @@ public class QuestionControllerCT {
 
     @Test
     void getQuestionsReturnsUnprocessableEntityWhenDuplicatesInDifficulties() {
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "?difficulties=1,2,2")
                 .then()
                 .statusCode(UNPROCESSABLE_ENTITY.getCode())
@@ -294,22 +280,22 @@ public class QuestionControllerCT {
 
     @Test
     void getQuestionsReturnsBadRequestIfQuestionDifficultiesInvalid() {
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "?difficulties=BAD,PARAMS")
                 .then()
                 .statusCode(BAD_REQUEST.getCode())
                 .contentType(ContentType.JSON)
                 .body("keySet()", containsInAnyOrder("error", "status"))
-                .body("error", equalTo("difficulties: must be one of "
-                        + "1(TRIVIAL), 2(EASY), 3(MEDIUM), 4(HARD), 5(VERY_HARD)"))
+                .body(
+                        "error",
+                        equalTo("difficulties: must be one of "
+                                + "1(TRIVIAL), 2(EASY), 3(MEDIUM), 4(HARD), 5(VERY_HARD)"))
                 .body("status", equalTo(400));
     }
 
     @Test
     void getQuestionsReturnsUnprocessableEntityWhenDuplicatesInTypes() {
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "?types=SHORT_ANSWER,EXTENDED,MCQ,MCQ")
                 .then()
                 .statusCode(UNPROCESSABLE_ENTITY.getCode())
@@ -321,8 +307,7 @@ public class QuestionControllerCT {
 
     @Test
     void getQuestionsReturnsBadRequestIfQuestionTypesInvalid() {
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "?types=BAD,PARAMS")
                 .then()
                 .statusCode(BAD_REQUEST.getCode())
@@ -334,8 +319,7 @@ public class QuestionControllerCT {
 
     @Test
     void getQuestionsReturnsBadRequestWhenConceptIdInvalid() {
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "?conceptId=BAD")
                 .then()
                 .statusCode(BAD_REQUEST.getCode())
@@ -360,13 +344,14 @@ public class QuestionControllerCT {
         when(questionRepository.findOne(Mockito.any(QuerySpecification.class))).thenReturn(Optional.of(question));
         when(questionConceptRepository.findLinksByQuestionIds(Set.of(id))).thenReturn(List.of());
 
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "/" + id)
                 .then()
                 .statusCode(OK.getCode())
                 .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("id", "body", "difficulty", "type", "createdAt", "linkedConceptIds"))
+                .body(
+                        "keySet()",
+                        containsInAnyOrder("id", "body", "difficulty", "type", "createdAt", "linkedConceptIds"))
                 .body("id", equalTo((int) id))
                 .body("body", equalTo(body))
                 .body("difficulty", nullValue())
@@ -387,14 +372,7 @@ public class QuestionControllerCT {
         String sourceSpec = "GCSE Physics";
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
-        Question question = new Question(
-                body,
-                difficulty,
-                type,
-                source,
-                status,
-                sourceSpec
-        );
+        Question question = new Question(body, difficulty, type, source, status, sourceSpec);
         setField(question, "id", id);
         setField(question, "createdAt", createdAt);
 
@@ -402,22 +380,21 @@ public class QuestionControllerCT {
         long conceptIdA1 = 10L;
         long conceptIdA2 = 11L;
 
-        List<QuestionConceptLink> links = List.of(
-                new QuestionConceptLink(id, conceptIdA1),
-                new QuestionConceptLink(id, conceptIdA2)
-        );
+        List<QuestionConceptLink> links =
+                List.of(new QuestionConceptLink(id, conceptIdA1), new QuestionConceptLink(id, conceptIdA2));
 
         when(questionRepository.findOne(Mockito.any(QuerySpecification.class))).thenReturn(Optional.of(question));
         when(questionConceptRepository.findLinksByQuestionIds(Set.of(id))).thenReturn(links);
 
         String path = QUESTIONS_PATH + "/" + id;
-        given()
-                .when()
+        given().when()
                 .get(path)
                 .then()
                 .statusCode(OK.getCode())
                 .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("id", "body", "difficulty", "type", "createdAt", "linkedConceptIds"))
+                .body(
+                        "keySet()",
+                        containsInAnyOrder("id", "body", "difficulty", "type", "createdAt", "linkedConceptIds"))
                 .body("id", equalTo((int) id))
                 .body("body", equalTo(body))
                 .body("difficulty.value", equalTo(difficulty.value()))
@@ -437,8 +414,7 @@ public class QuestionControllerCT {
         when(questionRepository.findOne(Mockito.any(QuerySpecification.class))).thenReturn(Optional.empty());
 
         String path = QUESTIONS_PATH + "/" + id;
-        given()
-                .when()
+        given().when()
                 .get(path)
                 .then()
                 .statusCode(NOT_FOUND.getCode())
@@ -453,8 +429,7 @@ public class QuestionControllerCT {
     @Test
     void getQuestionByIdReturnsBadRequestIfIdNotNaturalNumber() {
         String path = QUESTIONS_PATH + "/error";
-        given()
-                .when()
+        given().when()
                 .get(path)
                 .then()
                 .statusCode(BAD_REQUEST.getCode())
@@ -468,7 +443,8 @@ public class QuestionControllerCT {
     // here). created_at must be non-null or Serde omits the key and the keySet assertions break.
     private static Question approvedQuestion(
             long id, String body, QuestionDifficulty difficulty, QuestionType type, Instant createdAt) {
-        Question question = new Question(body, difficulty, type, QuestionSource.SEED, QuestionStatus.APPROVED, "AQA GCSE Physics");
+        Question question =
+                new Question(body, difficulty, type, QuestionSource.SEED, QuestionStatus.APPROVED, "AQA GCSE Physics");
         setField(question, "id", id);
         setField(question, "createdAt", createdAt);
         return question;

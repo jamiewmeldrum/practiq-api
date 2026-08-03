@@ -1,5 +1,11 @@
 package performance;
 
+import static io.micronaut.http.HttpStatus.CREATED;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static utils.data.TestData.SESSION_TOKEN_HEADER;
+
 import com.practiq.domain.types.QuestionStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
@@ -7,20 +13,13 @@ import io.restassured.http.ContentType;
 import io.restassured.http.Header;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManagerFactory;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.PerformanceTest;
 import utils.StatementCounter;
 import utils.data.QuestionTestData;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import static io.micronaut.http.HttpStatus.CREATED;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static utils.data.TestData.SESSION_TOKEN_HEADER;
 
 @PerformanceTest
 public class QuestionAttemptPostPT {
@@ -58,15 +57,13 @@ public class QuestionAttemptPostPT {
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("body", "body 1");
 
-        long count = statements.countDuring(() ->
-                given()
-                        .contentType(ContentType.JSON)
-                        .header(new Header(SESSION_TOKEN_HEADER, "865726f9-2f79-4789-940f-412db1fb5be1"))
-                        .body(requestBody)
-                        .when()
-                        .post(QUESTION_ATTEMPTS_PATH.formatted(questionId))
-                        .then()
-                        .statusCode(CREATED.getCode()));
+        long count = statements.countDuring(() -> given().contentType(ContentType.JSON)
+                .header(new Header(SESSION_TOKEN_HEADER, "865726f9-2f79-4789-940f-412db1fb5be1"))
+                .body(requestBody)
+                .when()
+                .post(QUESTION_ATTEMPTS_PATH.formatted(questionId))
+                .then()
+                .statusCode(CREATED.getCode()));
 
         assertThat(count, equalTo(EXPECTED_STATEMENTS));
     }

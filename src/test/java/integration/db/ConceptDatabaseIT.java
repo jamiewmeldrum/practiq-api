@@ -1,19 +1,18 @@
 package integration.db;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static utils.data.TestDatabase.*;
+
 import jakarta.inject.Inject;
+import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.DBRow;
 import utils.data.QuestionTestData;
-
-import java.time.Instant;
-import java.util.List;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static utils.data.TestDatabase.*;
 
 @IntegrationTest
 public class ConceptDatabaseIT {
@@ -39,10 +38,7 @@ public class ConceptDatabaseIT {
         concept.assertThat("version", equalTo(0));
         concept.assertThat("name", equalTo(name));
         concept.assertThat("description", equalTo(description));
-        concept.assertThat("created_at", allOf(
-                greaterThan(Instant.EPOCH),
-                lessThanOrEqualTo(Instant.now())
-        ));
+        concept.assertThat("created_at", allOf(greaterThan(Instant.EPOCH), lessThanOrEqualTo(Instant.now())));
         concept.assertAllColumnsChecked();
     }
 
@@ -63,17 +59,16 @@ public class ConceptDatabaseIT {
         assertThat(questionConcepts, hasSize(2));
         questionConcepts.forEach(c -> c.assertThat("concept_id", equalTo(conceptId)));
 
-        List<Long> linkedConceptIds = questionConcepts.stream()
-                .map(c -> c.<Long>get("question_id"))
-                .toList();
+        List<Long> linkedConceptIds =
+                questionConcepts.stream().map(c -> c.<Long>get("question_id")).toList();
         assertThat(linkedConceptIds, containsInAnyOrder(questionId1, questionId2));
     }
 
     @Test
     void ensureThatNameMustBeSet() {
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.concept().description("Test").insert()
-        );
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class,
+                () -> data.concept().description("Test").insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"name\""));
@@ -81,9 +76,8 @@ public class ConceptDatabaseIT {
 
     @Test
     void ensureThatDescriptionMustBeSet() {
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.concept().name("Test").insert()
-        );
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class, () -> data.concept().name("Test").insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"description\""));
@@ -94,9 +88,9 @@ public class ConceptDatabaseIT {
         String name = "Test";
         data.concept().name(name).description("description").insert();
 
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.concept().name(name).description("description").insert()
-        );
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class,
+                () -> data.concept().name(name).description("description").insert());
 
         // SQLState alone is conclusive here: name is the only unique constraint on the table. (Unlike the
         // not-null messages, a unique-violation message names the constraint, not a quoted column.)

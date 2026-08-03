@@ -10,10 +10,6 @@ public class MarkSchemeResponseMapper {
         log.trace("Converting MarkScheme to MarkSchemeResponse: {}", markScheme.getId());
 
         return new MarkSchemeResponse(
-                markScheme.getId(),
-                markScheme.getQuestionId(),
-                markScheme.getBody(),
-                markScheme.getCreatedAt()
-        );
+                markScheme.getId(), markScheme.getQuestionId(), markScheme.getBody(), markScheme.getCreatedAt());
     }
 }

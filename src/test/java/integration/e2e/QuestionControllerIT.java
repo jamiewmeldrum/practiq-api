@@ -1,5 +1,10 @@
 package integration.e2e;
 
+import static io.micronaut.http.HttpStatus.NOT_FOUND;
+import static io.micronaut.http.HttpStatus.OK;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
+
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
@@ -8,18 +13,12 @@ import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
+import java.time.OffsetDateTime;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.QuestionTestData;
-
-import java.time.OffsetDateTime;
-import java.util.Map;
-
-import static io.micronaut.http.HttpStatus.NOT_FOUND;
-import static io.micronaut.http.HttpStatus.OK;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
 
 @IntegrationTest
 class QuestionControllerIT {
@@ -40,8 +39,7 @@ class QuestionControllerIT {
 
     @Test
     void getReturnsEmptyArrayWhenNoQuestionsExist() {
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH)
                 .then()
                 .statusCode(OK.getCode())
@@ -77,8 +75,7 @@ class QuestionControllerIT {
                 .source(QuestionSource.SEED)
                 .insert();
 
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH)
                 .then()
                 .statusCode(OK.getCode())
@@ -116,7 +113,7 @@ class QuestionControllerIT {
                 .insert();
         data.link(1L, conceptId).insert();
 
-        //Matches all, difficulty HARD, type SHORT_ANSWER. Source changed as irrelevant
+        // Matches all, difficulty HARD, type SHORT_ANSWER. Source changed as irrelevant
         data.question(2L)
                 .status(QuestionStatus.APPROVED)
                 .body(matchingBody2)
@@ -126,7 +123,7 @@ class QuestionControllerIT {
                 .insert();
         data.link(2L, conceptId).insert();
 
-        //Matches all, difficulty MEDIUM, type MCQ. Source changed as irrelevant
+        // Matches all, difficulty MEDIUM, type MCQ. Source changed as irrelevant
         data.question(3L)
                 .status(QuestionStatus.APPROVED)
                 .body(matchingBody3)
@@ -168,8 +165,7 @@ class QuestionControllerIT {
                 .insert();
         data.link(6L, additionalConceptId).insert();
 
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "?types=SHORT_ANSWER,MCQ&difficulties=3,4&conceptId=" + conceptId)
                 .then()
                 .statusCode(OK.getCode())
@@ -179,14 +175,18 @@ class QuestionControllerIT {
                 .body("totalCount", equalTo(3))
                 .body("content.size()", equalTo(3))
                 .body("content.body", containsInAnyOrder(matchingBody1, matchingBody2, matchingBody3))
-                .body("content.type", containsInAnyOrder(
-                        QuestionType.SHORT_ANSWER.name(),
-                        QuestionType.SHORT_ANSWER.name(),
-                        QuestionType.MCQ.name()))
-                .body("content.difficulty", containsInAnyOrder(
-                        difficultyResponse(QuestionDifficulty.MEDIUM),
-                        difficultyResponse(QuestionDifficulty.MEDIUM),
-                        difficultyResponse(QuestionDifficulty.HARD)))
+                .body(
+                        "content.type",
+                        containsInAnyOrder(
+                                QuestionType.SHORT_ANSWER.name(),
+                                QuestionType.SHORT_ANSWER.name(),
+                                QuestionType.MCQ.name()))
+                .body(
+                        "content.difficulty",
+                        containsInAnyOrder(
+                                difficultyResponse(QuestionDifficulty.MEDIUM),
+                                difficultyResponse(QuestionDifficulty.MEDIUM),
+                                difficultyResponse(QuestionDifficulty.HARD)))
                 .body("content.linkedConceptIds", everyItem(contains((int) conceptId)));
     }
 
@@ -217,20 +217,38 @@ class QuestionControllerIT {
 
         // Walk all three pages at size 2. Each is a contiguous, non-overlapping slice of the one total
         // order — including the last, partial page at index 2 — so a row can't straddle, repeat or vanish.
-        given().when().get(QUESTIONS_PATH + "?page=0&size=2")
-                .then().statusCode(OK.getCode()).contentType(ContentType.JSON)
-                .body("content.size()", equalTo(2)).body("content.id", contains(5, 1))
-                .body("page", equalTo(0)).body("size", equalTo(2)).body("totalCount", equalTo(5));
+        given().when()
+                .get(QUESTIONS_PATH + "?page=0&size=2")
+                .then()
+                .statusCode(OK.getCode())
+                .contentType(ContentType.JSON)
+                .body("content.size()", equalTo(2))
+                .body("content.id", contains(5, 1))
+                .body("page", equalTo(0))
+                .body("size", equalTo(2))
+                .body("totalCount", equalTo(5));
 
-        given().when().get(QUESTIONS_PATH + "?page=1&size=2")
-                .then().statusCode(OK.getCode()).contentType(ContentType.JSON)
-                .body("content.size()", equalTo(2)).body("content.id", contains(2, 3))
-                .body("page", equalTo(1)).body("size", equalTo(2)).body("totalCount", equalTo(5));
+        given().when()
+                .get(QUESTIONS_PATH + "?page=1&size=2")
+                .then()
+                .statusCode(OK.getCode())
+                .contentType(ContentType.JSON)
+                .body("content.size()", equalTo(2))
+                .body("content.id", contains(2, 3))
+                .body("page", equalTo(1))
+                .body("size", equalTo(2))
+                .body("totalCount", equalTo(5));
 
-        given().when().get(QUESTIONS_PATH + "?page=2&size=2")
-                .then().statusCode(OK.getCode()).contentType(ContentType.JSON)
-                .body("content.size()", equalTo(1)).body("content.id", contains(4))
-                .body("page", equalTo(2)).body("size", equalTo(2)).body("totalCount", equalTo(5));
+        given().when()
+                .get(QUESTIONS_PATH + "?page=2&size=2")
+                .then()
+                .statusCode(OK.getCode())
+                .contentType(ContentType.JSON)
+                .body("content.size()", equalTo(1))
+                .body("content.id", contains(4))
+                .body("page", equalTo(2))
+                .body("size", equalTo(2))
+                .body("totalCount", equalTo(5));
     }
 
     @Test
@@ -246,8 +264,7 @@ class QuestionControllerIT {
         approvedLinkedQuestion(3L, "Three.", sameInstant, conceptId);
 
         for (int call = 0; call < 2; call++) {
-            given()
-                    .when()
+            given().when()
                     .get(QUESTIONS_PATH)
                     .then()
                     .statusCode(OK.getCode())
@@ -267,8 +284,7 @@ class QuestionControllerIT {
 
         // 9 is neither of the two rows present.
         String path = QUESTIONS_PATH + "/" + 9L;
-        given()
-                .when()
+        given().when()
                 .get(path)
                 .then()
                 .statusCode(NOT_FOUND.getCode())
@@ -283,16 +299,13 @@ class QuestionControllerIT {
         data.concept(conceptId).insert();
 
         long targetId = 7L;
-        data.question(targetId)
-                .status(QuestionStatus.REJECTED)
-                .insert();
+        data.question(targetId).status(QuestionStatus.REJECTED).insert();
         data.link(targetId, conceptId).insert();
 
         approvedLinkedQuestion(8L, "Servable question eight.", conceptId);
 
         String path = QUESTIONS_PATH + "/" + targetId;
-        given()
-                .when()
+        given().when()
                 .get(path)
                 .then()
                 .statusCode(NOT_FOUND.getCode())
@@ -309,15 +322,12 @@ class QuestionControllerIT {
         data.concept(conceptId).insert();
 
         long targetId = 7L;
-        data.question(targetId)
-                .status(QuestionStatus.APPROVED)
-                .insert();
+        data.question(targetId).status(QuestionStatus.APPROVED).insert();
 
         approvedLinkedQuestion(8L, "Servable question eight.", conceptId);
 
         String path = QUESTIONS_PATH + "/" + targetId;
-        given()
-                .when()
+        given().when()
                 .get(path)
                 .then()
                 .statusCode(NOT_FOUND.getCode())
@@ -345,8 +355,7 @@ class QuestionControllerIT {
 
         approvedLinkedQuestion(8L, "Servable question eight.", conceptId);
 
-        given()
-                .when()
+        given().when()
                 .get(QUESTIONS_PATH + "/" + id)
                 .then()
                 .statusCode(OK.getCode())
@@ -361,14 +370,13 @@ class QuestionControllerIT {
     }
 
     private void approvedLinkedQuestion(long id, String body, long conceptId) {
-        data.question(id).status(QuestionStatus.APPROVED)
-                .body(body)
-                .insert();
+        data.question(id).status(QuestionStatus.APPROVED).body(body).insert();
         data.link(id, conceptId).insert();
     }
 
     private void approvedLinkedQuestion(long id, String body, OffsetDateTime createdAt, long conceptId) {
-        data.question(id).status(QuestionStatus.APPROVED)
+        data.question(id)
+                .status(QuestionStatus.APPROVED)
                 .body(body)
                 .source(QuestionSource.SEED)
                 .createdAt(createdAt)

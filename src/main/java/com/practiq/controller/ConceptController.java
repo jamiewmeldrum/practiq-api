@@ -7,9 +7,8 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.server.exceptions.NotFoundException;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @ExecuteOn(TaskExecutors.BLOCKING)
@@ -31,7 +30,6 @@ public class ConceptController {
     @Get("/{id}")
     public ConceptResponse getById(long id) {
         log.debug("Requested to GET concept by id: {}", id);
-        return conceptService.get(id)
-                .orElseThrow(NotFoundException::new);
+        return conceptService.get(id).orElseThrow(NotFoundException::new);
     }
 }

@@ -1,19 +1,5 @@
 package com.practiq.domain.query.attempt;
 
-import com.practiq.domain.QuestionAttempt;
-import com.practiq.dto.filter.UserRequestFilter;
-import com.practiq.repository.QuestionAttemptRepository;
-import io.micronaut.data.model.Sort;
-import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.Instant;
-import java.util.List;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,6 +8,19 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.TestReflection.setField;
+
+import com.practiq.domain.QuestionAttempt;
+import com.practiq.dto.filter.UserRequestFilter;
+import com.practiq.repository.QuestionAttemptRepository;
+import io.micronaut.data.model.Sort;
+import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
+import java.time.Instant;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 // Runner as the unit entry point: the real QuestionAttemptSpecificationFactory (question-id predicate + session
 // restriction) is exercised through it, and only the repository is mocked. What the query FILTERS on — question id

@@ -1,24 +1,23 @@
 package com.practiq.service;
 
-import com.practiq.domain.MarkScheme;
-import com.practiq.domain.query.question.StudentQuestionQueryRunner;
-import com.practiq.dto.response.MarkSchemeResponse;
-import com.practiq.repository.MarkSchemeRepository;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.Instant;
-import java.util.Optional;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static utils.TestReflection.setField;
+
+import com.practiq.domain.MarkScheme;
+import com.practiq.domain.query.question.StudentQuestionQueryRunner;
+import com.practiq.dto.response.MarkSchemeResponse;
+import com.practiq.repository.MarkSchemeRepository;
+import java.time.Instant;
+import java.util.Optional;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 // A thin layer over the StudentQuestionQueryRunner visibility gate and MarkSchemeRepository. Both are mocked so
 // these tests pin the orchestration: the question must be student-visible before the mark scheme is even

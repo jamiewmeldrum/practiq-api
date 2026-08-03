@@ -1,21 +1,20 @@
 package integration.db;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static utils.data.TestDatabase.*;
+
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import jakarta.inject.Inject;
+import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.DBRow;
 import utils.data.QuestionTestData;
-
-import java.time.Instant;
-import java.util.List;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static utils.data.TestDatabase.*;
 
 @IntegrationTest
 class QuestionDatabaseIT {
@@ -44,10 +43,7 @@ class QuestionDatabaseIT {
         question.assertThat("source", equalTo(source.name()));
         question.assertThat("status", equalTo(QuestionStatus.PENDING.name()));
         question.assertThat("source_spec", nullValue());
-        question.assertThat("created_at", allOf(
-                greaterThan(Instant.EPOCH),
-                lessThanOrEqualTo(Instant.now())
-        ));
+        question.assertThat("created_at", allOf(greaterThan(Instant.EPOCH), lessThanOrEqualTo(Instant.now())));
         question.assertAllColumnsChecked();
 
         List<DBRow> questionConcepts = data.retrieveLinks();
@@ -71,16 +67,16 @@ class QuestionDatabaseIT {
         assertThat(questionConcepts, hasSize(2));
         questionConcepts.forEach(c -> c.assertThat("question_id", equalTo(questionId)));
 
-        List<Long> linkedConceptIds = questionConcepts.stream()
-                .map(c -> c.<Long>get("concept_id"))
-                .toList();
+        List<Long> linkedConceptIds =
+                questionConcepts.stream().map(c -> c.<Long>get("concept_id")).toList();
         assertThat(linkedConceptIds, containsInAnyOrder(conceptId1, conceptId2));
     }
 
     @Test
     void ensureThatBodyMustBeSet() {
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.question().source(QuestionSource.SEED).insert());
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class,
+                () -> data.question().source(QuestionSource.SEED).insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"body\""));
@@ -88,9 +84,9 @@ class QuestionDatabaseIT {
 
     @Test
     void ensureThatSourceMustBeSet() {
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.question().body("A question.").insert()
-        );
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class,
+                () -> data.question().body("A question.").insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"source\""));
@@ -98,13 +94,11 @@ class QuestionDatabaseIT {
 
     @Test
     void ensureThatDifficultyMustBeWithinRange() {
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.question()
-                        .body("A question.")
-                        .source(QuestionSource.SEED)
-                        .difficulty(6)
-                        .insert()
-        );
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> data.question()
+                .body("A question.")
+                .source(QuestionSource.SEED)
+                .difficulty(6)
+                .insert());
 
         assertThat(sqlStateOf(thrown), equalTo(CHECK_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("difficulty"));

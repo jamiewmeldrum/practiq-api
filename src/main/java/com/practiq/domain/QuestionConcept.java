@@ -21,8 +21,7 @@ public class QuestionConcept {
     @JoinColumn(name = "concept_id")
     private Concept concept;
 
-    protected QuestionConcept() {
-    }
+    protected QuestionConcept() {}
 
     public QuestionConcept(Question question, Concept concept) {
         this.question = question;

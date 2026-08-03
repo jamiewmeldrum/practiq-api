@@ -34,7 +34,6 @@ public class QuestionController {
     @Get("/{id}")
     public QuestionResponse getById(long id) {
         log.debug("Requested to GET question by id: {}", id);
-        return questionService.get(id)
-                .orElseThrow(NotFoundException::new);
+        return questionService.get(id).orElseThrow(NotFoundException::new);
     }
 }

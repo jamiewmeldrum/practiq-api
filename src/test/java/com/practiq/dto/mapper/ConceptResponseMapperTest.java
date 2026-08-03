@@ -1,15 +1,14 @@
 package com.practiq.dto.mapper;
 
-import com.practiq.domain.Concept;
-import com.practiq.dto.response.ConceptResponse;
-import org.junit.jupiter.api.Test;
-
-import java.time.Instant;
-
 import static com.practiq.dto.mapper.ConceptResponseMapper.toConceptResponse;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static utils.TestReflection.setField;
+
+import com.practiq.domain.Concept;
+import com.practiq.dto.response.ConceptResponse;
+import java.time.Instant;
+import org.junit.jupiter.api.Test;
 
 class ConceptResponseMapperTest {
 

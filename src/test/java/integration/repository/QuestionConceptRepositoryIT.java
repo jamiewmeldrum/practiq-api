@@ -1,20 +1,19 @@
 package integration.repository;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
+
 import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.repository.QuestionConceptRepository;
 import jakarta.inject.Inject;
+import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.QuestionTestData;
-
-import java.util.List;
-import java.util.Set;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
 
 @IntegrationTest
 class QuestionConceptRepositoryIT {
@@ -50,17 +49,18 @@ class QuestionConceptRepositoryIT {
         data.link(singleLinked, conceptA).insert();
         data.link(outsideTheSet, conceptB).insert();
 
-        List<QuestionConceptLink> links = questionConceptRepository.findLinksByQuestionIds(
-                Set.of(multiLinked, singleLinked, unlinked));
+        List<QuestionConceptLink> links =
+                questionConceptRepository.findLinksByQuestionIds(Set.of(multiLinked, singleLinked, unlinked));
 
         // Exactly the pairs for the requested questions: both of the multi-linked question's concepts and
         // the single-linked one's. The unlinked question contributes nothing, and outsideTheSet's link is
         // excluded because its question id isn't in the set — proving the IN parameter actually binds.
-        assertThat(links, containsInAnyOrder(
-                new QuestionConceptLink(multiLinked, conceptA),
-                new QuestionConceptLink(multiLinked, conceptB),
-                new QuestionConceptLink(singleLinked, conceptA)
-        ));
+        assertThat(
+                links,
+                containsInAnyOrder(
+                        new QuestionConceptLink(multiLinked, conceptA),
+                        new QuestionConceptLink(multiLinked, conceptB),
+                        new QuestionConceptLink(singleLinked, conceptA)));
     }
 
     @Test
@@ -70,8 +70,8 @@ class QuestionConceptRepositoryIT {
         data.question(unlinkedOne).status(QuestionStatus.APPROVED).insert();
         data.question(unlinkedTwo).status(QuestionStatus.APPROVED).insert();
 
-        List<QuestionConceptLink> links = questionConceptRepository.findLinksByQuestionIds(
-                Set.of(unlinkedOne, unlinkedTwo));
+        List<QuestionConceptLink> links =
+                questionConceptRepository.findLinksByQuestionIds(Set.of(unlinkedOne, unlinkedTwo));
 
         assertThat(links, empty());
     }

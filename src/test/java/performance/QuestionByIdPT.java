@@ -1,5 +1,10 @@
 package performance;
 
+import static io.micronaut.http.HttpStatus.OK;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
@@ -11,11 +16,6 @@ import org.junit.jupiter.api.Test;
 import utils.PerformanceTest;
 import utils.StatementCounter;
 import utils.data.QuestionTestData;
-
-import static io.micronaut.http.HttpStatus.OK;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
 
 // Pins the JDBC statement count for serving a single question by id.
 @PerformanceTest

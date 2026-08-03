@@ -1,19 +1,18 @@
 package integration.db;
 
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import utils.IntegrationTest;
-import utils.data.DBRow;
-import utils.data.QuestionTestData;
-
-import java.util.List;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.data.DBRow.hasColumn;
 import static utils.data.TestDatabase.*;
+
+import jakarta.inject.Inject;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import utils.IntegrationTest;
+import utils.data.DBRow;
+import utils.data.QuestionTestData;
 
 @IntegrationTest
 class QuestionConceptDatabaseIT {
@@ -42,8 +41,8 @@ class QuestionConceptDatabaseIT {
         questionConcept.assertThat("concept_id", equalTo(conceptId));
 
         // The composite (questionId, conceptId) primary key rejects a duplicate link.
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.link(questionId, conceptId).insert());
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> data.link(questionId, conceptId)
+                .insert());
 
         assertThat(sqlStateOf(thrown), equalTo(UNIQUE_VIOLATION));
     }
@@ -53,8 +52,8 @@ class QuestionConceptDatabaseIT {
         long conceptId = 10L;
         data.concept(conceptId).insert();
 
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.link(999L, conceptId).insert());
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class, () -> data.link(999L, conceptId).insert());
 
         assertThat(sqlStateOf(thrown), equalTo(FOREIGN_KEY_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("question_id"));
@@ -65,8 +64,8 @@ class QuestionConceptDatabaseIT {
         long questionId = 1L;
         data.question(questionId).insert();
 
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.link(questionId, 999L).insert());
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class, () -> data.link(questionId, 999L).insert());
 
         assertThat(sqlStateOf(thrown), equalTo(FOREIGN_KEY_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("concept_id"));
@@ -74,7 +73,7 @@ class QuestionConceptDatabaseIT {
 
     @Test
     void ensureQuestionConceptsDeletedWhenQuestionsDeleted() {
-        //Data linked to question that will be deleted
+        // Data linked to question that will be deleted
         long questionId = 1L;
         data.question(questionId).insert();
 
@@ -86,7 +85,7 @@ class QuestionConceptDatabaseIT {
         data.concept(conceptId2).insert();
         data.link(questionId, conceptId2).insert();
 
-        //Data linked to question that will not be deleted
+        // Data linked to question that will not be deleted
         long otherQuestionId = 2L;
         data.question(otherQuestionId).insert();
 
@@ -94,7 +93,7 @@ class QuestionConceptDatabaseIT {
         data.concept(otherConceptId).insert();
         data.link(otherQuestionId, otherConceptId).insert();
 
-        //Assert before
+        // Assert before
         List<DBRow> questions = data.retrieveQuestions();
         assertThat(questions, hasSize(2));
         assertThat(DBRow.collectColumn(questions, "id"), contains(questionId, otherQuestionId));
@@ -105,24 +104,22 @@ class QuestionConceptDatabaseIT {
 
         List<DBRow> questionConcepts = data.retrieveLinks();
         assertThat(questionConcepts, hasSize(3));
-        assertThat(questionConcepts, contains(
-                allOf(
-                        hasColumn("question_id", equalTo(questionId)),
-                        hasColumn("concept_id", equalTo(conceptId1))
-                ),
-                allOf(
-                        hasColumn("question_id", equalTo(questionId)),
-                        hasColumn("concept_id", equalTo(conceptId2))
-                ),
-                allOf(
-                        hasColumn("question_id", equalTo(otherQuestionId)),
-                        hasColumn("concept_id", equalTo(otherConceptId))
-                )
-        ));
+        assertThat(
+                questionConcepts,
+                contains(
+                        allOf(
+                                hasColumn("question_id", equalTo(questionId)),
+                                hasColumn("concept_id", equalTo(conceptId1))),
+                        allOf(
+                                hasColumn("question_id", equalTo(questionId)),
+                                hasColumn("concept_id", equalTo(conceptId2))),
+                        allOf(
+                                hasColumn("question_id", equalTo(otherQuestionId)),
+                                hasColumn("concept_id", equalTo(otherConceptId)))));
 
         data.deleteQuestion(questionId);
 
-        //Assert after
+        // Assert after
         List<DBRow> questionsAfterDelete = data.retrieveQuestions();
         assertThat(questionsAfterDelete, hasSize(1));
         assertThat(DBRow.collectColumn(questionsAfterDelete, "id"), contains(otherQuestionId));
@@ -133,17 +130,16 @@ class QuestionConceptDatabaseIT {
 
         List<DBRow> questionConceptsAfterDelete = data.retrieveLinks();
         assertThat(questionConceptsAfterDelete, hasSize(1));
-        assertThat(questionConceptsAfterDelete, contains(
-                allOf(
+        assertThat(
+                questionConceptsAfterDelete,
+                contains(allOf(
                         hasColumn("question_id", equalTo(otherQuestionId)),
-                        hasColumn("concept_id", equalTo(otherConceptId))
-                )
-        ));
+                        hasColumn("concept_id", equalTo(otherConceptId)))));
     }
 
     @Test
     void ensureQuestionConceptsDeletedWhenConceptsDeleted() {
-        //Data linked to concept that will be deleted
+        // Data linked to concept that will be deleted
         long questionId1 = 1L;
         data.question(questionId1).insert();
 
@@ -155,7 +151,7 @@ class QuestionConceptDatabaseIT {
         data.link(questionId1, conceptId).insert();
         data.link(questionId2, conceptId).insert();
 
-        //Data linked to question that will not be deleted
+        // Data linked to question that will not be deleted
         long questionId3 = 3L;
         data.question(questionId3).insert();
 
@@ -163,7 +159,7 @@ class QuestionConceptDatabaseIT {
         data.concept(otherConceptId).insert();
         data.link(questionId3, otherConceptId).insert();
 
-        //Assert before
+        // Assert before
         List<DBRow> questions = data.retrieveQuestions();
         assertThat(questions, hasSize(3));
         assertThat(DBRow.collectColumn(questions, "id"), contains(questionId1, questionId2, questionId3));
@@ -174,24 +170,22 @@ class QuestionConceptDatabaseIT {
 
         List<DBRow> questionConcepts = data.retrieveLinks();
         assertThat(questionConcepts, hasSize(3));
-        assertThat(questionConcepts, contains(
-                allOf(
-                        hasColumn("question_id", equalTo(questionId1)),
-                        hasColumn("concept_id", equalTo(conceptId))
-                ),
-                allOf(
-                        hasColumn("question_id", equalTo(questionId2)),
-                        hasColumn("concept_id", equalTo(conceptId))
-                ),
-                allOf(
-                        hasColumn("question_id", equalTo(questionId3)),
-                        hasColumn("concept_id", equalTo(otherConceptId))
-                )
-        ));
+        assertThat(
+                questionConcepts,
+                contains(
+                        allOf(
+                                hasColumn("question_id", equalTo(questionId1)),
+                                hasColumn("concept_id", equalTo(conceptId))),
+                        allOf(
+                                hasColumn("question_id", equalTo(questionId2)),
+                                hasColumn("concept_id", equalTo(conceptId))),
+                        allOf(
+                                hasColumn("question_id", equalTo(questionId3)),
+                                hasColumn("concept_id", equalTo(otherConceptId)))));
 
         data.deleteConcept(conceptId);
 
-        //Assert after
+        // Assert after
         List<DBRow> questionsAfterDelete = data.retrieveQuestions();
         assertThat(questionsAfterDelete, hasSize(3));
         assertThat(DBRow.collectColumn(questionsAfterDelete, "id"), contains(questionId1, questionId2, questionId3));
@@ -202,12 +196,10 @@ class QuestionConceptDatabaseIT {
 
         List<DBRow> questionConceptsAfterDelete = data.retrieveLinks();
         assertThat(questionConceptsAfterDelete, hasSize(1));
-        assertThat(questionConceptsAfterDelete, contains(
-                allOf(
+        assertThat(
+                questionConceptsAfterDelete,
+                contains(allOf(
                         hasColumn("question_id", equalTo(questionId3)),
-                        hasColumn("concept_id", equalTo(otherConceptId))
-                )
-        ));
-
+                        hasColumn("concept_id", equalTo(otherConceptId)))));
     }
 }

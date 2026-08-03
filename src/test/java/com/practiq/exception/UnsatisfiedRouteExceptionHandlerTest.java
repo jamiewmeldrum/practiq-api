@@ -1,5 +1,9 @@
 package com.practiq.exception;
 
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 import com.practiq.dto.response.ErrorResponse;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
@@ -8,10 +12,6 @@ import io.micronaut.web.router.exceptions.UnsatisfiedHeaderRouteException;
 import io.micronaut.web.router.exceptions.UnsatisfiedQueryValueRouteException;
 import io.micronaut.web.router.exceptions.UnsatisfiedRouteException;
 import org.junit.jupiter.api.Test;
-
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class UnsatisfiedRouteExceptionHandlerTest {
 
@@ -42,8 +42,7 @@ class UnsatisfiedRouteExceptionHandlerTest {
         Argument<?> methodParameter = Argument.of(String.class, "conceptId");
         UnsatisfiedRouteException exception = new UnsatisfiedQueryValueRouteException("conceptId", methodParameter);
 
-        HttpResponse<ErrorResponse> response =
-                handler.handle(HttpRequest.GET("/api/v1/questions"), exception);
+        HttpResponse<ErrorResponse> response = handler.handle(HttpRequest.GET("/api/v1/questions"), exception);
 
         assertEquals(BAD_REQUEST.getCode(), response.getStatus().getCode());
         ErrorResponse body = response.body();

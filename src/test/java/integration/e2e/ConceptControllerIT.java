@@ -1,21 +1,20 @@
 package integration.e2e;
 
+import static io.micronaut.http.HttpStatus.NOT_FOUND;
+import static io.micronaut.http.HttpStatus.OK;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
+
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
+import java.time.OffsetDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.QuestionTestData;
-
-import java.time.OffsetDateTime;
-
-import static io.micronaut.http.HttpStatus.NOT_FOUND;
-import static io.micronaut.http.HttpStatus.OK;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
 
 @IntegrationTest
 class ConceptControllerIT {
@@ -44,27 +43,25 @@ class ConceptControllerIT {
         data.concept().name(accelerationName).description("desc 2").insert();
         data.concept().name(forcesName).description("desc 3").insert();
 
-        // Each insert commits in its own transaction, so the three rows get distinct created_at defaults in insert order.
-        Response response =
-                given()
-                        .when()
-                        .get(CONCEPTS_PATH)
-                        .then()
-                        .statusCode(OK.getCode())
-                        .contentType(ContentType.JSON)
-                        .body("[0].name", equalTo(diffractionName))
-                        .body("[1].name", equalTo(accelerationName))
-                        .body("[2].name", equalTo(forcesName))
-                        .extract()
-                        .response();
+        // Each insert commits in its own transaction, so the three rows get distinct created_at defaults in insert
+        // order.
+        Response response = given().when()
+                .get(CONCEPTS_PATH)
+                .then()
+                .statusCode(OK.getCode())
+                .contentType(ContentType.JSON)
+                .body("[0].name", equalTo(diffractionName))
+                .body("[1].name", equalTo(accelerationName))
+                .body("[2].name", equalTo(forcesName))
+                .extract()
+                .response();
 
         long firstId = ((Number) response.path("[0].id")).longValue();
 
-        //Now update the created_at to prove ordering isn't coincidence
+        // Now update the created_at to prove ordering isn't coincidence
         data.updateConcept(firstId, "created_at", OffsetDateTime.now());
 
-        given()
-                .when()
+        given().when()
                 .get(CONCEPTS_PATH)
                 .then()
                 .statusCode(OK.getCode())
@@ -76,8 +73,7 @@ class ConceptControllerIT {
 
     @Test
     void getConceptsReturnsEmptyArrayWhenNoneExist() {
-        given()
-                .when()
+        given().when()
                 .get(CONCEPTS_PATH)
                 .then()
                 .statusCode(OK.getCode())
@@ -94,10 +90,13 @@ class ConceptControllerIT {
         String description = "The spreading of waves through a gap or around an obstacle.";
 
         data.concept().id(id).name(name).description(description).insert();
-        data.concept().id(46).name("Acceleration").description("The rate of change of velocity.").insert();
+        data.concept()
+                .id(46)
+                .name("Acceleration")
+                .description("The rate of change of velocity.")
+                .insert();
 
-        given()
-                .when()
+        given().when()
                 .get(CONCEPTS_PATH + "/" + id)
                 .then()
                 .statusCode(OK.getCode())
@@ -115,8 +114,7 @@ class ConceptControllerIT {
 
         // 47 is neither of the two rows present.
         String path = CONCEPTS_PATH + "/" + 47L;
-        given()
-                .when()
+        given().when()
                 .get(path)
                 .then()
                 .statusCode(NOT_FOUND.getCode())

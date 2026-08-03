@@ -3,7 +3,6 @@ package com.practiq.domain.converters;
 import com.practiq.domain.types.QuestionDifficulty;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
-
 import java.util.Optional;
 
 @Converter

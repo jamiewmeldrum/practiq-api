@@ -23,7 +23,6 @@ public class MarkSchemeController {
     @Get("/{questionId}/mark-scheme")
     public MarkSchemeResponse getForQuestionId(long questionId) {
         log.debug("Requested to GET mark scheme for question id: {}", questionId);
-        return markSchemeService.getForQuestionId(questionId)
-                .orElseThrow(NotFoundException::new);
+        return markSchemeService.getForQuestionId(questionId).orElseThrow(NotFoundException::new);
     }
 }

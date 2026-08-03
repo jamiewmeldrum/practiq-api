@@ -6,7 +6,6 @@ import com.practiq.repository.QuestionAttemptRepository;
 import io.micronaut.data.model.Sort;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.inject.Singleton;
-
 import java.util.List;
 
 @Singleton
@@ -19,16 +18,14 @@ public class QuestionAttemptQueryRunner {
 
     public QuestionAttemptQueryRunner(
             QuestionAttemptRepository questionAttemptRepository,
-            QuestionAttemptSpecificationFactory questionAttemptSpecificationFactory
-    ) {
+            QuestionAttemptSpecificationFactory questionAttemptSpecificationFactory) {
         this.questionAttemptRepository = questionAttemptRepository;
         this.questionAttemptSpecificationFactory = questionAttemptSpecificationFactory;
     }
 
-    public List<QuestionAttempt> getQuestionAttempts(
-            UserRequestFilter userRequestFilter,
-            long questionId) {
-        QuestionAttemptQuery questionAttemptQuery = new QuestionAttemptQuery(questionId, userRequestFilter.sessionToken());
+    public List<QuestionAttempt> getQuestionAttempts(UserRequestFilter userRequestFilter, long questionId) {
+        QuestionAttemptQuery questionAttemptQuery =
+                new QuestionAttemptQuery(questionId, userRequestFilter.sessionToken());
         QuerySpecification<QuestionAttempt> spec = questionAttemptSpecificationFactory.forQuery(questionAttemptQuery);
 
         return questionAttemptRepository.findAll(spec, STABLE_ORDER);

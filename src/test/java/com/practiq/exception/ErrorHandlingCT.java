@@ -1,5 +1,12 @@
 package com.practiq.exception;
 
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static io.micronaut.http.HttpStatus.NOT_FOUND;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+
 import io.micronaut.context.annotation.Property;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
@@ -8,13 +15,6 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.ComponentTest;
-
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
-import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
-import static io.micronaut.http.HttpStatus.NOT_FOUND;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
 
 @ComponentTest
 @Property(name = "spec.name", value = "ErrorHandlingCT")
@@ -32,8 +32,7 @@ class ErrorHandlingCT {
 
     @Test
     void unmappedRouteReturnsNotFoundEnvelope() {
-        given()
-                .when()
+        given().when()
                 .get(INVALID_RESOURCES_PATH)
                 .then()
                 .statusCode(NOT_FOUND.getCode())
@@ -45,8 +44,7 @@ class ErrorHandlingCT {
 
     @Test
     void missingRequiredHeaderReturnsBadRequestEnvelope() {
-        given()
-                .when()
+        given().when()
                 .get("/test/errors/required-header")
                 .then()
                 .statusCode(BAD_REQUEST.getCode())
@@ -60,8 +58,7 @@ class ErrorHandlingCT {
     // serves both. Two flavours prove the handler's breadth end to end without covering every subtype.
     @Test
     void missingRequiredQueryValueReturnsBadRequestEnvelope() {
-        given()
-                .when()
+        given().when()
                 .get("/test/errors/required-query")
                 .then()
                 .statusCode(BAD_REQUEST.getCode())
@@ -73,8 +70,7 @@ class ErrorHandlingCT {
 
     @Test
     void unexpectedRuntimeErrorReturnsInternalServerErrorEnvelope() {
-        given()
-                .when()
+        given().when()
                 .get("/test/errors/runtime-error")
                 .then()
                 .statusCode(INTERNAL_SERVER_ERROR.getCode())
@@ -89,8 +85,7 @@ class ErrorHandlingCT {
     // 409 Conflict handler; this test is the tripwire forcing that decision when it lands.
     @Test
     void optimisticLockFailureCurrentlyReturnsTheGenericErrorEnvelope() {
-        given()
-                .when()
+        given().when()
                 .get("/test/errors/optimistic-lock")
                 .then()
                 .statusCode(INTERNAL_SERVER_ERROR.getCode())

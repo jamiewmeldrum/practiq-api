@@ -1,19 +1,18 @@
 package integration.db;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static utils.data.TestDatabase.*;
+
 import jakarta.inject.Inject;
+import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.DBRow;
 import utils.data.QuestionTestData;
-
-import java.time.Instant;
-import java.util.List;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static utils.data.TestDatabase.*;
 
 @IntegrationTest
 public class QuestionAttemptDatabaseIT {
@@ -41,10 +40,7 @@ public class QuestionAttemptDatabaseIT {
         questionAttempt.assertThat("question_id", equalTo(questionId));
         questionAttempt.assertThat("session_token", equalTo(sessionToken));
         questionAttempt.assertThat("body", equalTo(body));
-        questionAttempt.assertThat("created_at", allOf(
-                greaterThan(Instant.EPOCH),
-                lessThanOrEqualTo(Instant.now())
-        ));
+        questionAttempt.assertThat("created_at", allOf(greaterThan(Instant.EPOCH), lessThanOrEqualTo(Instant.now())));
         questionAttempt.assertAllColumnsChecked();
     }
 
@@ -55,7 +51,7 @@ public class QuestionAttemptDatabaseIT {
         data.questionAttempt(questionId, "sessionToken", "body").insert();
         data.questionAttempt(questionId, "sessionToken", "body").insert();
 
-        //Add another question and attempt
+        // Add another question and attempt
         long otherQuestionId = 2L;
         data.question(otherQuestionId).insert();
         data.questionAttempt(otherQuestionId, "sessionToken", "body").insert();
@@ -66,7 +62,9 @@ public class QuestionAttemptDatabaseIT {
 
         List<DBRow> questionAttempts = data.retrieveQuestionAttempts();
         assertThat(questionAttempts, hasSize(3));
-        assertThat(DBRow.collectColumn(questionAttempts, "question_id"), contains(questionId, questionId, otherQuestionId));
+        assertThat(
+                DBRow.collectColumn(questionAttempts, "question_id"),
+                contains(questionId, questionId, otherQuestionId));
 
         data.deleteQuestion(questionId);
 
@@ -81,8 +79,9 @@ public class QuestionAttemptDatabaseIT {
 
     @Test
     void ensureThatQuestionMustExist() {
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.questionAttempt(1L, "sessionToken", "body").insert());
+        IllegalStateException thrown =
+                assertThrows(IllegalStateException.class, () -> data.questionAttempt(1L, "sessionToken", "body")
+                        .insert());
 
         assertThat(sqlStateOf(thrown), equalTo(FOREIGN_KEY_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("question_id"));
@@ -90,8 +89,10 @@ public class QuestionAttemptDatabaseIT {
 
     @Test
     void ensureThatQuestionIdMustBeSet() {
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.questionAttempt().sessionToken("sessionToken").body("Test").insert());
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> data.questionAttempt()
+                .sessionToken("sessionToken")
+                .body("Test")
+                .insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"question_id\""));
@@ -101,8 +102,10 @@ public class QuestionAttemptDatabaseIT {
     void ensureThatBodyMustBeSet() {
         long questionId = 1L;
         data.question(questionId).insert();
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.questionAttempt().questionId(1L).sessionToken("sessionToken").insert());
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> data.questionAttempt()
+                .questionId(1L)
+                .sessionToken("sessionToken")
+                .insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"body\""));
@@ -112,8 +115,9 @@ public class QuestionAttemptDatabaseIT {
     void ensureThatSessionTokenMustBeSet() {
         long questionId = 1L;
         data.question(questionId).insert();
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-                data.questionAttempt().questionId(1L).body("body").insert());
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class,
+                () -> data.questionAttempt().questionId(1L).body("body").insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"session_token\""));

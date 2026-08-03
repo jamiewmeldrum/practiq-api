@@ -1,17 +1,15 @@
 package com.practiq.dto.mapper;
 
+import static java.util.stream.Collectors.toSet;
+
 import com.practiq.domain.Question;
 import com.practiq.domain.projection.LinkedQuestion;
 import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.dto.response.QuestionDifficultyResponse;
 import com.practiq.dto.response.QuestionResponse;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.List;
-
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toSet;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class QuestionResponseMapper {
@@ -33,7 +31,8 @@ public class QuestionResponseMapper {
                 difficulty == null ? null : new QuestionDifficultyResponse(difficulty),
                 question.getType(),
                 question.getCreatedAt(),
-                linkedQuestion.conceptLinks().stream().map(QuestionConceptLink::conceptId).collect(toSet())
-        );
+                linkedQuestion.conceptLinks().stream()
+                        .map(QuestionConceptLink::conceptId)
+                        .collect(toSet()));
     }
 }

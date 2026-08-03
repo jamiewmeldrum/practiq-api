@@ -1,14 +1,13 @@
 package utils.data;
 
-import org.hamcrest.FeatureMatcher;
-import org.hamcrest.Matcher;
-
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.hamcrest.FeatureMatcher;
+import org.hamcrest.Matcher;
 
 public class DBRow {
 
@@ -33,9 +32,7 @@ public class DBRow {
         unchecked.removeAll(asserted);
 
         if (!unchecked.isEmpty()) {
-            throw new AssertionError(
-                    "Unchecked columns: " + unchecked
-            );
+            throw new AssertionError("Unchecked columns: " + unchecked);
         }
     }
 
@@ -47,8 +44,8 @@ public class DBRow {
             String columnName = metadata.getColumnName(i);
             Object value = resultSet.getObject(i);
 
-            //A little bit of on the fly util conversion to ensure we use standard types. Low cost and helpful to avoid
-            //strange test failures.
+            // A little bit of on the fly util conversion to ensure we use standard types. Low cost and helpful to avoid
+            // strange test failures.
             if (value instanceof Timestamp timestamp) {
                 value = timestamp.toInstant();
             }
@@ -72,4 +69,3 @@ public class DBRow {
         };
     }
 }
-

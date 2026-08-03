@@ -1,5 +1,10 @@
 package performance;
 
+import static io.micronaut.http.HttpStatus.OK;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
 import jakarta.inject.Inject;
@@ -9,11 +14,6 @@ import org.junit.jupiter.api.Test;
 import utils.PerformanceTest;
 import utils.StatementCounter;
 import utils.data.QuestionTestData;
-
-import static io.micronaut.http.HttpStatus.OK;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
 
 // Pins the JDBC statement count for serving the concept list. This endpoint is unpaged — it returns every
 // concept row — so it is the one place where a per-row query has no page size to blunt it. Concept has no
@@ -48,8 +48,8 @@ public class ConceptCataloguePT {
     void servingTheConceptListFiresAConstantNumberOfStatements() {
         insertConcepts(3);
 
-        long count = statements.countDuring(() ->
-                given().when().get(CONCEPTS_PATH).then().statusCode(OK.getCode()));
+        long count = statements.countDuring(
+                () -> given().when().get(CONCEPTS_PATH).then().statusCode(OK.getCode()));
 
         assertThat(count, equalTo(EXPECTED_STATEMENTS));
     }
@@ -58,14 +58,14 @@ public class ConceptCataloguePT {
     void servingMoreConceptsDoesNotFireMoreStatements() {
         insertConcepts(2);
 
-        long fewer = statements.countDuring(() ->
-                given().when().get(CONCEPTS_PATH).then().statusCode(OK.getCode()));
+        long fewer = statements.countDuring(
+                () -> given().when().get(CONCEPTS_PATH).then().statusCode(OK.getCode()));
 
         data.clear();
         insertConcepts(6);
 
-        long more = statements.countDuring(() ->
-                given().when().get(CONCEPTS_PATH).then().statusCode(OK.getCode()));
+        long more = statements.countDuring(
+                () -> given().when().get(CONCEPTS_PATH).then().statusCode(OK.getCode()));
 
         // Nothing caps this endpoint's rows, so cost must be independent of how many concepts exist.
         assertThat(more, equalTo(fewer));

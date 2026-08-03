@@ -2,8 +2,8 @@ package com.practiq.domain.query.question;
 
 import com.practiq.domain.Question;
 import com.practiq.domain.QuestionConcept;
-import com.practiq.domain.QuestionConcept_;
 import com.practiq.domain.QuestionConceptId_;
+import com.practiq.domain.QuestionConcept_;
 import com.practiq.domain.Question_;
 import com.practiq.domain.query.QuerySpecificationFactory;
 import com.practiq.domain.types.QuestionDifficulty;
@@ -14,15 +14,15 @@ import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.inject.Singleton;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
-
 import java.util.List;
 
 @Singleton
 public class QuestionSpecificationFactory extends QuerySpecificationFactory<Question, QuestionQuery> {
 
     @Override
-    protected QuerySpecification<Question> applyDomain(QuerySpecification<Question> specification, QuestionQuery query) {
-         if (query.getStatus() != null) {
+    protected QuerySpecification<Question> applyDomain(
+            QuerySpecification<Question> specification, QuestionQuery query) {
+        if (query.getStatus() != null) {
             specification = specification.and(hasStatus(query.getStatus()));
         }
 
@@ -70,10 +70,13 @@ public class QuestionSpecificationFactory extends QuerySpecificationFactory<Ques
         return (root, criteriaQuery, cb) -> {
             Subquery<Long> matchingLink = criteriaQuery.subquery(Long.class);
             Root<QuestionConcept> link = matchingLink.from(QuestionConcept.class);
-            matchingLink.select(cb.literal(1L)).where(
-                    cb.equal(link.get(QuestionConcept_.id).get(QuestionConceptId_.questionId), root.get(Question_.id)),
-                    cb.equal(link.get(QuestionConcept_.id).get(QuestionConceptId_.conceptId), conceptId)
-            );
+            matchingLink
+                    .select(cb.literal(1L))
+                    .where(
+                            cb.equal(
+                                    link.get(QuestionConcept_.id).get(QuestionConceptId_.questionId),
+                                    root.get(Question_.id)),
+                            cb.equal(link.get(QuestionConcept_.id).get(QuestionConceptId_.conceptId), conceptId));
             return cb.exists(matchingLink);
         };
     }
@@ -82,9 +85,10 @@ public class QuestionSpecificationFactory extends QuerySpecificationFactory<Ques
         return (root, criteriaQuery, cb) -> {
             Subquery<Long> matchingLink = criteriaQuery.subquery(Long.class);
             Root<QuestionConcept> link = matchingLink.from(QuestionConcept.class);
-            matchingLink.select(cb.literal(1L)).where(
-                    cb.equal(link.get(QuestionConcept_.id).get(QuestionConceptId_.questionId), root.get(Question_.id))
-            );
+            matchingLink
+                    .select(cb.literal(1L))
+                    .where(cb.equal(
+                            link.get(QuestionConcept_.id).get(QuestionConceptId_.questionId), root.get(Question_.id)));
             return cb.exists(matchingLink);
         };
     }

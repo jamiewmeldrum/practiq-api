@@ -1,5 +1,7 @@
 package com.practiq.service;
 
+import static com.practiq.dto.mapper.QuestionResponseMapper.toQuestionResponses;
+
 import com.practiq.domain.projection.LinkedQuestion;
 import com.practiq.domain.query.question.StudentQuestionQueryRunner;
 import com.practiq.dto.mapper.QuestionResponseMapper;
@@ -10,11 +12,8 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.Optional;
-
-import static com.practiq.dto.mapper.QuestionResponseMapper.toQuestionResponses;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Singleton
@@ -29,8 +28,7 @@ public class QuestionService {
     @Transactional(readOnly = true)
     public Optional<QuestionResponse> get(long id) {
         log.debug("Getting question for id {}", id);
-        return questionQueryRunner.findQuestionById(id)
-                .map(QuestionResponseMapper::toQuestionResponse);
+        return questionQueryRunner.findQuestionById(id).map(QuestionResponseMapper::toQuestionResponse);
     }
 
     @Transactional(readOnly = true)

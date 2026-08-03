@@ -4,12 +4,11 @@ plugins {
     id("com.gradleup.shadow") version "8.3.9"
     id("io.micronaut.test-resources") version "4.6.2"
     id("io.micronaut.aot") version "4.6.2"
+    id("com.diffplug.spotless") version "7.2.1"
 }
 
 version = "0.1"
 group = "com.practiq"
-
-
 
 repositories {
     mavenCentral()
@@ -49,8 +48,6 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-
-
 application {
     mainClass = "com.practiq.Application"
 }
@@ -60,14 +57,18 @@ java {
     targetCompatibility = JavaVersion.toVersion("21")
 }
 
-
-
+spotless {
+    java {
+        importOrder()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+        palantirJavaFormat()
+        formatAnnotations()
+    }
+}
 
 graalvmNative.toolchainDetection = false
-
-
-
-
 
 micronaut {
     runtime("netty")
@@ -101,6 +102,9 @@ micronaut {
 
 }
 
+tasks.compileJava {
+    dependsOn("spotlessCheck")
+}
 
 tasks.named<JavaExec>("run") {
     // Default `./gradlew run` to the `local` environment so the app uses the Compose

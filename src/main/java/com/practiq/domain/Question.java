@@ -1,5 +1,7 @@
 package com.practiq.domain;
 
+import static jakarta.persistence.GenerationType.IDENTITY;
+
 import com.practiq.domain.converters.QuestionDifficultyAttributeConverter;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionSource;
@@ -7,15 +9,12 @@ import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
-import lombok.ToString;
-import org.hibernate.annotations.Generated;
-
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
-
-import static jakarta.persistence.GenerationType.IDENTITY;
+import lombok.Getter;
+import lombok.ToString;
+import org.hibernate.annotations.Generated;
 
 @Entity
 @Table(name = "question")
@@ -30,8 +29,7 @@ public class Question {
     @Version
     private int version;
 
-    @NotNull
-    @Column(name = "body", nullable = false)
+    @NotNull @Column(name = "body", nullable = false)
     private String body;
 
     @Convert(converter = QuestionDifficultyAttributeConverter.class)
@@ -68,8 +66,7 @@ public class Question {
             QuestionType type,
             QuestionSource source,
             QuestionStatus status,
-            String sourceSpec
-    ) {
+            String sourceSpec) {
         this.body = body;
         this.difficulty = difficulty;
         this.type = type;

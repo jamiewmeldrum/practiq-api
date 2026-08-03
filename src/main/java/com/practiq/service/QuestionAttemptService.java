@@ -9,10 +9,9 @@ import com.practiq.dto.request.QuestionAttemptRequest;
 import com.practiq.dto.response.QuestionAttemptResponse;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.List;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Singleton
@@ -22,26 +21,20 @@ public class QuestionAttemptService {
     private final QuestionAttemptQueryRunner questionAttemptQueryRunner;
 
     public QuestionAttemptService(
-            StudentQuestionQueryRunner questionQueryRunner,
-            QuestionAttemptQueryRunner questionAttemptQueryRunner) {
+            StudentQuestionQueryRunner questionQueryRunner, QuestionAttemptQueryRunner questionAttemptQueryRunner) {
         this.questionQueryRunner = questionQueryRunner;
         this.questionAttemptQueryRunner = questionAttemptQueryRunner;
     }
 
     @Transactional(readOnly = true)
     public Optional<List<QuestionAttemptResponse>> getForQuestionId(
-            UserRequestFilter userRequestFilter,
-            long questionId
-    ) {
+            UserRequestFilter userRequestFilter, long questionId) {
         log.debug("Getting question attempt for question id: {}", questionId);
 
         if (questionQueryRunner.doesQuestionExistForId(questionId)) {
-            return Optional.of(
-                    questionAttemptQueryRunner.getQuestionAttempts(userRequestFilter, questionId)
-                    .stream()
+            return Optional.of(questionAttemptQueryRunner.getQuestionAttempts(userRequestFilter, questionId).stream()
                     .map(QuestionAttemptResponseMapper::toQuestionAttemptResponse)
-                    .toList()
-            );
+                    .toList());
         } else {
             return Optional.empty();
         }
@@ -49,10 +42,7 @@ public class QuestionAttemptService {
 
     @Transactional
     public Optional<QuestionAttemptResponse> postForQuestionId(
-            String sessionToken,
-            QuestionAttemptRequest request,
-            long questionId)
-    {
+            String sessionToken, QuestionAttemptRequest request, long questionId) {
         log.debug("Posting question attempt for question id: {}", questionId);
 
         if (questionQueryRunner.doesQuestionExistForId(questionId)) {

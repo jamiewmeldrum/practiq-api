@@ -1,16 +1,15 @@
 package com.practiq.domain.query.question;
 
-import com.practiq.domain.types.QuestionDifficulty;
-import com.practiq.domain.types.QuestionStatus;
-import com.practiq.domain.types.QuestionType;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.practiq.domain.types.QuestionDifficulty;
+import com.practiq.domain.types.QuestionStatus;
+import com.practiq.domain.types.QuestionType;
+import java.util.List;
+import org.junit.jupiter.api.Test;
 
 class StudentQuestionQueryPolicyTest {
     @Test

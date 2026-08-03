@@ -12,9 +12,8 @@ import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @ExecuteOn(TaskExecutors.BLOCKING)
@@ -29,13 +28,12 @@ public class QuestionAttemptController {
 
     @Get("/{questionId}/attempts")
     public List<QuestionAttemptResponse> getForQuestionId(
-            @NotBlank @Header(HttpConstants.SESSION_TOKEN_HEADER) String sessionToken,
-            long questionId
-    ) {
+            @NotBlank @Header(HttpConstants.SESSION_TOKEN_HEADER) String sessionToken, long questionId) {
         log.debug("Requested to GET question attempts for question id: {}", questionId);
 
         UserRequestFilter userRequestFilter = new UserRequestFilter(sessionToken);
-        return questionAttemptService.getForQuestionId(userRequestFilter, questionId)
+        return questionAttemptService
+                .getForQuestionId(userRequestFilter, questionId)
                 .orElseThrow(NotFoundException::new);
     }
 
@@ -44,12 +42,12 @@ public class QuestionAttemptController {
     public QuestionAttemptResponse postForQuestionId(
             @NotBlank @Header(HttpConstants.SESSION_TOKEN_HEADER) String sessionToken,
             @Valid @Body QuestionAttemptRequest request,
-            long questionId
-    ) {
+            long questionId) {
         log.debug("Requested to POST question attempt for question id: {}", questionId);
         log.trace("POST body: {}", request.body());
 
-        return questionAttemptService.postForQuestionId(sessionToken, request, questionId)
+        return questionAttemptService
+                .postForQuestionId(sessionToken, request, questionId)
                 .orElseThrow(NotFoundException::new);
     }
 }

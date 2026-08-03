@@ -1,5 +1,10 @@
 package performance;
 
+import static io.micronaut.http.HttpStatus.OK;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
 import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
@@ -11,11 +16,6 @@ import org.junit.jupiter.api.Test;
 import utils.PerformanceTest;
 import utils.StatementCounter;
 import utils.data.QuestionTestData;
-
-import static io.micronaut.http.HttpStatus.OK;
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
 
 // Pins the JDBC statement count for serving a mark scheme.
 @PerformanceTest
@@ -55,8 +55,10 @@ public class MarkSchemePT {
         servableQuestionWithMarkScheme(questionId, conceptId, "Award 1 mark for stating the law.");
         servableQuestionWithMarkScheme(8L, conceptId, "Mark scheme for eight.");
 
-        long count = statements.countDuring(() ->
-                given().when().get(MARK_SCHEME_PATH.formatted(questionId)).then().statusCode(OK.getCode()));
+        long count = statements.countDuring(() -> given().when()
+                .get(MARK_SCHEME_PATH.formatted(questionId))
+                .then()
+                .statusCode(OK.getCode()));
 
         assertThat(count, equalTo(EXPECTED_STATEMENTS));
     }

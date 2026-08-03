@@ -1,5 +1,10 @@
 package integration.repository;
 
+import static java.util.stream.Collectors.toList;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import com.practiq.domain.QuestionAttempt;
 import com.practiq.domain.query.attempt.QuestionAttemptQuery;
 import com.practiq.domain.query.attempt.QuestionAttemptSpecificationFactory;
@@ -9,20 +14,14 @@ import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.inject.Inject;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Set;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.QuestionTestData;
-
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Set;
-
-import static java.util.stream.Collectors.toList;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 // How attempt queries behave against a real database: the question-id predicate and the session-token restriction
 // the specification carries, plus the stable newest-first order findAll applies. The spec is part of the
@@ -57,7 +56,9 @@ public class QuestionAttemptRepositoryIT {
         long attemptId = 10L;
         long otherQuestionsAttemptId = 20L;
         data.questionAttempt(questionId, sessionToken, "body").id(attemptId).insert();
-        data.questionAttempt(otherQuestionId, sessionToken, "body").id(otherQuestionsAttemptId).insert();
+        data.questionAttempt(otherQuestionId, sessionToken, "body")
+                .id(otherQuestionsAttemptId)
+                .insert();
 
         QuestionAttemptQuery query = new QuestionAttemptQuery(questionId, sessionToken);
 
@@ -74,7 +75,9 @@ public class QuestionAttemptRepositoryIT {
         long attemptId = 10L;
         long otherSessionAttemptId = 20L;
         data.questionAttempt(questionId, sessionToken, "body").id(attemptId).insert();
-        data.questionAttempt(questionId, "other-session", "body").id(otherSessionAttemptId).insert();
+        data.questionAttempt(questionId, "other-session", "body")
+                .id(otherSessionAttemptId)
+                .insert();
 
         QuestionAttemptQuery query = new QuestionAttemptQuery(questionId, sessionToken);
 
@@ -94,9 +97,18 @@ public class QuestionAttemptRepositoryIT {
         long day1LowId = 1L;
         long day1HighId = 2L;
         long day2Attempt = 3L;
-        data.questionAttempt(questionId, sessionToken, "body").id(day1LowId).createdAt(day1).insert();
-        data.questionAttempt(questionId, sessionToken, "body").id(day1HighId).createdAt(day1).insert();
-        data.questionAttempt(questionId, sessionToken, "body").id(day2Attempt).createdAt(day2).insert();
+        data.questionAttempt(questionId, sessionToken, "body")
+                .id(day1LowId)
+                .createdAt(day1)
+                .insert();
+        data.questionAttempt(questionId, sessionToken, "body")
+                .id(day1HighId)
+                .createdAt(day1)
+                .insert();
+        data.questionAttempt(questionId, sessionToken, "body")
+                .id(day2Attempt)
+                .createdAt(day2)
+                .insert();
 
         QuestionAttemptQuery query = new QuestionAttemptQuery(questionId, sessionToken);
         QuerySpecification<QuestionAttempt> spec = questionAttemptSpecificationFactory.forQuery(query);
@@ -132,16 +144,15 @@ public class QuestionAttemptRepositoryIT {
 
         String sessionToken = "session-token";
 
-        //Check 1 char saves
+        // Check 1 char saves
         QuestionAttempt validAttempt = new QuestionAttempt(questionId, sessionToken, "a");
         QuestionAttempt attempt = questionAttemptRepository.save(validAttempt);
         assertThat(attempt.getId(), instanceOf(Long.class));
 
-        //Check empty doesn't save
+        // Check empty doesn't save
         QuestionAttempt invalidAttempt = new QuestionAttempt(questionId, sessionToken, "");
-        ConstraintViolationException thrown = assertThrows(ConstraintViolationException.class, () ->
-                questionAttemptRepository.save(invalidAttempt)
-        );
+        ConstraintViolationException thrown =
+                assertThrows(ConstraintViolationException.class, () -> questionAttemptRepository.save(invalidAttempt));
 
         Set<ConstraintViolation<?>> constraintViolations = thrown.getConstraintViolations();
         assertThat(constraintViolations.size(), is(1));
@@ -156,18 +167,17 @@ public class QuestionAttemptRepositoryIT {
 
         String sessionToken = "session-token";
 
-        //Check 100000 char saves
+        // Check 100000 char saves
         String validBody = RandomStringUtils.insecure().nextAlphanumeric(100000);
         QuestionAttempt validAttempt = new QuestionAttempt(questionId, sessionToken, validBody);
         QuestionAttempt attempt = questionAttemptRepository.save(validAttempt);
         assertThat(attempt.getId(), instanceOf(Long.class));
 
-        //Check 100001 chars doesn't save
+        // Check 100001 chars doesn't save
         String body = RandomStringUtils.insecure().nextAlphanumeric(100001);
         QuestionAttempt invalidAttempt = new QuestionAttempt(questionId, sessionToken, body);
-        ConstraintViolationException thrown = assertThrows(ConstraintViolationException.class, () ->
-                questionAttemptRepository.save(invalidAttempt)
-        );
+        ConstraintViolationException thrown =
+                assertThrows(ConstraintViolationException.class, () -> questionAttemptRepository.save(invalidAttempt));
 
         Set<ConstraintViolation<?>> constraintViolations = thrown.getConstraintViolations();
         assertThat(constraintViolations.size(), is(1));

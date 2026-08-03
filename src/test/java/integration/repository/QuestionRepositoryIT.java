@@ -1,5 +1,11 @@
 package integration.repository;
 
+import static java.util.stream.Collectors.toList;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static utils.TestReflection.setField;
+
 import com.practiq.domain.Question;
 import com.practiq.domain.query.question.QuestionQuery;
 import com.practiq.domain.query.question.QuestionSpecificationFactory;
@@ -13,20 +19,13 @@ import io.micronaut.data.model.Sort;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.inject.Inject;
 import jakarta.persistence.OptimisticLockException;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.QuestionTestData;
-
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Optional;
-
-import static java.util.stream.Collectors.toList;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static utils.TestReflection.setField;
 
 @IntegrationTest
 class QuestionRepositoryIT {
@@ -49,10 +48,7 @@ class QuestionRepositoryIT {
 
     @Test
     void ensureVersionIncrements() {
-        data.question()
-                .body("A question.")
-                .source(QuestionSource.SEED)
-                .insert();
+        data.question().body("A question.").source(QuestionSource.SEED).insert();
 
         Question question = questionRepository.findAll().getFirst();
         assertThat(question.getVersion(), equalTo(0));
@@ -69,10 +65,7 @@ class QuestionRepositoryIT {
     // rejected rather than silently clobbering the newer row (lost update).
     @Test
     void ensureStaleVersionUpdateIsRejected() {
-        data.question()
-                .body("A question.")
-                .source(QuestionSource.SEED)
-                .insert();
+        data.question().body("A question.").source(QuestionSource.SEED).insert();
 
         Question stale = questionRepository.findAll().getFirst();
 
@@ -104,16 +97,23 @@ class QuestionRepositoryIT {
         long earliestByTime = 3L;
         long sameTimeLowId = 1L;
         long sameTimeHighId = 2L;
-        data.question(earliestByTime).status(QuestionStatus.APPROVED).createdAt(earlier).insert();
-        data.question(sameTimeLowId).status(QuestionStatus.APPROVED).createdAt(later).insert();
-        data.question(sameTimeHighId).status(QuestionStatus.APPROVED).createdAt(later).insert();
+        data.question(earliestByTime)
+                .status(QuestionStatus.APPROVED)
+                .createdAt(earlier)
+                .insert();
+        data.question(sameTimeLowId)
+                .status(QuestionStatus.APPROVED)
+                .createdAt(later)
+                .insert();
+        data.question(sameTimeHighId)
+                .status(QuestionStatus.APPROVED)
+                .createdAt(later)
+                .insert();
         data.link(earliestByTime, conceptId).insert();
         data.link(sameTimeLowId, conceptId).insert();
         data.link(sameTimeHighId, conceptId).insert();
 
-        QuestionQuery query = baseQuery()
-                .conceptId(conceptId)
-                .build();
+        QuestionQuery query = baseQuery().conceptId(conceptId).build();
 
         QuerySpecification<Question> spec = questionSpecificationFactory.forQuery(query);
         Pageable ordered = Pageable.from(0, 10, STABLE_ORDER);
@@ -139,11 +139,17 @@ class QuestionRepositoryIT {
         data.question(rejectedId).status(QuestionStatus.REJECTED).insert();
 
         // Each status returns only its own rows — the filter is driven by the query's status, not a hard-coded one.
-        assertThat(ids(findQuestions(QuestionQuery.builder().status(QuestionStatus.APPROVED).build())),
+        assertThat(
+                ids(findQuestions(
+                        QuestionQuery.builder().status(QuestionStatus.APPROVED).build())),
                 containsInAnyOrder(approvedOneId, approvedTwoId));
-        assertThat(ids(findQuestions(QuestionQuery.builder().status(QuestionStatus.PENDING).build())),
+        assertThat(
+                ids(findQuestions(
+                        QuestionQuery.builder().status(QuestionStatus.PENDING).build())),
                 containsInAnyOrder(pendingId));
-        assertThat(ids(findQuestions(QuestionQuery.builder().status(QuestionStatus.REJECTED).build())),
+        assertThat(
+                ids(findQuestions(
+                        QuestionQuery.builder().status(QuestionStatus.REJECTED).build())),
                 containsInAnyOrder(rejectedId));
     }
 
@@ -229,9 +235,13 @@ class QuestionRepositoryIT {
         data.link(linkedId, concept).insert();
 
         // The flag flips behaviour: off returns both, on drops the unlinked question.
-        assertThat(ids(findQuestions(QuestionQuery.builder().requiresConceptLink(false).build())),
+        assertThat(
+                ids(findQuestions(
+                        QuestionQuery.builder().requiresConceptLink(false).build())),
                 containsInAnyOrder(linkedId, unlinkedId));
-        assertThat(ids(findQuestions(QuestionQuery.builder().requiresConceptLink(true).build())),
+        assertThat(
+                ids(findQuestions(
+                        QuestionQuery.builder().requiresConceptLink(true).build())),
                 containsInAnyOrder(linkedId));
     }
 
@@ -245,10 +255,26 @@ class QuestionRepositoryIT {
         long concept = 100L;
         data.concept(concept).insert();
 
-        data.question(matches).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
-        data.question(wrongType).status(QuestionStatus.APPROVED).type(QuestionType.MCQ).difficulty(QuestionDifficulty.EASY).insert();
-        data.question(wrongStatus).status(QuestionStatus.PENDING).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
-        data.question(unlinked).status(QuestionStatus.APPROVED).type(QuestionType.SHORT_ANSWER).difficulty(QuestionDifficulty.EASY).insert();
+        data.question(matches)
+                .status(QuestionStatus.APPROVED)
+                .type(QuestionType.SHORT_ANSWER)
+                .difficulty(QuestionDifficulty.EASY)
+                .insert();
+        data.question(wrongType)
+                .status(QuestionStatus.APPROVED)
+                .type(QuestionType.MCQ)
+                .difficulty(QuestionDifficulty.EASY)
+                .insert();
+        data.question(wrongStatus)
+                .status(QuestionStatus.PENDING)
+                .type(QuestionType.SHORT_ANSWER)
+                .difficulty(QuestionDifficulty.EASY)
+                .insert();
+        data.question(unlinked)
+                .status(QuestionStatus.APPROVED)
+                .type(QuestionType.SHORT_ANSWER)
+                .difficulty(QuestionDifficulty.EASY)
+                .insert();
         data.link(matches, concept).insert();
         data.link(wrongType, concept).insert();
         data.link(wrongStatus, concept).insert();
@@ -393,10 +419,8 @@ class QuestionRepositoryIT {
     }
 
     private static QuestionQuery.QuestionQueryBuilder baseQuery() {
-        //Basic catalogue filter - fairly arbitary, but was built for student catalogues so serves as a default
-        return QuestionQuery.builder()
-                .status(QuestionStatus.APPROVED)
-                .requiresConceptLink(true);
+        // Basic catalogue filter - fairly arbitary, but was built for student catalogues so serves as a default
+        return QuestionQuery.builder().status(QuestionStatus.APPROVED).requiresConceptLink(true);
     }
 
     private static List<Long> ids(List<Question> questions) {
