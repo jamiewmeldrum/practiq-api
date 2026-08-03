@@ -1,3 +1,5 @@
+import net.ltgt.gradle.errorprone.errorprone
+
 plugins {
     idea
     id("io.micronaut.application") version "4.6.2"
@@ -5,6 +7,7 @@ plugins {
     id("io.micronaut.test-resources") version "4.6.2"
     id("io.micronaut.aot") version "4.6.2"
     id("com.diffplug.spotless") version "7.2.1"
+    id("net.ltgt.errorprone") version "4.3.0"
 }
 
 version = "0.1"
@@ -46,6 +49,7 @@ dependencies {
     testImplementation("io.micronaut.test:micronaut-test-junit5")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    errorprone("com.google.errorprone:error_prone_core:2.43.0")
 }
 
 application {
@@ -102,8 +106,10 @@ micronaut {
 
 }
 
-tasks.compileJava {
-    dependsOn("spotlessCheck")
+tasks.withType<JavaCompile>().configureEach {
+    options.errorprone {
+        disableWarningsInGeneratedCode.set(true)
+    }
 }
 
 tasks.named<JavaExec>("run") {
