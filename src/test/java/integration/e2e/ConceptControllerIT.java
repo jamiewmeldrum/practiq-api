@@ -10,9 +10,9 @@ import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
-import java.time.OffsetDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import utils.DateTimeUtils;
 import utils.IntegrationTest;
 import utils.data.QuestionTestData;
 
@@ -59,7 +59,7 @@ class ConceptControllerIT {
         long firstId = ((Number) response.path("[0].id")).longValue();
 
         // Now update the created_at to prove ordering isn't coincidence
-        data.updateConcept(firstId, "created_at", OffsetDateTime.now());
+        data.updateConcept(firstId, "created_at", DateTimeUtils.now());
 
         given().when()
                 .get(CONCEPTS_PATH)

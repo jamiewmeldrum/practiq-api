@@ -36,9 +36,6 @@ public class MarkSchemeControllerCT {
     private QuestionRepository questionRepository;
 
     @Inject
-    private QuestionConceptRepository questionConceptRepository;
-
-    @Inject
     private MarkSchemeRepository markSchemeRepository;
 
     @Inject

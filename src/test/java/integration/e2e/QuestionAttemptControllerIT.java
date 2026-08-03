@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import utils.DateTimeUtils;
 import utils.IntegrationTest;
 import utils.data.DBRow;
 import utils.data.QuestionTestData;
@@ -207,7 +208,7 @@ public class QuestionAttemptControllerIT {
         long secondId = ((Number) response.path("[1].id")).longValue();
 
         // Now reorder and re check for created order
-        OffsetDateTime fixedNow = OffsetDateTime.now();
+        OffsetDateTime fixedNow = DateTimeUtils.now();
         data.updateQuestionAttempt(secondId, "created_at", fixedNow);
         given().header(new Header(SESSION_TOKEN_HEADER, sessionToken))
                 .when()
