@@ -11,6 +11,7 @@ jobs:
   analyse:
     name: CodeQL analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       security-events: write
       contents: read
