@@ -1,6 +1,6 @@
 # practiq-api
 
-![Pull request](https://github.com/jamiewmeldrum/practiq-api/actions/workflows/pull-request.yml/badge.svg)
+![Main](https://github.com/jamiewmeldrum/practiq-api/actions/workflows/main-push.yml/badge.svg)
 
 Adaptive learning/practice platform API (Java 21 · Micronaut 4.10 · PostgreSQL 16).
 
@@ -147,6 +147,7 @@ places:
 With Lombok, annotate the class with `@Slf4j` and use the generated `log` field:
 
 ```java
+
 @Slf4j
 @Singleton
 public class ConceptService {
@@ -169,6 +170,7 @@ DEBUG/INFO/WARN/ERROR from it.
 Global floor — change the root in `logback.xml`:
 
 ```xml
+
 <root level="info">          <!-- debug for a firehose, warn for near-silence -->
 ```
 
@@ -211,12 +213,12 @@ All routes are versioned under `/api/v1`. Responses are JSON with nulls included
 (`micronaut.serde.serialization.inclusion=always`), so a field's absence is a contract
 change, not a data artefact.
 
-| Endpoint | Returns |
-|----------|---------|
-| `GET /health` | liveness |
-| `GET /api/v1/concepts` | all concepts, `created_at` ascending — bare array (deliberately unpaged) |
-| `GET /api/v1/concepts/{id}` | one concept, or the 404 envelope |
-| `GET /api/v1/questions` | paginated, filterable question catalogue — see below |
+| Endpoint                    | Returns                                                                  |
+|-----------------------------|--------------------------------------------------------------------------|
+| `GET /health`               | liveness                                                                 |
+| `GET /api/v1/concepts`      | all concepts, `created_at` ascending — bare array (deliberately unpaged) |
+| `GET /api/v1/concepts/{id}` | one concept, or the 404 envelope                                         |
+| `GET /api/v1/questions`     | paginated, filterable question catalogue — see below                     |
 
 ### `GET /api/v1/questions`
 
@@ -240,10 +242,16 @@ Paged responses use an envelope; unpaged collections (concepts) deliberately don
     {
       "id": 7,
       "body": "State Newton's first law.",
-      "difficulty": { "value": 3, "code": "MEDIUM" },
+      "difficulty": {
+        "value": 3,
+        "code": "MEDIUM"
+      },
       "type": "EXTENDED",
       "createdAt": "2026-06-29T10:15:30Z",
-      "linkedConceptIds": [10, 11]
+      "linkedConceptIds": [
+        10,
+        11
+      ]
     }
   ],
   "page": 0,
@@ -325,12 +333,12 @@ code fails regardless of anyone's local setup.
 Four tiers. The guiding rule: **put each test where it can actually observe the behaviour it claims to
 verify.** Mocking everything around a thin layer just tests a tautology.
 
-| Tier | Suffix | Wires | Boundary | Task |
-|------|--------|-------|----------|------|
-| Unit | `*Test` | one class, no context | all deps mocked (Mockito) | `test` |
-| Component | `*CT` | real web layer (routing, binding, validation, serialization) | repository mocked, no DB | `test` |
-| Integration | `*IT` | full stack | real Postgres (Testcontainers) | `integrationTest` |
-| Performance | `*PT` | full stack | real Postgres (Testcontainers) | `performanceTest` |
+| Tier        | Suffix  | Wires                                                        | Boundary                       | Task              |
+|-------------|---------|--------------------------------------------------------------|--------------------------------|-------------------|
+| Unit        | `*Test` | one class, no context                                        | all deps mocked (Mockito)      | `test`            |
+| Component   | `*CT`   | real web layer (routing, binding, validation, serialization) | repository mocked, no DB       | `test`            |
+| Integration | `*IT`   | full stack                                                   | real Postgres (Testcontainers) | `integrationTest` |
+| Performance | `*PT`   | full stack                                                   | real Postgres (Testcontainers) | `performanceTest` |
 
 ```bash
 ./gradlew test                  # unit + component (*CT) — the every-change loop
@@ -353,14 +361,14 @@ restoring.
 How a test is wired tells you where it plugs in. Only the **question** tells you whether it's worth
 having — so that's what the name encodes:
 
-| Naming | Question it answers |
-|--------|---------------------|
-| `*Test` | Does this logic do what it should? |
-| `*CT` | Does the web layer bind, serialise and map correctly? |
-| `*ControllerIT` | Does the definition of done actually hold, end to end? |
-| `*RepositoryIT` / `*SpecificationFactoryIT` | Do I understand the method I'm calling? |
-| `*DatabaseIT` | Does the migration say what I think it says? |
-| `*PT` | Is the query plan the shape I think it is? |
+| Naming                                      | Question it answers                                    |
+|---------------------------------------------|--------------------------------------------------------|
+| `*Test`                                     | Does this logic do what it should?                     |
+| `*CT`                                       | Does the web layer bind, serialise and map correctly?  |
+| `*ControllerIT`                             | Does the definition of done actually hold, end to end? |
+| `*RepositoryIT` / `*SpecificationFactoryIT` | Do I understand the method I'm calling?                |
+| `*DatabaseIT`                               | Does the migration say what I think it says?           |
+| `*PT`                                       | Is the query plan the shape I think it is?             |
 
 **Three IT flavours, one tier.** `*ControllerIT`, `*RepositoryIT` and `*DatabaseIT` share a tier because
 they share a *mechanism* — they need a container and run in `integrationTest`. They differ in the question,
@@ -404,14 +412,19 @@ few things have to be arranged by hand to test the web layer without a database.
 lives in `ConceptControllerCT` + `src/test/resources/application-ctslice.properties`:
 
 ```java
+
 @ComponentTest                                  // bundles @MicronautTest(transactional = false, environments = "ctslice")
 class ConceptControllerCT {
 
-    @Inject EmbeddedServer embeddedServer;       // for RestAssured.port
-    @Inject ConceptRepository conceptRepository; // the mock, for stubbing
+    @Inject
+    EmbeddedServer embeddedServer;       // for RestAssured.port
+    @Inject
+    ConceptRepository conceptRepository; // the mock, for stubbing
 
     @MockBean(ConceptRepository.class)
-    ConceptRepository conceptRepository() { return mock(ConceptRepository.class); }
+    ConceptRepository conceptRepository() {
+        return mock(ConceptRepository.class);
+    }
 
     // when(conceptRepository.listOrderByCreatedAtAsc())...; then GET /api/v1/concepts over
     // real HTTP (RestAssured) and assert on the JSON body, not by deserializing into Concept.
@@ -447,7 +460,8 @@ test with the Micronaut `spec.name` idiom so it never pollutes other contexts:
 @Controller("/test/errors") ...
 
 @Property(name = "spec.name", value = "ErrorHandlingCT")        // on the test class
-class ErrorHandlingCT { ... }
+class ErrorHandlingCT { ...
+}
 ```
 
 Only the context whose `spec.name` matches loads the controller. Handling the abstract
@@ -463,13 +477,17 @@ adding production methods like `deleteAll` purely for tests). The helper is
 value)` / `clear(table)`); the pattern lives in `ConceptControllerIT`:
 
 ```java
+
 @IntegrationTest                                // bundles @MicronautTest(transactional = false)
 class ConceptControllerIT {
 
-    @Inject TestDatabase testDatabase;
-    @Inject EmbeddedServer embeddedServer;
+    @Inject
+    TestDatabase testDatabase;
+    @Inject
+    EmbeddedServer embeddedServer;
 
-    @BeforeEach void setUp() {
+    @BeforeEach
+    void setUp() {
         testDatabase.clear("concept");                  // global TRUNCATE ... RESTART IDENTITY
         RestAssured.port = embeddedServer.getPort();
     }
@@ -574,61 +592,48 @@ sequential is correct for now.
 - [API Reference](https://docs.micronaut.io/4.10.16/api/index.html)
 - [Configuration Reference](https://docs.micronaut.io/4.10.16/guide/configurationreference.html)
 - [Micronaut Guides](https://guides.micronaut.io/index.html)
+
 ---
 
 - [Micronaut Gradle Plugin documentation](https://micronaut-projects.github.io/micronaut-gradle-plugin/latest/)
 - [GraalVM Gradle Plugin documentation](https://graalvm.github.io/native-build-tools/latest/gradle-plugin.html)
 - [Shadow Gradle Plugin](https://gradleup.com/shadow/)
-## Feature jdbc-hikari documentation
 
+## Feature jdbc-hikari documentation
 
 - [Micronaut Hikari JDBC Connection Pool documentation](https://micronaut-projects.github.io/micronaut-sql/latest/guide/index.html#jdbc)
 
-
 ## Feature flyway documentation
-
 
 - [Micronaut Flyway Database Migration documentation](https://micronaut-projects.github.io/micronaut-flyway/latest/guide/index.html)
 
 
 - [https://flywaydb.org/](https://flywaydb.org/)
 
-
 ## Feature management documentation
-
 
 - [Micronaut Management documentation](https://docs.micronaut.io/latest/guide/index.html#management)
 
-
 ## Feature lombok documentation
-
 
 - [Micronaut Project Lombok documentation](https://docs.micronaut.io/latest/guide/index.html#lombok)
 
 
 - [https://projectlombok.org/features/all](https://projectlombok.org/features/all)
 
-
 ## Feature validation documentation
-
 
 - [Micronaut Validation documentation](https://micronaut-projects.github.io/micronaut-validation/latest/guide/)
 
-
 ## Feature serialization-jackson documentation
-
 
 - [Micronaut Serialization Jackson Core documentation](https://micronaut-projects.github.io/micronaut-serialization/latest/guide/)
 
-
 ## Feature test-resources documentation
-
 
 - [Micronaut Test Resources documentation](https://micronaut-projects.github.io/micronaut-test-resources/latest/guide/)
 
-
 ## Feature micronaut-aot documentation
-
 
 - [Micronaut AOT documentation](https://micronaut-projects.github.io/micronaut-aot/latest/guide/)
 
