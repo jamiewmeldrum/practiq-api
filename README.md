@@ -1,6 +1,6 @@
 # practiq-api
 
-![CI](https://github.com/jamiewmeldrum/practiq-api/actions/workflows/ci.yml/badge.svg)
+![Pull request](https://github.com/jamiewmeldrum/practiq-api/actions/workflows/pull-request.yml/badge.svg)
 
 Adaptive learning/practice platform API (Java 21 · Micronaut 4.10 · PostgreSQL 16).
 
@@ -340,7 +340,13 @@ verify.** Mocking everything around a thin layer just tests a tautology.
 ```
 
 CI does not use `build`. It runs each gate as a separate named step so one failure doesn't hide the
-rest — see `.github/workflows/ci.yml`.
+rest — see `.github/workflows/pull-request.yml`.
+
+`main` is protected by a repository ruleset requiring the `Pull request checks` job to pass, plus
+linear history and no force-pushes or deletion. A copy lives at
+`.github/rulesets/main-protection.json` **for reference only** — GitHub stores the live rule, and
+nothing in this repo applies or verifies it. Re-import it from the ruleset page if it ever needs
+restoring.
 
 ### What each tier answers
 
