@@ -16,3 +16,7 @@ out/
 .factorypath
 .env
 *.env
+
+# Build artefact captured by the main-push pipeline
+errorprone.log
+__pycache__/

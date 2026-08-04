@@ -1,0 +1,63 @@
+name: Main Push
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  main-push:
+    name: Checks after push to main
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      # A step's implicit condition is `success()`, which is what normally skips everything after
+      # a failure. `!cancelled()` replaces that check, so every gate that CAN run does run and one
+      # push surfaces every failure. The failures are not suppressed — the job still goes red.
+      - name: Format
+        if: ${{ !cancelled() }}
+        run: ./gradlew spotlessCheck
+
+      - name: ErrorProne
+        id: errorprone
+        if: ${{ !cancelled() }}
+        run: ./gradlew compileJava compileTestJava 2>&1 | tee errorprone.log
+
+      - name: Update Error Prone issue
+        if: ${{ !cancelled() && steps.errorprone.outcome == 'success' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          python3 .github/scripts/error_prone_report.py errorprone.log
+
+      - name: Tests
+        if: ${{ !cancelled() && steps.errorprone.outcome == 'success' }}
+        run: ./gradlew test integrationTest performanceTest --continue
+
+      - name: Artefact
+        if: ${{ !cancelled() && steps.errorprone.outcome == 'success' }}
+        run: ./gradlew shadowJar
+
+      - name: Verdict
+        if: ${{ failure() }}
+        run: |
+          echo "One or more checks failed. See the step results above."
+          exit 1
