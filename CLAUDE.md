@@ -315,8 +315,9 @@ which is true of all three; "integration" is a conceptual promise the suffix nev
   `/questions/{id}/mark-scheme` 2 · `/questions/{id}/attempts` GET 2 (+ row-count invariance) · POST 2.
   The POST pin is 2 (visibility `exists` + the INSERT) because `@Generated` read-back of `id`/`created_at`
   rides Postgres's `insert … returning` — a third statement appearing means that mechanism broke.
-- Runs in `check`/`build` by default; `-PskipPerf` opts out. `mustRunAfter(integrationTest)` — both share one
-  Test Resources Postgres, and `shouldRunAfter` is only advisory (would race under `--parallel`).
+- Runs in `check`/`build` locally, and in the PR pipeline's test step. `mustRunAfter(integrationTest)` — both
+  share one Test Resources Postgres, and `shouldRunAfter` is only advisory (would race under `--parallel`).
+  `integrationTest` uses `mustRunAfter(test)` for the same reason.
 
 ### An endpoint's test tax
 

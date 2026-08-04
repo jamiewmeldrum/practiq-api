@@ -1,2 +1,1 @@
-rootProject.name="practiq-api"
-
+rootProject.name = "practiq-api"

@@ -317,8 +317,8 @@ after reformatting would silently drag in the hunks you meant to leave out.
 Bypass with `git commit --no-verify` when you need to.
 
 The hook is a convenience, not a gate — it can be skipped, unset, or never enabled. **CI is the
-enforcement**: `./gradlew build` runs `spotlessCheck`, so badly formatted code fails the pipeline
-regardless of anyone's local setup.
+enforcement**: the pull request pipeline runs `spotlessCheck` as its own gate, so badly formatted
+code fails regardless of anyone's local setup.
 
 ## Testing
 
@@ -337,8 +337,10 @@ verify.** Mocking everything around a thin layer just tests a tautology.
 ./gradlew integrationTest       # integration (*IT) — real Postgres, pre-merge / CI
 ./gradlew performanceTest       # performance (*PT) — real Postgres, per-request query counts
 ./gradlew build                 # runs everything
-./gradlew build -PskipPerf      # ...but skip the performance tier
 ```
+
+CI does not use `build`. It runs each gate as a separate named step so one failure doesn't hide the
+rest — see `.github/workflows/ci.yml`.
 
 ### What each tier answers
 
@@ -387,9 +389,9 @@ How much test weight is right is a function of team preference and how much the 
 the point here was to build the designs out far enough to have an opinion about them. Too much is sometimes
 how you find out what enough looks like.
 
-> **Pipeline note:** `*PT` runs in the default `build`, so CI covers it today. Under a git-flow dev/main
-> split it may be cleaner to gate it to a later stage with `-PskipPerf` on fast feature-branch builds,
-> rather than paying the container cost on every push. Easily reversed.
+> **Pipeline note:** `*PT` runs as part of the test step on every pull request. Under a git-flow
+> dev/main split it may be cleaner to move it to a later stage rather than paying the container cost
+> on every push. Easily reversed.
 
 **Writing a component test.** Micronaut has no `@WebMvcTest`-style slice annotation, so a
 few things have to be arranged by hand to test the web layer without a database. The pattern

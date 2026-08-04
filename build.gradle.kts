@@ -70,9 +70,12 @@ spotless {
         palantirJavaFormat()
         formatAnnotations()
     }
+    kotlinGradle {
+        ktlint()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
 }
-
-graalvmNative.toolchainDetection = false
 
 micronaut {
     runtime("netty")
@@ -103,12 +106,11 @@ micronaut {
         optimizeNetty = true
         replaceLogbackXml = true
     }
-
 }
 
 tasks.withType<JavaCompile>().configureEach {
     options.errorprone {
-        disableWarningsInGeneratedCode.set(true)
+        excludedPaths.set(".*/build/generated/.*")
     }
 }
 
@@ -120,7 +122,6 @@ tasks.named<JavaExec>("run") {
     // Override on the CLI when needed, e.g. MICRONAUT_ENVIRONMENTS=local,foo ./gradlew run.
     environment("MICRONAUT_ENVIRONMENTS", "local")
 }
-
 
 // Unit (*Test) + component (*CT) tests: the every-change loop. Excludes *IT.
 // Component tests are DB-free (no Postgres container — see ConceptControllerCT / README),
@@ -137,36 +138,36 @@ tasks.test {
 }
 
 // Integration tests (*IT): real Postgres via Testcontainers. Slower — run pre-merge/CI.
-val integrationTest = tasks.register<Test>("integrationTest") {
-    // ITs share the `test` source set, so wire the classpath explicitly. Gradle 8 deprecated
-    // (and 9 removes) the convention that auto-populated these for custom Test tasks.
-    testClassesDirs = sourceSets["test"].output.classesDirs
-    classpath = sourceSets["test"].runtimeClasspath
-    useJUnitPlatform()
-    include("**/*IT.class")
-    shouldRunAfter(tasks.test)
-}
+val integrationTest =
+    tasks.register<Test>("integrationTest") {
+        // ITs share the `test` source set, so wire the classpath explicitly. Gradle 8 deprecated
+        // (and 9 removes) the convention that auto-populated these for custom Test tasks.
+        testClassesDirs = sourceSets["test"].output.classesDirs
+        classpath = sourceSets["test"].runtimeClasspath
+        useJUnitPlatform()
+        include("**/*IT.class")
+        mustRunAfter(tasks.test)
+    }
 
 // Performance tests (*PT): assert the per-request JDBC statement count against real Postgres, so an
 // eager association or other N+1 regression fails loudly rather than silently slowing a hot path. Real DB
 // (Testcontainers), so grouped with the slow tier — never the every-change `test` loop. Shares the test
 // source set like integrationTest.
-val performanceTest = tasks.register<Test>("performanceTest") {
-    testClassesDirs = sourceSets["test"].output.classesDirs
-    classpath = sourceSets["test"].runtimeClasspath
-    useJUnitPlatform()
-    include("**/*PT.class")
-    mustRunAfter(tasks.test, integrationTest)
+val performanceTest =
+    tasks.register<Test>("performanceTest") {
+        testClassesDirs = sourceSets["test"].output.classesDirs
+        classpath = sourceSets["test"].runtimeClasspath
+        useJUnitPlatform()
+        include("**/*PT.class")
+        mustRunAfter(tasks.test, integrationTest)
+    }
+
+// Local convenience only — CI names each tier explicitly (.github/workflows/ci.yml).
+tasks.check {
+    dependsOn(integrationTest, performanceTest)
 }
 
-// `./gradlew build` (CI) runs everything; the dev fast loop is `./gradlew test`. Performance tests run by
-// default too; opt out with `-PskipPerf` (e.g. to keep an early pipeline stage fast — see README).
-tasks.check {
-    dependsOn(integrationTest)
-    if (!project.hasProperty("skipPerf")) {
-        dependsOn(performanceTest)
-    }
-}
+graalvmNative.toolchainDetection = false
 
 tasks.named<io.micronaut.gradle.docker.NativeImageDockerfile>("dockerfileNative") {
     jdkVersion = "21"
@@ -186,10 +187,3 @@ idea {
         generatedSourceDirs = generatedSourceDirs + apMain + apTest
     }
 }
-
-
-
-
-
-
-
