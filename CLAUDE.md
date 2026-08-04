@@ -458,9 +458,10 @@ is no demo — the artefact is the repo + a conversation (D-035).**
 > created attempt, `@Body`-bound, visibility-gated via the same runner `exists`; body length 20k on the DTO, 100k
 > entity-level backstop) — **attempts feature complete**.
 >
-> **Active: Build & CI workstream** (cross-cutting, not a numbered sprint — D-037): merge-to-main pipeline, badge
-> repoint, security scanning, pipeline timeout, and the carried CT persistence-disable D-007 write-up. Sprint 0.3 (
-`document` table onward) can proceed in parallel — it's pure schema.
+> **Build & CI workstream** (cross-cutting — D-037/D-038): merge-to-main pipeline, security scanning, badge, timeouts
+> all shipped. **CodeQL caveat (D-038):** no Micronaut taint model, so injection-class flaws in controllers are *not*
+> detected — verified, documented, not full coverage; lean on secret scanning + dependency monitoring. One item left: the
+> carried CT persistence-disable D-007 write-up. **Sprint 0.3 (`document` table onward) is the main line.**
 >
 > **409 handler for `OptimisticLockException` moved to Sprint 1.3** — owed with the first write against a *versioned*
 > entity (admin approve/reject). `question_attempt` has no `@Version`, so the attempts POST cannot produce a conflict (
