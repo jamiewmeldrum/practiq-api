@@ -244,6 +244,11 @@ public abstract class TestData {
         }
 
         public DocumentRow status(DocumentStatus status) {
+            columns.put("status", status.name());
+            return this;
+        }
+
+        public DocumentRow status(String status) {
             columns.put("status", status);
             return this;
         }

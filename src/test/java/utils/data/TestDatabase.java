@@ -25,6 +25,7 @@ public class TestDatabase {
     public static final String FOREIGN_KEY_VIOLATION = "23503";
     public static final String UNIQUE_VIOLATION = "23505";
     public static final String CHECK_VIOLATION = "23514";
+    public static final String VALUE_TOO_LONG = "22001";
 
     private final DataSource dataSource;
 
@@ -90,10 +91,11 @@ public class TestDatabase {
     public void update(String table, long id, String column, Object value) {
         String sql =
                 """
-        UPDATE %s
-        SET %s = ?
-        WHERE id = ?;
-        """.formatted(table, column);
+                        UPDATE %s
+                        SET %s = ?
+                        WHERE id = ?;
+                        """
+                        .formatted(table, column);
 
         try (Connection connection = dataSource.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -107,11 +109,13 @@ public class TestDatabase {
     }
 
     public void delete(String table, long id) {
-        String sql = """
-        DELETE
-        FROM %s
-        WHERE id = ?;
-        """.formatted(table);
+        String sql =
+                """
+                DELETE
+                FROM %s
+                WHERE id = ?;
+                """
+                        .formatted(table);
 
         try (Connection connection = dataSource.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -138,7 +142,9 @@ public class TestDatabase {
         throw new AssertionError("No SQLException in the cause chain of " + thrown, thrown);
     }
 
-    /** Removes every row from the table and resets its identity sequence. */
+    /**
+     * Removes every row from the table and resets its identity sequence.
+     */
     public void clear(String table) {
         String sql = "TRUNCATE TABLE " + table + " RESTART IDENTITY CASCADE";
         try (Connection connection = dataSource.getConnection();
