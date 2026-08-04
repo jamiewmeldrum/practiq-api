@@ -9,7 +9,7 @@ import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import lombok.extern.slf4j.Slf4j;
 
-@Slf4j()
+@Slf4j
 @ExecuteOn(TaskExecutors.BLOCKING)
 @Controller("api/v1/questions")
 public class MarkSchemeController {
