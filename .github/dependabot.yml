@@ -6,3 +6,10 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "Bump"
+
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "Bump"

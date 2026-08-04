@@ -729,6 +729,20 @@ The ruleset lives in GitHub, not in this repository; a copy is kept at
 verifies it. That gap is not theoretical: the required check once pointed at a job name that had
 been renamed hours earlier, which made `main` unmergeable with nothing in any diff to show why.
 
+The same applies to the repository security toggles — Dependabot alerts and security updates,
+secret scanning, push protection — recorded at `.github/security-settings.json`. Declaring all of
+this properly is a Terraform job for `practiq-infrastructure` when that exists.
+
+### Dependabot
+
+`.github/dependabot.yml` configures **version** updates — weekly bumps for `github-actions` and
+`gradle`. **Security** updates are a separate mechanism, enabled in repository settings, and fire
+whenever a dependency you already use gains a published advisory; they need no entry in that file.
+
+One trap: `ignore` rules in `dependabot.yml` apply to security update PRs as well as version ones.
+Silencing a noisy dependency there silently silences its security fixes too. There are no `ignore`
+rules today.
+
 ## Micronaut 4.10.16 Documentation
 
 - [User Guide](https://docs.micronaut.io/4.10.16/guide/index.html)
