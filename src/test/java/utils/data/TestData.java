@@ -1,9 +1,6 @@
 package utils.data;
 
-import com.practiq.domain.types.QuestionDifficulty;
-import com.practiq.domain.types.QuestionSource;
-import com.practiq.domain.types.QuestionStatus;
-import com.practiq.domain.types.QuestionType;
+import com.practiq.domain.types.*;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,6 +14,7 @@ public abstract class TestData {
     protected static final String QUESTION_CONCEPT_TABLE = "question_concept";
     protected static final String MARK_SCHEME_TABLE = "mark_scheme";
     protected static final String QUESTION_ATTEMPT = "question_attempt";
+    protected static final String DOCUMENT = "document";
 
     protected static final String ISO_8601_UTC = "\\d{4}-\\d{2}-\\d{2}T.*Z";
 
@@ -212,6 +210,51 @@ public abstract class TestData {
 
         public void insert() {
             testDatabase.insert(QUESTION_ATTEMPT, columns);
+        }
+    }
+
+    public final class DocumentRow {
+        private final Map<String, Object> columns = new HashMap<>();
+
+        DocumentRow() {}
+
+        DocumentRow(String s3Key, String filename) {
+            columns.put("s3_key", s3Key);
+            columns.put("filename", filename);
+        }
+
+        public DocumentRow id(long id) {
+            columns.put("id", id);
+            return this;
+        }
+
+        public DocumentRow s3Key(String s3Key) {
+            columns.put("s3_key", s3Key);
+            return this;
+        }
+
+        public DocumentRow filename(String filename) {
+            columns.put("filename", filename);
+            return this;
+        }
+
+        public DocumentRow sourceSpec(String sourceSpec) {
+            columns.put("source_spec", sourceSpec);
+            return this;
+        }
+
+        public DocumentRow status(DocumentStatus status) {
+            columns.put("status", status);
+            return this;
+        }
+
+        public DocumentRow createdAt(OffsetDateTime createdAt) {
+            columns.put("created_at", createdAt);
+            return this;
+        }
+
+        public void insert() {
+            testDatabase.insert(DOCUMENT, columns);
         }
     }
 }
