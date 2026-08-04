@@ -1,21 +1,21 @@
-name: CI
+name: Pull request
 
 on:
   pull_request:
     branches: [ "main" ]
 
 jobs:
-  gate:
-    name: Quality gate
+  pull-request:
+    name: Pull request checks
     runs-on: ubuntu-latest
     permissions:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -44,5 +44,5 @@ jobs:
       - name: Verdict
         if: ${{ failure() }}
         run: |
-          echo "One or more quality gates failed. See the step results above."
+          echo "One or more checks failed. See the step results above."
           exit 1
