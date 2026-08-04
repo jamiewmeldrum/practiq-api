@@ -26,7 +26,7 @@ public class DBRow {
     // The cast is unavoidable: a ResultSet row is Map<String, Object> and only the caller knows the column's
     // type. Returning Object would relocate the cast to the call sites and to assertThat/hasColumn below,
     // trading one suppression for three. Upgrade to get(String, Class<T>) if this fixture ever grows.
-    // @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
+    @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
     public <T> T get(String column) {
         return (T) values.get(column);
     }
