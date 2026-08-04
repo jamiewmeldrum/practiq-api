@@ -21,7 +21,7 @@ public class ConceptController {
         this.conceptService = conceptService;
     }
 
-    @Get
+    @Get()
     public List<ConceptResponse> get() {
         log.debug("Requested to GET all concepts");
         return conceptService.get();

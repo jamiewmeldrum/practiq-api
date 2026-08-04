@@ -25,7 +25,7 @@ public class QuestionController {
         this.questionService = questionService;
     }
 
-    @Get
+    @Get()
     public PageResponse<QuestionResponse> get(@Valid @RequestBean QuestionRequest request, Pageable pageable) {
         log.debug("Requested to GET approved questions");
         return questionService.get(request, pageable);
