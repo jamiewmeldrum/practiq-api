@@ -588,12 +588,13 @@ sequential is correct for now.
 
 ## Continuous integration
 
-Two workflows, deliberately separate because they answer different questions.
+Three workflows, deliberately separate because they answer different questions.
 
 | Workflow | Trigger | Question |
 |----------|---------|----------|
 | `pull-request.yml` | PR against `main` | Is this change safe to merge? |
 | `main-push.yml` | push to `main` | Is `main` healthy, and what needs cleaning up? |
+| `codeql.yml` | PR, push to `main`, weekly | Is there a known vulnerability pattern in the code? |
 
 ### Everything is a named step
 
@@ -672,11 +673,54 @@ defaults:
 `main-push.yml` needs this because it captures the log. `pull-request.yml` does not pipe and so
 does not set it.
 
+### Security scanning
+
+`codeql.yml` runs CodeQL over the Java sources. It uses `build-mode: none`, which extracts from
+source rather than compiling — a compiling build would mean a second full Gradle run with all five
+annotation processors, roughly doubling CI time for no extra coverage.
+
+It runs on its own workflow rather than as a step in the other two, for three reasons: no existing
+workflow has the right trigger set (the weekly cron would otherwise drag the whole test suite along
+with it), `security-events: write` stays scoped away from the token that runs Gradle, and a separate
+workflow runs concurrently instead of adding to the critical path.
+
+The weekly cron matters because CodeQL's query packs are updated regularly — unchanged code can
+still surface a new alert.
+
+Findings block merges via the ruleset's code scanning rule, not by failing the workflow. A run
+succeeds whether or not it finds anything; finding something isn't a workflow failure. Current
+thresholds are `medium_or_higher` for security severity and `errors_and_warnings` for alert
+severity.
+
+#### Known limitation: CodeQL does not understand Micronaut endpoints
+
+**Taint tracking on request-bound parameters does not work on this codebase.** Verified, not
+assumed: a deliberate path injection — a request field concatenated into a path and passed to
+`Files.delete` — produced zero alerts, with `java/path-injection` confirmed present among the
+queries that ran.
+
+The sink is modelled correctly. The *source* is not. CodeQL ships 406 data-extension model files
+and 70 framework libraries for Java; none of them cover Micronaut. Without a modelled source,
+nothing is attacker-controlled, no taint flows, and the query cannot fire. The same code under
+Spring would be flagged immediately.
+
+Support exists upstream but is unmerged: [github/codeql#21387](https://github.com/github/codeql/pull/21387),
+open since February 2026. Its five `.model.yml` files could be vendored as a local model pack, but
+they only model methods on `HttpRequest` — annotation-bound parameters (`@Body`, `@RequestBean`,
+`@QueryValue`) need the QL library changes in the same PR, and those modify core files that a model
+pack cannot override. This codebase binds input exclusively through annotations, so vendoring the
+data alone would buy nothing.
+
+CodeQL is kept because the source-independent queries still apply — hardcoded credentials, weak
+crypto, insecure randomness, XXE. It is not the endpoint-injection scanner it appears to be. Re-test
+when #21387 merges.
+
 ### Branch protection
 
 `main` is protected by a repository **ruleset** (`main-protection`), not classic branch protection.
-It requires the `Pull request checks` job to pass, plus linear history, and blocks force-pushes and
-deletion. Reviews are not required — a solo repo cannot approve its own PR.
+It requires the `Pull request checks` job to pass, blocks merges on CodeQL findings above the
+thresholds above, and enforces linear history while blocking force-pushes and deletion. Reviews are
+not required — a solo repo cannot approve its own PR.
 
 Linear history means the merge button offers squash and rebase only.
 
