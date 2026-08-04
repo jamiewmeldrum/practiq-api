@@ -586,6 +586,105 @@ parallelise only the fast (`*Test`/`*CT`) tiers, or give each worker its own dat
 Both are deferred — the IT tier is deliberately kept small (see §9 of `CLAUDE.md`), so
 sequential is correct for now.
 
+## Continuous integration
+
+Two workflows, deliberately separate because they answer different questions.
+
+| Workflow | Trigger | Question |
+|----------|---------|----------|
+| `pull-request.yml` | PR against `main` | Is this change safe to merge? |
+| `main-push.yml` | push to `main` | Is `main` healthy, and what needs cleaning up? |
+
+### Everything is a named step
+
+Neither workflow runs `./gradlew build`. Each gate is invoked explicitly:
+
+```
+spotlessCheck                              formatting
+compileJava compileTestJava                Error Prone (a javac plugin — it has no task of its own)
+test integrationTest performanceTest       all three test tiers
+shadowJar                                  the artefact
+```
+
+`build` would run all of these via `check`, but as one opaque task. Naming them separately means
+a failure is attributed to a gate rather than to "the build", and the gates that *can* still run
+after a failure do.
+
+### One push reports every failure it can reach
+
+Each gate carries `if: ${{ !cancelled() }}`.
+
+A step's implicit condition is `success()`, which is false once anything has failed — that's why
+a normal pipeline skips everything after the first failure. Overriding it with `!cancelled()`
+removes the failure check while leaving the failure itself intact, so the remaining gates run and
+the job still goes red. Use `!cancelled()` and not `always()`: the latter also runs when you
+cancel the run, which makes a stuck pipeline unkillable.
+
+`continue-on-error: true` looks like the same thing and isn't. It rewrites the step's *conclusion*
+to success, which hides the failure from the job as well as from the following steps, so the
+verdict then has to be reconstructed by hand from each step's `outcome`.
+
+Tests and artefact are the exception — they additionally require
+`steps.errorprone.outcome == 'success'`, because there is no binary to test or package if
+compilation failed. That is a real dependency, not bookkeeping.
+
+The test step passes `--continue` for the same reason at the Gradle level: without it Gradle stops
+at the first failing task, so a unit failure would hide every integration and performance result.
+
+### Formatting and static analysis are not the same gate
+
+`spotlessCheck` reads source text and reports regardless of whether the code compiles. Error Prone
+runs *inside* compilation. So a badly formatted file with a compile error reports both in a single
+run — which is the whole point of the arrangement above.
+
+Error Prone **errors** fail the build. **Warnings** do not; they are collected on `main` instead
+(below).
+
+### Error Prone warnings become one sticky issue
+
+`main-push.yml` tees the compile output and hands it to `.github/scripts/error_prone_report.py`,
+which maintains a single GitHub issue titled **Error Prone warnings**:
+
+- warnings present, no issue → create it, labelled `code-quality` and assigned, so the
+  notification email actually arrives
+- warnings present, issue exists → update the body in place, reopening it if it had been closed
+- no warnings → close it
+
+The issue is found by **label**, never by title, and pull requests are filtered out of the result —
+the `/issues` endpoint returns PRs as well, so a matching PR title would otherwise be patched
+instead. The `code-quality` label must exist before the first run.
+
+Warnings are deliberately not gated on a PR. They are a cleanup backlog, not a blocker, and the
+issue is the backlog.
+
+### `shell: bash` is required wherever output is piped
+
+GitHub's implicit default shell is `bash -e` — **without** `pipefail`. So
+`./gradlew … 2>&1 | tee errorprone.log` reports `tee`'s exit code, which is always 0, and a failed
+compile passes silently. Naming the shell explicitly gets `--noprofile --norc -eo pipefail`:
+
+```yaml
+defaults:
+  run:
+    shell: bash
+```
+
+`main-push.yml` needs this because it captures the log. `pull-request.yml` does not pipe and so
+does not set it.
+
+### Branch protection
+
+`main` is protected by a repository **ruleset** (`main-protection`), not classic branch protection.
+It requires the `Pull request checks` job to pass, plus linear history, and blocks force-pushes and
+deletion. Reviews are not required — a solo repo cannot approve its own PR.
+
+Linear history means the merge button offers squash and rebase only.
+
+The ruleset lives in GitHub, not in this repository; a copy is kept at
+`.github/rulesets/main-protection.json` **for reference only**, and nothing here applies or
+verifies it. That gap is not theoretical: the required check once pointed at a job name that had
+been renamed hours earlier, which made `main` unmergeable with nothing in any diff to show why.
+
 ## Micronaut 4.10.16 Documentation
 
 - [User Guide](https://docs.micronaut.io/4.10.16/guide/index.html)

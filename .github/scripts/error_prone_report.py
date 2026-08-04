@@ -51,11 +51,19 @@ def parse(log_path):
     return sorted(set(warnings))
 
 
-def render(warnings):
-    run = (
+def run_url():
+    return (
         f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}"
         f"/actions/runs/{os.environ['GITHUB_RUN_ID']}"
     )
+
+
+def render_clean():
+    return f"No Error Prone warnings on `main` as of [this run]({run_url()})."
+
+
+def render(warnings):
+    run = run_url()
     lines = [
         f"**{len(warnings)}** warning(s) on `main` as of [this run]({run}).",
         "",
@@ -83,7 +91,11 @@ def main():
 
     if not warnings:
         if issue and issue["state"] == "open":
-            api("PATCH", f"/issues/{issue['number']}", {"state": "closed"})
+            api(
+                "PATCH",
+                f"/issues/{issue['number']}",
+                {"body": render_clean(), "state": "closed"},
+            )
             print(f"No warnings - closed #{issue['number']}.")
         else:
             print("No warnings.")
