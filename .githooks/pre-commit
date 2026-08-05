@@ -1,5 +1,6 @@
 #!/bin/sh
 
 ./gradlew --quiet spotlessApply
+git add .
 
 exit 0
