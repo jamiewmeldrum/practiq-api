@@ -15,7 +15,7 @@ import utils.data.DBRow;
 import utils.data.TestData;
 
 @IntegrationTest
-public class MarkSchemeDatabaseIT {
+class MarkSchemeDatabaseIT {
 
     @Inject
     private TestData data;

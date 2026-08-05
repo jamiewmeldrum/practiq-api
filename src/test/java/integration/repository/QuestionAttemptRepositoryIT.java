@@ -27,7 +27,7 @@ import utils.data.TestData;
 // the specification carries, plus the stable newest-first order findAll applies. The spec is part of the
 // repository's DB interaction, so its filtering is pinned here rather than in a separate spec-factory IT.
 @IntegrationTest
-public class QuestionAttemptRepositoryIT {
+class QuestionAttemptRepositoryIT {
 
     private static final Sort STABLE_ORDER = Sort.of(Sort.Order.desc("createdAt"), Sort.Order.asc("id"));
 

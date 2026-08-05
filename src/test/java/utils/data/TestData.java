@@ -134,8 +134,8 @@ public class TestData {
         return new QuestionOriginRow();
     }
 
-    public QuestionOriginRow questionOrigin(long questionId, QuestionAuthorship source) {
-        return new QuestionOriginRow(questionId, source);
+    public QuestionOriginRow questionOrigin(long questionId, QuestionAuthorship authorship) {
+        return new QuestionOriginRow(questionId, authorship);
     }
 
     public List<DBRow> retrieveQuestionOrigins() {

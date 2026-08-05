@@ -25,7 +25,7 @@ import utils.data.DBRow;
 import utils.data.TestData;
 
 @IntegrationTest
-public class QuestionAttemptControllerIT {
+class QuestionAttemptControllerIT {
 
     private static final String QUESTION_ATTEMPTS_PATH = "/api/v1/questions/%s/attempts";
 
