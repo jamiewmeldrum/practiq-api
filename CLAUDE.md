@@ -2,7 +2,7 @@
 
 *Standing instructions for Claude Code. Read fully every session. Update the "Current sprint" marker as work
 progresses.*
-
+ 
 ---
 
 ## 1. Behaviour rules (non-negotiable)
@@ -51,7 +51,7 @@ NOW:   [React] → [practiq-api] → [PostgreSQL]
                     ├→ practiq-extractor (Python, HTTP on localhost)
                     ├→ S3 (LocalStack locally)
                     └→ AIService (Stub locally / Claude API)
-
+ 
 TARGET (Phase 4+ only): API → SQS → practiq-processor → extractor Lambda → POSTs back to API.
 ```
 
@@ -126,11 +126,11 @@ exam_board:      id, name                                  -- AQA | OCR | Edexce
 specification:   id, exam_board_id, subject, level, name, version    -- level: gcse|a_level
 spec_section:    id, specification_id, parent_section_id NULL, name, section_ref, sort_order
 concept:         id, name, description, created_at         -- board-agnostic, granular ("Diffraction")
-
+ 
 spec_section_concept: spec_section_id, concept_id          -- "AQA 6.2 covers Diffraction…"
 question_concept:     question_id, concept_id
 note_concept:         note_id, concept_id
-
+ 
 question:  id, version (optimistic lock), body (TEXT, not null — Markdown, images via {{s3:key}}, MCQ via - [ ]/- [x]),
            difficulty int (nullable, 1-5),
            type (nullable — SHORT_ANSWER|EXTENDED|MCQ),
@@ -139,14 +139,27 @@ question:  id, version (optimistic lock), body (TEXT, not null — Markdown, ima
            -- NO source / source_spec columns — origin moved to its own table (see D-036)
            -- NO mark_scheme column — it's its own entity now (see D-018)
            -- no level column (see D-010) · no content jsonb (see D-009)
-
-document:  id, s3_key (not null), filename (not null), status (not null — enum,
-           incl. RETIRED soft-delete), + identity fields (board/year/etc, shape TBD in ticket),
-           created_at
-           -- The material source an EXTRACTED question came from (see D-036).
-           -- Never hard-deleted except by a deliberate GDPR "knife" procedure; RETIRED
-           -- takes it out of processing without losing the audit trail.
-
+ 
+document:  id, s3_key (not null), filename (not null),
+           source_spec (nullable — free-text provenance HINT at upload, advisory not binding),
+           status (not null — enum UNAPPROVED|APPROVED|REJECTED|REMOVED),
+           version, created_at
+           -- Artefact + approval gate ONLY. No processing state (see D-039).
+           -- Only APPROVED docs get processed. REJECTED = refused at review;
+           -- REMOVED = withdrawn (soft-delete) — distinct facts, distinct states.
+           -- Never hard-deleted except by a deliberate GDPR "knife" (D-036).
+           -- source_spec belongs here (artefact describing itself), NOT on question.
+ 
+document_processing_job: id, document_id (FK, not null), type (not null — enum:
+           QUESTION_HARVEST|NOTE_GENERATION|…), status (not null — enum
+           PENDING|RUNNING|SUCCEEDED|FAILED), timestamps, created_at
+           -- Record of a processing RUN over a document (see D-039), separate from
+           -- the document so it isn't updated for processing reasons. One table,
+           -- type-discriminated (jobs share parent+shape — NOT the per-type split
+           -- origin uses). Branching workflow: harvest / note-gen / AI-gen over one
+           -- APPROVED doc. job→question link is a deferred audit axis; question_origin
+           -- points at the DOCUMENT, not the job.
+ 
 question_origin: id, question_id (FK → question, not null, UNIQUE, ON DELETE CASCADE),
            kind (not null — AUTHORED|EXTRACTED|GENERATED),
            document_id (FK → document, nullable, non-null IFF kind=EXTRACTED),
@@ -156,7 +169,7 @@ question_origin: id, question_id (FK → question, not null, UNIQUE, ON DELETE C
            -- pattern (NoteOrigin later, same shape) — NOT a polymorphic table, so the
            -- question→origin FK cascade is DB-enforced. See D-036.
            -- Invariant (code-enforced): document_id present IFF kind=EXTRACTED.
-
+ 
 mark_scheme: id, question_id (FK, not null, UNIQUE — 1:1), version (optimistic lock),
              body (TEXT, not null — Markdown, {{s3:key}} refs), created_at
                            -- Separate entity from question (D-018): different edit lifecycle.
@@ -165,14 +178,14 @@ mark_scheme: id, question_id (FK, not null, UNIQUE — 1:1), version (optimistic
                            -- contact surface across two workflows that don't move together.
                            -- Served via its own endpoint, keyed by question_id. Never inline
                            -- on the question payload.
-
+ 
 note:      id, title, s3_key, level, status, created_at
-
+ 
 question_attempt:           id, question_id, session_token, attempt_body, created_at
                            -- NO unique constraint on (question_id, session_token).
                            -- Repeated attempts are the revision loop, not a duplicate. See D-021.
                            -- Built in Sprint 0.2.
-
+ 
 question_attempt_feedback: id, question_attempt_id, source (SELF|AI),
                            self_score int NULL, max_score int NULL,   -- SELF only
                            feedback TEXT NULL,                        -- AI only
@@ -182,7 +195,7 @@ question_attempt_feedback: id, question_attempt_id, source (SELF|AI),
                            -- AI marking / progress tracking. NOT created in Sprint 0.2.
                            -- `source` discriminator ⇒ CREATE whole in Phase 3, no migration owed.
                            -- One-to-many from attempt, ordered by created_at. See D-019.
-
+ 
 -- Phase 6 only: app_user, topic_progress
 ```
 
@@ -194,11 +207,10 @@ question_attempt_feedback: id, question_attempt_id, source (SELF|AI),
 - `src/main/resources/db/seed_local.sql` exists for manual local data loading only — it is intentionally outside
   `db/migration/` so Flyway ignores it. Load it manually via `docker exec`. It will eventually move to a dedicated
   cross-cutting demo-data repository.
-
-Principles: questions are tagged with concepts; spec sections map to concepts; one question serves any board/spec/level
-sharing the concept. Spec revisions = new specification version + new mappings; questions untouched. Synoptic
-questions = multiple concepts. Prefer **explicit join entities** over @ManyToMany for the junctions. **Students only
-ever see status=approved.**
+  Principles: questions are tagged with concepts; spec sections map to concepts; one question serves any
+  board/spec/level sharing the concept. Spec revisions = new specification version + new mappings; questions untouched.
+  Synoptic questions = multiple concepts. Prefer **explicit join entities** over @ManyToMany for the junctions. *
+  *Students only ever see status=approved.**
 
 ## 7. API surface
 
@@ -447,6 +459,10 @@ is no demo — the artefact is the repo + a conversation (D-035).**
 > **Current sprint: 0.3 — Ingestion (stub AI, in-process)** *(update this line as sprints complete)*
 >
 > **Sprint 0.2 closed.** Question read API, mark scheme, and attempts all delivered.
+>
+> **Sprint 0.3 in progress:** `document` table DONE (D-039/D-040). Next: `question_origin` table (ticket 2 of the D-036
+> sequence), then drop `source`/`source_spec` from `question`, then seed rewrite. ⚠ `Document` entity has a live latent
+> defect — no status default, `save()` without explicit status fails; fixed at first construct-and-save path.
 >
 > **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged,
 > filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept
