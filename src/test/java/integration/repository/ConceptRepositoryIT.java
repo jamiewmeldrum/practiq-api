@@ -15,7 +15,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
-import utils.data.QuestionTestData;
+import utils.data.TestData;
 
 @IntegrationTest
 public class ConceptRepositoryIT {
@@ -24,7 +24,7 @@ public class ConceptRepositoryIT {
     private ConceptRepository conceptRepository;
 
     @Inject
-    private QuestionTestData data;
+    private TestData data;
 
     @BeforeEach
     void setUp() {

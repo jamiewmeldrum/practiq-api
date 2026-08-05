@@ -15,7 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.PerformanceTest;
 import utils.StatementCounter;
-import utils.data.QuestionTestData;
+import utils.data.TestData;
 
 // Pins the JDBC statement count for serving a single question by id.
 @PerformanceTest
@@ -27,7 +27,7 @@ public class QuestionByIdPT {
     private static final long EXPECTED_STATEMENTS = 2L;
 
     @Inject
-    private QuestionTestData data;
+    private TestData data;
 
     @Inject
     private EmbeddedServer embeddedServer;

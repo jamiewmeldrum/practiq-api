@@ -18,7 +18,7 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
-import utils.data.QuestionTestData;
+import utils.data.TestData;
 
 @IntegrationTest
 class QuestionControllerIT {
@@ -26,7 +26,7 @@ class QuestionControllerIT {
     private static final String QUESTIONS_PATH = "/api/v1/questions";
 
     @Inject
-    private QuestionTestData data;
+    private TestData data;
 
     @Inject
     private EmbeddedServer embeddedServer;

@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 import utils.DateTimeUtils;
 import utils.IntegrationTest;
 import utils.data.DBRow;
-import utils.data.QuestionTestData;
+import utils.data.TestData;
 
 @IntegrationTest
 public class QuestionAttemptControllerIT {
@@ -30,7 +30,7 @@ public class QuestionAttemptControllerIT {
     private static final String QUESTION_ATTEMPTS_PATH = "/api/v1/questions/%s/attempts";
 
     @Inject
-    private QuestionTestData data;
+    private TestData data;
 
     @Inject
     private EmbeddedServer embeddedServer;

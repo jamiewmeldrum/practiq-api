@@ -21,7 +21,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
-import utils.data.QuestionTestData;
+import utils.data.TestData;
 
 // How attempt queries behave against a real database: the question-id predicate and the session-token restriction
 // the specification carries, plus the stable newest-first order findAll applies. The spec is part of the
@@ -32,7 +32,7 @@ public class QuestionAttemptRepositoryIT {
     private static final Sort STABLE_ORDER = Sort.of(Sort.Order.desc("createdAt"), Sort.Order.asc("id"));
 
     @Inject
-    private QuestionTestData data;
+    private TestData data;
 
     @Inject
     private QuestionAttemptRepository questionAttemptRepository;

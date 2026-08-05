@@ -1,11 +1,14 @@
 package utils.data;
 
 import com.practiq.domain.types.*;
+import jakarta.inject.Singleton;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-public abstract class TestData {
+@Singleton
+public class TestData {
 
     public static final String SESSION_TOKEN_HEADER = "X-Session-Token";
 
@@ -24,7 +27,98 @@ public abstract class TestData {
         this.testDatabase = testDatabase;
     }
 
-    public abstract void clear();
+    public void clear() {
+        testDatabase.clear(QUESTION_ATTEMPT);
+        testDatabase.clear(MARK_SCHEME_TABLE);
+        testDatabase.clear(QUESTION_CONCEPT_TABLE);
+        testDatabase.clear(QUESTION_TABLE);
+        testDatabase.clear(CONCEPT_TABLE);
+        testDatabase.clear(DOCUMENT);
+    }
+
+    public QuestionRow question() {
+        return new QuestionRow();
+    }
+
+    public QuestionRow question(long id) {
+        return new QuestionRow(id);
+    }
+
+    public List<DBRow> retrieveQuestions() {
+        return testDatabase.selectAll(QUESTION_TABLE);
+    }
+
+    public void deleteQuestion(long id) {
+        testDatabase.delete(QUESTION_TABLE, id);
+    }
+
+    public ConceptRow concept() {
+        return new ConceptRow();
+    }
+
+    public ConceptRow concept(long id) {
+        return new ConceptRow(id);
+    }
+
+    public List<DBRow> retrieveConcepts() {
+        return testDatabase.selectAll(CONCEPT_TABLE);
+    }
+
+    public void updateConcept(long id, String column, Object value) {
+        testDatabase.update(CONCEPT_TABLE, id, column, value);
+    }
+
+    public void deleteConcept(long id) {
+        testDatabase.delete(CONCEPT_TABLE, id);
+    }
+
+    public QuestionConceptRow link(long questionId, long conceptId) {
+        return new QuestionConceptRow(questionId, conceptId);
+    }
+
+    public List<DBRow> retrieveLinks() {
+        return testDatabase.selectAll(QUESTION_CONCEPT_TABLE);
+    }
+
+    public MarkSchemeRow markScheme() {
+        return new MarkSchemeRow();
+    }
+
+    public MarkSchemeRow markScheme(long questionId, String body) {
+        return new MarkSchemeRow(questionId, body);
+    }
+
+    public List<DBRow> retrieveMarkSchemes() {
+        return testDatabase.selectAll(MARK_SCHEME_TABLE);
+    }
+
+    public QuestionAttemptRow questionAttempt() {
+        return new QuestionAttemptRow();
+    }
+
+    public QuestionAttemptRow questionAttempt(long questionId, String sessionToken, String body) {
+        return new QuestionAttemptRow(questionId, sessionToken, body);
+    }
+
+    public List<DBRow> retrieveQuestionAttempts() {
+        return testDatabase.selectAll(QUESTION_ATTEMPT);
+    }
+
+    public void updateQuestionAttempt(long id, String column, Object value) {
+        testDatabase.update(QUESTION_ATTEMPT, id, column, value);
+    }
+
+    public DocumentRow document() {
+        return new DocumentRow();
+    }
+
+    public DocumentRow document(String s3Key, String filename) {
+        return new DocumentRow(s3Key, filename);
+    }
+
+    public List<DBRow> retrieveDocuments() {
+        return testDatabase.selectAll(DOCUMENT);
+    }
 
     public String getInstantPattern() {
         return ISO_8601_UTC;
