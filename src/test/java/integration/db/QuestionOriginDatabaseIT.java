@@ -5,7 +5,7 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.data.TestDatabase.*;
 
-import com.practiq.domain.types.QuestionSource;
+import com.practiq.domain.types.QuestionAuthorship;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.List;
@@ -31,14 +31,14 @@ public class QuestionOriginDatabaseIT {
         long questionId = 4L;
         data.question(questionId).insert();
 
-        QuestionSource source = QuestionSource.EXTRACTED;
-        data.questionOrigin(questionId, source).insert();
+        QuestionAuthorship authorship = QuestionAuthorship.EXTRACTED;
+        data.questionOrigin(questionId, authorship).insert();
 
         List<DBRow> questionOrigins = data.retrieveQuestionOrigins();
         DBRow questionOrigin = questionOrigins.getFirst();
         questionOrigin.assertThat("id", greaterThan(0L));
         questionOrigin.assertThat("question_id", equalTo(questionId));
-        questionOrigin.assertThat("source", equalTo(source.name()));
+        questionOrigin.assertThat("authorship", equalTo(authorship.name()));
         questionOrigin.assertThat("document_id", nullValue());
         questionOrigin.assertThat("created_at", allOf(greaterThan(Instant.EPOCH), lessThanOrEqualTo(Instant.now())));
         questionOrigin.assertAllColumnsChecked();
@@ -52,14 +52,14 @@ public class QuestionOriginDatabaseIT {
         long documentId = 4L;
         data.document("s3Key", "filename").id(documentId).insert();
 
-        QuestionSource source = QuestionSource.AUTHORED;
-        data.questionOrigin(questionId, source).documentId(documentId).insert();
+        QuestionAuthorship authorship = QuestionAuthorship.AUTHORED;
+        data.questionOrigin(questionId, authorship).documentId(documentId).insert();
 
         List<DBRow> questionOrigins = data.retrieveQuestionOrigins();
         DBRow questionOrigin = questionOrigins.getFirst();
         questionOrigin.assertThat("id", greaterThan(0L));
         questionOrigin.assertThat("question_id", equalTo(questionId));
-        questionOrigin.assertThat("source", equalTo(source.name()));
+        questionOrigin.assertThat("authorship", equalTo(authorship.name()));
         questionOrigin.assertThat("document_id", equalTo(documentId));
         questionOrigin.assertThat("created_at", allOf(greaterThan(Instant.EPOCH), lessThanOrEqualTo(Instant.now())));
         questionOrigin.assertAllColumnsChecked();
@@ -70,12 +70,12 @@ public class QuestionOriginDatabaseIT {
         long questionId = 5L;
         data.question(questionId).insert();
 
-        QuestionSource source = QuestionSource.EXTRACTED;
-        data.questionOrigin(questionId, source).insert();
+        QuestionAuthorship authorship = QuestionAuthorship.EXTRACTED;
+        data.questionOrigin(questionId, authorship).insert();
 
         long otherQuestionId = 6L;
         data.question(otherQuestionId).insert();
-        data.questionOrigin(otherQuestionId, source).insert();
+        data.questionOrigin(otherQuestionId, authorship).insert();
 
         List<DBRow> questionOriginsBeforeDelete = data.retrieveQuestionOrigins();
         assertThat(questionOriginsBeforeDelete, hasSize(2));
@@ -92,7 +92,7 @@ public class QuestionOriginDatabaseIT {
     @Test
     void ensureThatQuestionMustExist() {
         IllegalStateException thrown =
-                assertThrows(IllegalStateException.class, () -> data.questionOrigin(3L, QuestionSource.EXTRACTED)
+                assertThrows(IllegalStateException.class, () -> data.questionOrigin(3L, QuestionAuthorship.EXTRACTED)
                         .insert());
 
         assertThat(sqlStateOf(thrown), equalTo(FOREIGN_KEY_VIOLATION));
@@ -104,51 +104,52 @@ public class QuestionOriginDatabaseIT {
         long questionId = 5L;
         data.question(questionId).insert();
 
-        QuestionSource source = QuestionSource.EXTRACTED;
+        QuestionAuthorship authorship = QuestionAuthorship.EXTRACTED;
 
-        IllegalStateException thrown = assertThrows(
-                IllegalStateException.class,
-                () -> data.questionOrigin(questionId, source).documentId(56L).insert());
+        IllegalStateException thrown =
+                assertThrows(IllegalStateException.class, () -> data.questionOrigin(questionId, authorship)
+                        .documentId(56L)
+                        .insert());
 
         assertThat(sqlStateOf(thrown), equalTo(FOREIGN_KEY_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("document_id"));
     }
 
     @Test
-    void ensureThatSourceMustBeValid() {
+    void ensureThatAuthorshipMustBeValid() {
         long questionId = 5L;
         data.question(questionId).insert();
 
-        QuestionSource source = QuestionSource.EXTRACTED;
-        data.questionOrigin(questionId, source).insert();
+        QuestionAuthorship authorship = QuestionAuthorship.EXTRACTED;
+        data.questionOrigin(questionId, authorship).insert();
 
         List<DBRow> questionOrigins = data.retrieveQuestionOrigins();
         DBRow questionOrigin = questionOrigins.getFirst();
-        questionOrigin.assertThat("source", equalTo(source.name()));
+        questionOrigin.assertThat("authorship", equalTo(authorship.name()));
 
         long otherQuestionId = 9L;
         data.question(otherQuestionId).insert();
         IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> data.questionOrigin()
                 .questionId(otherQuestionId)
-                .source("RANDOM")
+                .authorship("RANDOM")
                 .insert());
 
         assertThat(sqlStateOf(thrown), equalTo(CHECK_VIOLATION));
-        assertThat(thrown.getCause().getMessage(), containsString("source"));
+        assertThat(thrown.getCause().getMessage(), containsString("authorship"));
     }
 
     @Test
     void ensureThatQuestionIdMustExist() {
-        IllegalStateException thrown = assertThrows(
-                IllegalStateException.class,
-                () -> data.questionOrigin().source(QuestionSource.EXTRACTED).insert());
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> data.questionOrigin()
+                .authorship(QuestionAuthorship.EXTRACTED)
+                .insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("question_id"));
     }
 
     @Test
-    void ensureThatSourceMustExist() {
+    void ensureThatAuthorshipMustExist() {
         long questionId = 12L;
         data.question(questionId).insert();
 
@@ -157,22 +158,22 @@ public class QuestionOriginDatabaseIT {
                 () -> data.questionOrigin().questionId(questionId).insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
-        assertThat(thrown.getCause().getMessage(), containsString("source"));
+        assertThat(thrown.getCause().getMessage(), containsString("authorship"));
     }
 
     @Test
     void ensureThatQuestionCanOnlyHaveOneOrigin() {
         long questionId = 16L;
         data.question(questionId).insert();
-        data.questionOrigin(questionId, QuestionSource.AUTHORED).insert();
+        data.questionOrigin(questionId, QuestionAuthorship.AUTHORED).insert();
 
         List<DBRow> questionOrigins = data.retrieveQuestionOrigins();
         assertThat(questionOrigins, hasSize(1));
         DBRow questionOrigin = questionOrigins.getFirst();
         questionOrigin.assertThat("question_id", equalTo(questionId));
 
-        IllegalStateException thrown =
-                assertThrows(IllegalStateException.class, () -> data.questionOrigin(questionId, QuestionSource.AUTHORED)
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class, () -> data.questionOrigin(questionId, QuestionAuthorship.AUTHORED)
                         .insert());
 
         assertThat(sqlStateOf(thrown), equalTo(UNIQUE_VIOLATION));

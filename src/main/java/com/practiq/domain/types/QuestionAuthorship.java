@@ -1,6 +1,6 @@
 package com.practiq.domain.types;
 
-public enum QuestionSource {
+public enum QuestionAuthorship {
     AUTHORED,
     EXTRACTED,
     GENERATED;
