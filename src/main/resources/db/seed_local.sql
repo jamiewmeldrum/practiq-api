@@ -44,16 +44,15 @@ on conflict (name) do nothing;
 -- Uploaded source artefacts + their approval gate (D-039). No processing state here —
 -- that lives in document_processing_job, which doesn't exist yet.
 --
--- STANDALONE for now: question_origin does not exist yet, so nothing links these to
--- questions. When the origin table lands, the EXTRACTED seed questions get wired to the
--- APPROVED documents here. Until then these just populate the table for eyeballing.
---
 -- Deliberate spread:
 --   * All four status values present (UNAPPROVED / APPROVED / REJECTED / REMOVED) so the
 --     approval gate is visible locally and "only APPROVED gets processed" is checkable.
 --   * source_spec populated on most, null on one — it's an optional upload hint, not
 --     mandatory, so the null path is exercised.
---   * s3_key is UNIQUE — keys are distinct and look like what the presigned upload writes.
+--   * s3_key is UNIQUE (natural key, D-040) — keys are distinct and opaque-ish.
+--
+-- The two APPROVED docs are the extraction sources the EXTRACTED question_origin rows
+-- below point at (extraction only runs on APPROVED — D-039).
 --
 -- Idempotent: delete by s3_key (the natural key) before reinsert.
 delete
@@ -74,22 +73,20 @@ values ('uploads/aqa-physics-2007-p1.pdf', 'AQA_Physics_2007_Paper1.pdf', 'AQA G
        ('uploads/unbranded-scan-batch-04.pdf', 'scan_batch_04.pdf', null, 'UNAPPROVED'),
        ('uploads/duplicate-upload-2007-p1.pdf', 'AQA_Physics_2007_Paper1_copy.pdf', 'AQA GCSE Physics 2007', 'REMOVED');
 
--- ── Questions + mark schemes ───────────────────────────────────────────────
--- Body, concept links, and mark scheme are authored together, once, in the staging
--- table below — never as separate lists matched by a text key (that drift silently
--- linked nothing in an earlier version of this script). See D-016.
+-- ── Questions + mark schemes + origin ──────────────────────────────────────
+-- Body, concept links, mark scheme AND origin are authored together, once, in the
+-- staging table below — never as separate lists matched by a text key (that drift
+-- silently linked nothing in an earlier version of this script). See D-016.
 --
--- source is deliberately not all 'SEED', and mark_scheme is deliberately null on some
--- rows: a null means no mark_scheme row is created at all (D-018 — it's a separate
--- table, so "no mark scheme" is an absent row, not a null column). Mostly correlates
--- with PENDING/REJECTED, but one APPROVED row has none on purpose — absence isn't
--- mechanically tied to status, and it keeps the "visible question, no scheme" path
--- reachable locally.
+-- source/source_spec are GONE from question (D-036). Origin now lives in question_origin:
+--   * authorship: AUTHORED (a human wrote it) | EXTRACTED (from a document) | GENERATED (AI).
+--     These replace the old source values (SEED→AUTHORED, EXTRACTED→EXTRACTED, GENERATED→GENERATED).
+--   * doc_key: the s3_key of the source document, present IFF authorship=EXTRACTED (the invariant).
+--     null for AUTHORED and GENERATED. Extraction sources are APPROVED docs only (D-039).
 --
--- NOTE: question still carries source/source_spec here — the D-036 removal (origin table,
--- drop columns) is not built yet. This section is unchanged pending those tickets.
+-- mark_scheme is still deliberately null on some rows (D-018 — absent row, not null column).
 --
--- All mark scheme content is self-written. No past-paper prose — see the copyright rule.
+-- All content is self-written. No past-paper prose — see the copyright rule.
 create temporary table seed_questions as
 select *
 from (values ('Which of the following is a vector quantity?
@@ -98,7 +95,7 @@ from (values ('Which of the following is a vector quantity?
 - [ ] Mass
 - [x] Velocity
 - [ ] Time',
-              1, 'MCQ', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Scalars and Vectors'],
+              1, 'MCQ', 'APPROVED', array ['Scalars and Vectors'], 'AUTHORED', null::text,
               '**1 mark**
 
 - **Velocity** (1)
@@ -106,7 +103,7 @@ from (values ('Which of the following is a vector quantity?
 *Velocity has both magnitude and direction. Speed, mass and time are scalars.*'),
 
              ('A car travels 150 m in 10 s. Calculate its average speed.',
-              null, 'SHORT_ANSWER', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Speed and Velocity'],
+              null, 'SHORT_ANSWER', 'APPROVED', array ['Speed and Velocity'], 'AUTHORED', null,
               '**2 marks**
 
 - Correct substitution into `speed = distance / time` → `150 / 10` (1)
@@ -115,11 +112,11 @@ from (values ('Which of the following is a vector quantity?
 *Award both marks for a correct answer with no working.*'),
 
              ('A 900 kg car accelerates uniformly from rest to 24 m/s in 8 s. (a) Calculate the car''s acceleration. (b) Calculate the resultant force needed to produce this acceleration. (c) State one reason the force needed in practice would be greater than your answer to (b).',
-              null, 'EXTENDED', 'EXTRACTED', 'PENDING', 'AQA GCSE Physics',
-              array ['Acceleration', 'Newton''s Second Law'], null),
+              null, 'EXTENDED', 'PENDING', array ['Acceleration', 'Newton''s Second Law'],
+              'EXTRACTED', 'uploads/aqa-physics-2019-mechanics.pdf', null),
 
              ('State Newton''s First Law.',
-              2, 'SHORT_ANSWER', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Newton''s First Law'],
+              2, 'SHORT_ANSWER', 'APPROVED', array ['Newton''s First Law'], 'AUTHORED', null,
               '**2 marks**
 
 - An object remains at rest, or continues at constant velocity (1)
@@ -128,7 +125,7 @@ from (values ('Which of the following is a vector quantity?
 *Accept "zero resultant force" for the second mark. Do not accept "no force".*'),
 
              ('Two students investigate the relationship between force and acceleration for a trolley of constant mass. They apply increasing force to the trolley and measure its acceleration each time. (a) Sketch the shape of the graph you would expect if acceleration is plotted against force. (b) State the relationship between force and acceleration shown by this graph. (c) The trolley has a mass of 1.5 kg. Calculate the force needed to accelerate it at 4 m/s squared.',
-              null, null, 'GENERATED', 'PENDING', null, array ['Newton''s Second Law', 'Acceleration'], null),
+              null, null, 'PENDING', array ['Newton''s Second Law', 'Acceleration'], 'GENERATED', null, null),
 
              ('A resultant force of 10 N acts on an object of mass 2 kg. What is the object''s acceleration?
 
@@ -136,7 +133,7 @@ from (values ('Which of the following is a vector quantity?
 - [ ] 2.5 m/s squared
 - [x] 5 m/s squared
 - [ ] 20 m/s squared',
-              2, 'MCQ', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Newton''s Second Law'],
+              2, 'MCQ', 'APPROVED', array ['Newton''s Second Law'], 'AUTHORED', null,
               '**1 mark**
 
 - **5 m/s squared** (1)
@@ -144,11 +141,11 @@ from (values ('Which of the following is a vector quantity?
 *From `a = F / m` → `10 / 2`.*'),
 
              ('A spring has a natural length of 12 cm. When a 2 N force is applied, it stretches to 15 cm. Calculate the spring constant, stating the correct unit.',
-              null, 'SHORT_ANSWER', 'EXTRACTED', 'PENDING', 'AQA GCSE Physics', array ['Hooke''s Law'], null),
+              null, 'SHORT_ANSWER', 'PENDING', array ['Hooke''s Law'],
+              'EXTRACTED', 'uploads/aqa-physics-2019-mechanics.pdf', null),
 
              ('A student stretches a spring within its limit of proportionality by applying a force and measuring the extension. (a) State Hooke''s Law. (b) The spring has a spring constant of 40 N/m and is extended by 0.05 m. Calculate the elastic potential energy stored in the spring. (c) State what happens to this stored energy if the spring is released and allowed to return to its natural length with nothing attached.',
-              3, 'EXTENDED', 'SEED', 'APPROVED', 'AQA GCSE Physics',
-              array ['Hooke''s Law', 'Energy Stores and Transfers'],
+              3, 'EXTENDED', 'APPROVED', array ['Hooke''s Law', 'Energy Stores and Transfers'], 'AUTHORED', null,
               '**5 marks**
 
 **(a)** Extension is directly proportional to the force applied (1), up to the limit of proportionality (1)
@@ -165,11 +162,11 @@ from (values ('Which of the following is a vector quantity?
 - [x] Gravitational potential
 - [ ] Chemical
 - [ ] Thermal',
-              1, 'MCQ', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Energy Stores and Transfers'], null),
+              1, 'MCQ', 'APPROVED', array ['Energy Stores and Transfers'], 'AUTHORED', null, null),
 
              ('A skier of mass 60 kg starts from rest at the top of a slope 20 m high and reaches the bottom with a speed of 18 m/s. (a) Calculate the gravitational potential energy the skier had at the top of the slope, taking g = 10 N/kg. (b) Calculate the kinetic energy the skier has at the bottom. (c) Use the principle of conservation of energy to explain why your answers to (a) and (b) are not equal, and state where the missing energy has gone.',
-              4, 'EXTENDED', 'GENERATED', 'APPROVED', null,
-              array ['Conservation of Energy', 'Energy Stores and Transfers'],
+              4, 'EXTENDED', 'APPROVED', array ['Conservation of Energy', 'Energy Stores and Transfers'],
+              'GENERATED', null,
               '**6 marks**
 
 **(a)** `E = m × g × h` → `60 × 10 × 20` (1) = `12 000 J` (1)
@@ -181,7 +178,7 @@ from (values ('Which of the following is a vector quantity?
 *(c): accept "transferred to thermal/internal energy by friction". Do not accept "lost" or "used up" alone.*'),
 
              ('A charge of 15 C flows past a point in a wire in 5 s. Calculate the current in the wire.',
-              2, 'SHORT_ANSWER', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Electrical Charge and Current'],
+              2, 'SHORT_ANSWER', 'APPROVED', array ['Electrical Charge and Current'], 'AUTHORED', null,
               '**2 marks**
 
 - Correct substitution into `I = Q / t` → `15 / 5` (1)
@@ -193,11 +190,12 @@ from (values ('Which of the following is a vector quantity?
 - [x] Ampere
 - [ ] Volt
 - [ ] Watt',
-              1, 'MCQ', 'EXTRACTED', 'REJECTED', 'AQA GCSE Physics', array ['Electrical Charge and Current'], null),
+              1, 'MCQ', 'REJECTED', array ['Electrical Charge and Current'],
+              'EXTRACTED', 'uploads/aqa-physics-2007-p1.pdf', null),
 
              ('A battery transfers 24 J of energy to 4 C of charge as it flows through a circuit. (a) Define potential difference. (b) Calculate the potential difference of the battery. (c) Explain, in terms of energy, what a voltmeter placed across a component in the circuit is measuring.',
-              3, 'EXTENDED', 'SEED', 'APPROVED', 'AQA GCSE Physics',
-              array ['Potential Difference', 'Electrical Charge and Current'],
+              3, 'EXTENDED', 'APPROVED', array ['Potential Difference', 'Electrical Charge and Current'], 'AUTHORED',
+              null,
               '**4 marks**
 
 **(a)** The energy transferred per unit charge between two points (1)
@@ -213,7 +211,8 @@ from (values ('Which of the following is a vector quantity?
 {{s3:diagrams/transverse-wave.svg}}
 
 (a) Use the diagram to state the amplitude of the wave in the units shown. (b) State the wavelength of the wave in the units shown.',
-              2, 'SHORT_ANSWER', 'EXTRACTED', 'APPROVED', 'AQA GCSE Physics', array ['Wave Properties'],
+              2, 'SHORT_ANSWER', 'APPROVED', array ['Wave Properties'],
+              'EXTRACTED', 'uploads/aqa-physics-2007-p1.pdf',
               '**2 marks**
 
 **(a)** `3 cm` (1) — allow 2.8 to 3.2
@@ -228,7 +227,7 @@ from (values ('Which of the following is a vector quantity?
 - [x] 200 m/s
 - [ ] 0.08 m/s
 - [ ] 54 m/s',
-              2, 'MCQ', 'SEED', 'APPROVED', 'AQA GCSE Physics', array ['Wave Properties'],
+              2, 'MCQ', 'APPROVED', array ['Wave Properties'], 'AUTHORED', null,
               '**1 mark**
 
 - **200 m/s** (1)
@@ -240,18 +239,19 @@ from (values ('Which of the following is a vector quantity?
 {{s3:diagrams/diffraction-gap.svg}}
 
 (a) Describe what happens to the waves as they pass through the gap. (b) State how the amount of diffraction would change if the gap were made narrower, relative to the wavelength of the waves.',
-              null, 'EXTENDED', 'EXTRACTED', 'PENDING', 'AQA GCSE Physics',
-              array ['Diffraction', 'Wave Properties'],
-              null)) as t(body, difficulty, type, source, status, source_spec, concept_names, mark_scheme);
+              null, 'EXTENDED', 'PENDING', array ['Diffraction', 'Wave Properties'],
+              'EXTRACTED', 'uploads/aqa-physics-2007-p1.pdf',
+              null)) as t(body, difficulty, type, status, concept_names, authorship, doc_key, mark_scheme);
 
--- mark_scheme rows cascade from question, so this delete clears them too.
+-- mark_scheme + question_origin + question_concept all cascade from question,
+-- so this delete clears them too.
 delete
 from question
 where body in (select body from seed_questions);
 
 with inserted as (
-    insert into question (body, difficulty, type, source, status, source_spec)
-        select body, difficulty, type, source, status, source_spec from seed_questions
+    insert into question (body, difficulty, type, status)
+        select body, difficulty, type, status from seed_questions
         returning id, body),
      links as (
          insert into question_concept (question_id, concept_id)
@@ -259,13 +259,21 @@ with inserted as (
              from inserted i
                       join seed_questions sq on sq.body = i.body
                       join concept c on c.name = any (sq.concept_names)
-             on conflict do nothing)
+             on conflict do nothing),
+     schemes as (
+         insert into mark_scheme (question_id, body)
+             select i.id, sq.mark_scheme
+             from inserted i
+                      join seed_questions sq on sq.body = i.body
+             where sq.mark_scheme is not null)
 insert
-into mark_scheme (question_id, body)
-select i.id, sq.mark_scheme
+into question_origin (question_id, authorship, document_id)
+select i.id,
+       sq.authorship,
+       d.id -- null when doc_key is null (AUTHORED/GENERATED); the join is left
 from inserted i
          join seed_questions sq on sq.body = i.body
-where sq.mark_scheme is not null;
+         left join document d on d.s3_key = sq.doc_key;
 
 drop table seed_questions;
 
