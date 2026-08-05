@@ -1,7 +1,7 @@
 package com.practiq.domain.types;
 
 public enum QuestionSource {
-    SEED,
+    AUTHORED,
     EXTRACTED,
     GENERATED;
 }

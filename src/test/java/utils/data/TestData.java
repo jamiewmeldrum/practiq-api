@@ -50,6 +50,10 @@ public class TestData {
         return new QuestionRow(id);
     }
 
+    public QuestionRow question(String body) {
+        return new QuestionRow(body);
+    }
+
     public List<DBRow> retrieveQuestions() {
         return testDatabase.selectAll(QUESTION_TABLE);
     }
@@ -130,7 +134,7 @@ public class TestData {
         return new QuestionOriginRow();
     }
 
-    public QuestionOriginRow questionOrigin(long questionId, QuestionOriginSource source) {
+    public QuestionOriginRow questionOrigin(long questionId, QuestionSource source) {
         return new QuestionOriginRow(questionId, source);
     }
 
@@ -146,7 +150,10 @@ public class TestData {
         QuestionRow(long id) {
             columns.put("id", id);
             columns.put("body", "Question " + id);
-            columns.put("source", QuestionSource.SEED.name());
+        }
+
+        QuestionRow(String body) {
+            columns.put("body", body);
         }
 
         public QuestionRow id(long id) {
@@ -156,11 +163,6 @@ public class TestData {
 
         public QuestionRow body(String body) {
             columns.put("body", body);
-            return this;
-        }
-
-        public QuestionRow source(QuestionSource source) {
-            columns.put("source", source.name());
             return this;
         }
 
@@ -376,7 +378,7 @@ public class TestData {
 
         QuestionOriginRow() {}
 
-        QuestionOriginRow(long questionId, QuestionOriginSource source) {
+        QuestionOriginRow(long questionId, QuestionSource source) {
             columns.put("question_id", questionId);
             columns.put("source", source.name());
         }
@@ -391,7 +393,7 @@ public class TestData {
             return this;
         }
 
-        public QuestionOriginRow source(QuestionOriginSource source) {
+        public QuestionOriginRow source(QuestionSource source) {
             columns.put("source", source.name());
             return this;
         }

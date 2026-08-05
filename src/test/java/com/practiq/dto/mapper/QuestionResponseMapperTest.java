@@ -10,7 +10,6 @@ import com.practiq.domain.Question;
 import com.practiq.domain.projection.LinkedQuestion;
 import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.domain.types.QuestionDifficulty;
-import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import com.practiq.dto.response.QuestionResponse;
@@ -28,8 +27,7 @@ class QuestionResponseMapperTest {
         String body = "Diffraction";
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
-        Question question =
-                new Question(body, difficulty, type, QuestionSource.SEED, QuestionStatus.APPROVED, "AQA GCSE Physics");
+        Question question = new Question(body, difficulty, type, QuestionStatus.APPROVED);
         setField(question, "id", id);
         setField(question, "createdAt", createdAt);
 
@@ -57,7 +55,7 @@ class QuestionResponseMapperTest {
         String body = "Explain what is meant by diffraction.";
         Instant createdAt = Instant.parse("2026-01-02T00:00:00Z");
 
-        Question question = new Question(body, null, null, QuestionSource.SEED, QuestionStatus.APPROVED, null);
+        Question question = new Question(body, null, null, QuestionStatus.APPROVED);
         setField(question, "id", id);
         setField(question, "createdAt", createdAt);
 

@@ -10,7 +10,6 @@ import com.practiq.domain.Question;
 import com.practiq.domain.query.question.QuestionQuery;
 import com.practiq.domain.query.question.QuestionSpecificationFactory;
 import com.practiq.domain.types.QuestionDifficulty;
-import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import com.practiq.repository.QuestionRepository;
@@ -48,7 +47,7 @@ class QuestionRepositoryIT {
 
     @Test
     void ensureVersionIncrements() {
-        data.question().body("A question.").source(QuestionSource.SEED).insert();
+        data.question().body("A question.").insert();
 
         Question question = questionRepository.findAll().getFirst();
         assertThat(question.getVersion(), equalTo(0));
@@ -65,7 +64,7 @@ class QuestionRepositoryIT {
     // rejected rather than silently clobbering the newer row (lost update).
     @Test
     void ensureStaleVersionUpdateIsRejected() {
-        data.question().body("A question.").source(QuestionSource.SEED).insert();
+        data.question().body("A question.").insert();
 
         Question stale = questionRepository.findAll().getFirst();
 
