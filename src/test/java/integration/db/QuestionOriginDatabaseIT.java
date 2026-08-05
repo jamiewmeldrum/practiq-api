@@ -16,7 +16,7 @@ import utils.data.DBRow;
 import utils.data.TestData;
 
 @IntegrationTest
-public class QuestionOriginDatabaseIT {
+class QuestionOriginDatabaseIT {
 
     @Inject
     private TestData data;
@@ -52,7 +52,7 @@ public class QuestionOriginDatabaseIT {
         long documentId = 4L;
         data.document("s3Key", "filename").id(documentId).insert();
 
-        QuestionAuthorship authorship = QuestionAuthorship.AUTHORED;
+        QuestionAuthorship authorship = QuestionAuthorship.GENERATED;
         data.questionOrigin(questionId, authorship).documentId(documentId).insert();
 
         List<DBRow> questionOrigins = data.retrieveQuestionOrigins();

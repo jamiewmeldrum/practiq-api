@@ -18,7 +18,7 @@ import utils.IntegrationTest;
 import utils.data.TestData;
 
 @IntegrationTest
-public class ConceptRepositoryIT {
+class ConceptRepositoryIT {
 
     @Inject
     private ConceptRepository conceptRepository;

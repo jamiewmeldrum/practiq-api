@@ -17,7 +17,7 @@ import utils.IntegrationTest;
 import utils.data.TestData;
 
 @IntegrationTest
-public class MarkSchemeRepositoryIT {
+class MarkSchemeRepositoryIT {
 
     @Inject
     private TestData data;

@@ -25,11 +25,11 @@ public class QuestionOrigin {
     private long questionId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "source", nullable = false)
+    @Column(name = "authorship", nullable = false)
     private QuestionAuthorship authorship;
 
     @Column(name = "document_id")
-    private long documentId;
+    private Long documentId;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     @Generated

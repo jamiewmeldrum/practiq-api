@@ -19,7 +19,7 @@ import utils.data.TestData;
 // Every test here carries a second, fully-servable question with its own mark scheme. Without it a handler
 // that returned *a* mark scheme rather than *the* one asked for would pass every case below.
 @IntegrationTest
-public class MarkSchemeControllerIT {
+class MarkSchemeControllerIT {
 
     private static final String MARK_SCHEME_PATH = "/api/v1/questions/%s/mark-scheme";
 
