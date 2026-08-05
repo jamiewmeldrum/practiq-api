@@ -16,7 +16,7 @@
 --   docker exec -i practiq-api-postgres-1 psql -U practiq -d practiq < src/main/resources/db/seed_local.sql
 --
 -- Hard reset (clean slate — drops rows no longer in this file):
---   docker exec -i practiq-api-postgres-1 psql -U practiq -d practiq -c 'TRUNCATE concept, question CASCADE;'
+--   docker exec -i practiq-api-postgres-1 psql -U practiq -d practiq -c 'TRUNCATE concept, question, document CASCADE;'
 
 -- ---------------------------------------------------------------------------
 -- Concepts
@@ -40,6 +40,40 @@ values ('Scalars and Vectors',
        ('Diffraction', 'The spreading out of waves as they pass through a gap or around an obstacle.')
 on conflict (name) do nothing;
 
+-- ── Documents ──────────────────────────────────────────────────────────────
+-- Uploaded source artefacts + their approval gate (D-039). No processing state here —
+-- that lives in document_processing_job, which doesn't exist yet.
+--
+-- STANDALONE for now: question_origin does not exist yet, so nothing links these to
+-- questions. When the origin table lands, the EXTRACTED seed questions get wired to the
+-- APPROVED documents here. Until then these just populate the table for eyeballing.
+--
+-- Deliberate spread:
+--   * All four status values present (UNAPPROVED / APPROVED / REJECTED / REMOVED) so the
+--     approval gate is visible locally and "only APPROVED gets processed" is checkable.
+--   * source_spec populated on most, null on one — it's an optional upload hint, not
+--     mandatory, so the null path is exercised.
+--   * s3_key is UNIQUE — keys are distinct and look like what the presigned upload writes.
+--
+-- Idempotent: delete by s3_key (the natural key) before reinsert.
+delete
+from document
+where s3_key in ('uploads/aqa-physics-2007-p1.pdf',
+                 'uploads/aqa-physics-2019-mechanics.pdf',
+                 'uploads/edexcel-physics-waves-2021.pdf',
+                 'uploads/ocr-energy-worksheet.docx',
+                 'uploads/unbranded-scan-batch-04.pdf',
+                 'uploads/duplicate-upload-2007-p1.pdf');
+
+insert into document (s3_key, filename, source_spec, status)
+values ('uploads/aqa-physics-2007-p1.pdf', 'AQA_Physics_2007_Paper1.pdf', 'AQA GCSE Physics 2007', 'APPROVED'),
+       ('uploads/aqa-physics-2019-mechanics.pdf', 'AQA_Physics_2019_Mechanics.pdf', 'AQA GCSE Physics 2019',
+        'APPROVED'),
+       ('uploads/edexcel-physics-waves-2021.pdf', 'Edexcel_Waves_2021.pdf', 'Edexcel GCSE Physics 2021', 'UNAPPROVED'),
+       ('uploads/ocr-energy-worksheet.docx', 'OCR_Energy_Worksheet.docx', 'OCR GCSE Physics', 'REJECTED'),
+       ('uploads/unbranded-scan-batch-04.pdf', 'scan_batch_04.pdf', null, 'UNAPPROVED'),
+       ('uploads/duplicate-upload-2007-p1.pdf', 'AQA_Physics_2007_Paper1_copy.pdf', 'AQA GCSE Physics 2007', 'REMOVED');
+
 -- ── Questions + mark schemes ───────────────────────────────────────────────
 -- Body, concept links, and mark scheme are authored together, once, in the staging
 -- table below — never as separate lists matched by a text key (that drift silently
@@ -51,6 +85,9 @@ on conflict (name) do nothing;
 -- with PENDING/REJECTED, but one APPROVED row has none on purpose — absence isn't
 -- mechanically tied to status, and it keeps the "visible question, no scheme" path
 -- reachable locally.
+--
+-- NOTE: question still carries source/source_spec here — the D-036 removal (origin table,
+-- drop columns) is not built yet. This section is unchanged pending those tickets.
 --
 -- All mark scheme content is self-written. No past-paper prose — see the copyright rule.
 create temporary table seed_questions as
@@ -258,14 +295,17 @@ from (values
           ('A car travels 150 m in 10 s. Calculate its average speed.',
            '11111111-1111-1111-1111-111111111111', 'speed = 150 / 10', timestamptz '2026-01-10 09:00:00+00'),
           ('A car travels 150 m in 10 s. Calculate its average speed.',
-           '11111111-1111-1111-1111-111111111111', 'speed = distance / time = 150 / 10 = 15', timestamptz '2026-01-10 09:05:00+00'),
+           '11111111-1111-1111-1111-111111111111', 'speed = distance / time = 150 / 10 = 15',
+           timestamptz '2026-01-10 09:05:00+00'),
           ('A car travels 150 m in 10 s. Calculate its average speed.',
-           '11111111-1111-1111-1111-111111111111', 'speed = distance / time = 150 / 10 = 15 m/s', timestamptz '2026-01-10 09:12:00+00'),
+           '11111111-1111-1111-1111-111111111111', 'speed = distance / time = 150 / 10 = 15 m/s',
+           timestamptz '2026-01-10 09:12:00+00'),
 
           -- Session A — single attempts at two other questions
           ('State Newton''s First Law.',
            '11111111-1111-1111-1111-111111111111',
-           'An object stays still or moving at constant speed unless a force acts on it.', timestamptz '2026-01-10 09:20:00+00'),
+           'An object stays still or moving at constant speed unless a force acts on it.',
+           timestamptz '2026-01-10 09:20:00+00'),
           ('Which of the following is a vector quantity?
 
 - [ ] Speed
@@ -278,8 +318,8 @@ from (values
           ('A car travels 150 m in 10 s. Calculate its average speed.',
            '22222222-2222-2222-2222-222222222222', 'Its 15', timestamptz '2026-01-11 14:00:00+00'),
           ('A charge of 15 C flows past a point in a wire in 5 s. Calculate the current in the wire.',
-           '22222222-2222-2222-2222-222222222222', 'I = Q/t = 15/5 = 3A', timestamptz '2026-01-11 14:08:00+00')
-     ) as t(question_body, session_token, body, created_at);
+           '22222222-2222-2222-2222-222222222222', 'I = Q/t = 15/5 = 3A',
+           timestamptz '2026-01-11 14:08:00+00')) as t(question_body, session_token, body, created_at);
 
 insert into question_attempt (question_id, session_token, body, created_at)
 select q.id, sa.session_token, sa.body, sa.created_at
