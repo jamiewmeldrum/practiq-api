@@ -33,10 +33,8 @@ public class TestData {
         testDatabase.clear(MARK_SCHEME_TABLE);
         testDatabase.clear(QUESTION_CONCEPT_TABLE);
         testDatabase.clear(QUESTION_ORIGIN);
-        testDatabase.clear(QUESTION_TABLE);
-
         testDatabase.clear(DOCUMENT);
-
+        testDatabase.clear(QUESTION_TABLE);
         testDatabase.clear(CONCEPT_TABLE);
     }
 
