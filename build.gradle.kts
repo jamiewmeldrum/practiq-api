@@ -6,7 +6,7 @@ plugins {
     id("com.gradleup.shadow") version "8.3.9"
     id("io.micronaut.test-resources") version "4.6.2"
     id("io.micronaut.aot") version "4.6.2"
-    id("com.diffplug.spotless") version "7.2.1"
+    id("com.diffplug.spotless") version "8.9.0"
     id("net.ltgt.errorprone") version "4.3.0"
 }
 
