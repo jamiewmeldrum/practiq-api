@@ -17,7 +17,7 @@ import utils.data.DBRow;
 import utils.data.DocumentTestData;
 
 @IntegrationTest
-public class DocumentDatabaseIT {
+class DocumentDatabaseIT {
 
     @Inject
     private DocumentTestData data;
