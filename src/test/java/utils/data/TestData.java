@@ -134,7 +134,7 @@ public class TestData {
         return new QuestionOriginRow();
     }
 
-    public QuestionOriginRow questionOrigin(long questionId, QuestionSource source) {
+    public QuestionOriginRow questionOrigin(long questionId, QuestionAuthorship source) {
         return new QuestionOriginRow(questionId, source);
     }
 
@@ -378,9 +378,9 @@ public class TestData {
 
         QuestionOriginRow() {}
 
-        QuestionOriginRow(long questionId, QuestionSource source) {
+        QuestionOriginRow(long questionId, QuestionAuthorship authorship) {
             columns.put("question_id", questionId);
-            columns.put("source", source.name());
+            columns.put("authorship", authorship.name());
         }
 
         public QuestionOriginRow id(long id) {
@@ -393,13 +393,13 @@ public class TestData {
             return this;
         }
 
-        public QuestionOriginRow source(QuestionSource source) {
-            columns.put("source", source.name());
+        public QuestionOriginRow authorship(QuestionAuthorship authorship) {
+            columns.put("authorship", authorship.name());
             return this;
         }
 
-        public QuestionOriginRow source(String source) {
-            columns.put("source", source);
+        public QuestionOriginRow authorship(String authorship) {
+            columns.put("authorship", authorship);
             return this;
         }
 
