@@ -15,7 +15,7 @@ import utils.IntegrationTest;
 import utils.data.DocumentTestData;
 
 @IntegrationTest
-public class DocumentRepositoryIT {
+class DocumentRepositoryIT {
 
     @Inject
     private DocumentTestData data;
