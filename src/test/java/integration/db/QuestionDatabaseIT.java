@@ -14,13 +14,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
 import utils.data.DBRow;
-import utils.data.QuestionTestData;
+import utils.data.TestData;
 
 @IntegrationTest
 class QuestionDatabaseIT {
 
     @Inject
-    private QuestionTestData data;
+    private TestData data;
 
     @BeforeEach
     void setUp() {

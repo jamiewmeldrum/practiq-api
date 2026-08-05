@@ -13,7 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.PerformanceTest;
 import utils.StatementCounter;
-import utils.data.QuestionTestData;
+import utils.data.TestData;
 
 // Pins the JDBC statement count for serving a single concept by id.
 @PerformanceTest
@@ -25,7 +25,7 @@ public class ConceptByIdPT {
     private static final long EXPECTED_STATEMENTS = 1L;
 
     @Inject
-    private QuestionTestData data;
+    private TestData data;
 
     @Inject
     private EmbeddedServer embeddedServer;

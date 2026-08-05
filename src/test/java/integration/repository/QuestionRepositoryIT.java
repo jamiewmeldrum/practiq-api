@@ -25,7 +25,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
-import utils.data.QuestionTestData;
+import utils.data.TestData;
 
 @IntegrationTest
 class QuestionRepositoryIT {
@@ -36,7 +36,7 @@ class QuestionRepositoryIT {
     private QuestionRepository questionRepository;
 
     @Inject
-    private QuestionTestData data;
+    private TestData data;
 
     @Inject
     private QuestionSpecificationFactory questionSpecificationFactory;

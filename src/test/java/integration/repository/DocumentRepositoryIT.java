@@ -12,13 +12,13 @@ import jakarta.persistence.OptimisticLockException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
-import utils.data.DocumentTestData;
+import utils.data.TestData;
 
 @IntegrationTest
 class DocumentRepositoryIT {
 
     @Inject
-    private DocumentTestData data;
+    private TestData data;
 
     @Inject
     private DocumentRepository documentRepository;

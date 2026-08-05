@@ -3,7 +3,8 @@ package integration.e2e;
 import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static io.micronaut.http.HttpStatus.OK;
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.matchesPattern;
 
 import com.practiq.domain.types.QuestionStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
@@ -13,7 +14,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
-import utils.data.QuestionTestData;
+import utils.data.TestData;
 
 // Every test here carries a second, fully-servable question with its own mark scheme. Without it a handler
 // that returned *a* mark scheme rather than *the* one asked for would pass every case below.
@@ -23,7 +24,7 @@ public class MarkSchemeControllerIT {
     private static final String MARK_SCHEME_PATH = "/api/v1/questions/%s/mark-scheme";
 
     @Inject
-    private QuestionTestData data;
+    private TestData data;
 
     @Inject
     private EmbeddedServer embeddedServer;

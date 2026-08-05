@@ -13,13 +13,13 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
-import utils.data.QuestionTestData;
+import utils.data.TestData;
 
 @IntegrationTest
 class QuestionConceptRepositoryIT {
 
     @Inject
-    private QuestionTestData data;
+    private TestData data;
 
     @Inject
     private QuestionConceptRepository questionConceptRepository;

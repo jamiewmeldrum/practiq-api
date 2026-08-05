@@ -13,7 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.PerformanceTest;
 import utils.StatementCounter;
-import utils.data.QuestionTestData;
+import utils.data.TestData;
 
 // Pins the JDBC statement count for serving the concept list. This endpoint is unpaged — it returns every
 // concept row — so it is the one place where a per-row query has no page size to blunt it. Concept has no
@@ -27,7 +27,7 @@ public class ConceptCataloguePT {
     private static final long EXPECTED_STATEMENTS = 1L;
 
     @Inject
-    private QuestionTestData data;
+    private TestData data;
 
     @Inject
     private EmbeddedServer embeddedServer;

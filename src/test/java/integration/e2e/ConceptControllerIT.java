@@ -14,7 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.DateTimeUtils;
 import utils.IntegrationTest;
-import utils.data.QuestionTestData;
+import utils.data.TestData;
 
 @IntegrationTest
 class ConceptControllerIT {
@@ -22,7 +22,7 @@ class ConceptControllerIT {
     private static final String CONCEPTS_PATH = "/api/v1/concepts";
 
     @Inject
-    private QuestionTestData data;
+    private TestData data;
 
     @Inject
     private EmbeddedServer embeddedServer;
