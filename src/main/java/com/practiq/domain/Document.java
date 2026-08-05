@@ -23,7 +23,7 @@ public class Document {
     @Version
     private int version;
 
-    @NotNull @Column(name = "s3_key", nullable = false)
+    @NotNull @Column(name = "s3_key", nullable = false, unique = true)
     private String s3Key;
 
     @NotNull @Column(name = "filename", nullable = false)
