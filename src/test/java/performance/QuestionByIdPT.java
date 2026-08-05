@@ -5,7 +5,6 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
-import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
@@ -62,11 +61,7 @@ public class QuestionByIdPT {
     }
 
     private void servableQuestion(long id, long conceptId, String body) {
-        data.question(id)
-                .status(QuestionStatus.APPROVED)
-                .body(body)
-                .source(QuestionSource.SEED)
-                .insert();
+        data.question(id).status(QuestionStatus.APPROVED).body(body).insert();
         data.link(id, conceptId).insert();
     }
 }

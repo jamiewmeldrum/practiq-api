@@ -1,9 +1,7 @@
 package com.practiq.service;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.TestReflection.setField;
@@ -13,7 +11,6 @@ import com.practiq.domain.projection.LinkedQuestion;
 import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.domain.query.question.StudentQuestionQueryRunner;
 import com.practiq.domain.types.QuestionDifficulty;
-import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import com.practiq.dto.request.QuestionRequest;
@@ -62,8 +59,7 @@ class QuestionServiceTest {
         QuestionType type = QuestionType.SHORT_ANSWER;
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
-        Question question =
-                new Question(body, difficulty, type, QuestionSource.SEED, QuestionStatus.APPROVED, "AQA GCSE Physics");
+        Question question = new Question(body, difficulty, type, QuestionStatus.APPROVED);
         setField(question, "id", questionId);
         setField(question, "createdAt", createdAt);
         LinkedQuestion linkedQuestion =
@@ -93,7 +89,7 @@ class QuestionServiceTest {
         long questionId = 7L;
         String body = "Explain what is meant by diffraction.";
 
-        Question question = new Question(body, null, null, QuestionSource.SEED, QuestionStatus.APPROVED, null);
+        Question question = new Question(body, null, null, QuestionStatus.APPROVED);
         setField(question, "id", questionId);
         LinkedQuestion linkedQuestion = new LinkedQuestion(question, Set.of());
 

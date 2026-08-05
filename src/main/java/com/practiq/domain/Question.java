@@ -4,7 +4,6 @@ import static jakarta.persistence.GenerationType.IDENTITY;
 
 import com.practiq.domain.converters.QuestionDifficultyAttributeConverter;
 import com.practiq.domain.types.QuestionDifficulty;
-import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import jakarta.persistence.*;
@@ -41,15 +40,8 @@ public class Question {
     private QuestionType type;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "source")
-    private QuestionSource source;
-
-    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private QuestionStatus status = QuestionStatus.PENDING;
-
-    @Column(name = "source_spec")
-    private String sourceSpec;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     @Generated
@@ -60,18 +52,10 @@ public class Question {
 
     public Question() {}
 
-    public Question(
-            String body,
-            QuestionDifficulty difficulty,
-            QuestionType type,
-            QuestionSource source,
-            QuestionStatus status,
-            String sourceSpec) {
+    public Question(String body, QuestionDifficulty difficulty, QuestionType type, QuestionStatus status) {
         this.body = body;
         this.difficulty = difficulty;
         this.type = type;
-        this.source = source;
         this.status = status;
-        this.sourceSpec = sourceSpec;
     }
 }

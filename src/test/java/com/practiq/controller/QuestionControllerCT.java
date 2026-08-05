@@ -12,7 +12,6 @@ import com.practiq.domain.Question;
 import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.domain.query.question.StudentQuestionQueryRunner;
 import com.practiq.domain.types.QuestionDifficulty;
-import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import com.practiq.dto.request.QuestionRequest;
@@ -84,12 +83,10 @@ public class QuestionControllerCT {
         String bodyA = "Question A";
         QuestionDifficulty difficultyA = QuestionDifficulty.EASY;
         QuestionType typeA = QuestionType.EXTENDED;
-        QuestionSource sourceA = QuestionSource.GENERATED;
         QuestionStatus statusA = QuestionStatus.APPROVED;
-        String sourceSpecA = "GCSE Physics";
         Instant createdAtA = Instant.parse("2026-01-01T00:00:00Z");
 
-        Question questionA = new Question(bodyA, difficultyA, typeA, sourceA, statusA, sourceSpecA);
+        Question questionA = new Question(bodyA, difficultyA, typeA, statusA);
         setField(questionA, "id", idA);
         setField(questionA, "createdAt", createdAtA);
 
@@ -97,12 +94,10 @@ public class QuestionControllerCT {
         String bodyB = "Question B";
         QuestionDifficulty difficultyB = QuestionDifficulty.HARD;
         QuestionType typeB = QuestionType.MCQ;
-        QuestionSource sourceB = QuestionSource.EXTRACTED;
         QuestionStatus statusB = QuestionStatus.APPROVED;
-        String sourceSpecB = "GCSE Maths";
         Instant createdAtB = Instant.parse("2026-01-01T00:00:00Z");
 
-        Question questionB = new Question(bodyB, difficultyB, typeB, sourceB, statusB, sourceSpecB);
+        Question questionB = new Question(bodyB, difficultyB, typeB, statusB);
         setField(questionB, "id", idB);
         setField(questionB, "createdAt", createdAtB);
 
@@ -367,12 +362,10 @@ public class QuestionControllerCT {
         String body = "Question A";
         QuestionDifficulty difficulty = QuestionDifficulty.EASY;
         QuestionType type = QuestionType.EXTENDED;
-        QuestionSource source = QuestionSource.GENERATED;
         QuestionStatus status = QuestionStatus.APPROVED;
-        String sourceSpec = "GCSE Physics";
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
-        Question question = new Question(body, difficulty, type, source, status, sourceSpec);
+        Question question = new Question(body, difficulty, type, status);
         setField(question, "id", id);
         setField(question, "createdAt", createdAt);
 
@@ -443,8 +436,7 @@ public class QuestionControllerCT {
     // here). created_at must be non-null or Serde omits the key and the keySet assertions break.
     private static Question approvedQuestion(
             long id, String body, QuestionDifficulty difficulty, QuestionType type, Instant createdAt) {
-        Question question =
-                new Question(body, difficulty, type, QuestionSource.SEED, QuestionStatus.APPROVED, "AQA GCSE Physics");
+        Question question = new Question(body, difficulty, type, QuestionStatus.APPROVED);
         setField(question, "id", id);
         setField(question, "createdAt", createdAt);
         return question;

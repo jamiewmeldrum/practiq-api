@@ -6,7 +6,6 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
 import com.practiq.domain.types.QuestionDifficulty;
-import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import io.micronaut.runtime.server.EmbeddedServer;
@@ -58,21 +57,18 @@ class QuestionControllerIT {
         data.question(approvedId)
                 .status(QuestionStatus.APPROVED)
                 .body(approvedBody)
-                .source(QuestionSource.SEED)
                 .insert();
         data.link(approvedId, conceptId).insert();
 
         data.question(2L)
                 .status(QuestionStatus.PENDING)
                 .body("A pending question.")
-                .source(QuestionSource.SEED)
                 .insert();
         data.link(2L, conceptId).insert();
 
         data.question(3L)
                 .status(QuestionStatus.APPROVED)
                 .body("An approved question without a link.")
-                .source(QuestionSource.SEED)
                 .insert();
 
         given().when()
@@ -107,27 +103,24 @@ class QuestionControllerIT {
         data.question(1L)
                 .status(QuestionStatus.APPROVED)
                 .body(matchingBody1)
-                .source(QuestionSource.SEED)
                 .type(QuestionType.SHORT_ANSWER)
                 .difficulty(QuestionDifficulty.MEDIUM)
                 .insert();
         data.link(1L, conceptId).insert();
 
-        // Matches all, difficulty HARD, type SHORT_ANSWER. Source changed as irrelevant
+        // Matches all, difficulty HARD, type SHORT_ANSWER.
         data.question(2L)
                 .status(QuestionStatus.APPROVED)
                 .body(matchingBody2)
-                .source(QuestionSource.EXTRACTED)
                 .type(QuestionType.SHORT_ANSWER)
                 .difficulty(QuestionDifficulty.HARD)
                 .insert();
         data.link(2L, conceptId).insert();
 
-        // Matches all, difficulty MEDIUM, type MCQ. Source changed as irrelevant
+        // Matches all, difficulty MEDIUM, type MCQ.
         data.question(3L)
                 .status(QuestionStatus.APPROVED)
                 .body(matchingBody3)
-                .source(QuestionSource.GENERATED)
                 .type(QuestionType.MCQ)
                 .difficulty(QuestionDifficulty.MEDIUM)
                 .insert();
@@ -137,7 +130,6 @@ class QuestionControllerIT {
         data.question(4L)
                 .status(QuestionStatus.APPROVED)
                 .body("Wrong type")
-                .source(QuestionSource.SEED)
                 .type(QuestionType.EXTENDED)
                 .difficulty(QuestionDifficulty.MEDIUM)
                 .insert();
@@ -147,7 +139,6 @@ class QuestionControllerIT {
         data.question(5L)
                 .status(QuestionStatus.APPROVED)
                 .body("Wrong difficulty")
-                .source(QuestionSource.SEED)
                 .type(QuestionType.SHORT_ANSWER)
                 .difficulty(QuestionDifficulty.VERY_HARD)
                 .insert();
@@ -159,7 +150,6 @@ class QuestionControllerIT {
         data.question(6L)
                 .status(QuestionStatus.APPROVED)
                 .body("Wrong concept")
-                .source(QuestionSource.SEED)
                 .type(QuestionType.SHORT_ANSWER)
                 .difficulty(QuestionDifficulty.HARD)
                 .insert();
@@ -378,7 +368,6 @@ class QuestionControllerIT {
         data.question(id)
                 .status(QuestionStatus.APPROVED)
                 .body(body)
-                .source(QuestionSource.SEED)
                 .createdAt(createdAt)
                 .insert();
         data.link(id, conceptId).insert();

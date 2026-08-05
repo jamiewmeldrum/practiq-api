@@ -5,7 +5,6 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.data.TestDatabase.*;
 
-import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import jakarta.inject.Inject;
 import java.time.Instant;
@@ -30,8 +29,8 @@ class QuestionDatabaseIT {
     @Test
     void ensureQuestionCreatedWithDefaultFields() {
         String body = "Explain what is meant by diffraction.";
-        QuestionSource source = QuestionSource.SEED;
-        data.question().body(body).source(source).insert();
+
+        data.question(body).insert();
 
         List<DBRow> questions = data.retrieveQuestions();
         DBRow question = questions.getFirst();
@@ -40,9 +39,7 @@ class QuestionDatabaseIT {
         question.assertThat("body", equalTo(body));
         question.assertThat("difficulty", nullValue());
         question.assertThat("type", nullValue());
-        question.assertThat("source", equalTo(source.name()));
         question.assertThat("status", equalTo(QuestionStatus.PENDING.name()));
-        question.assertThat("source_spec", nullValue());
         question.assertThat("created_at", allOf(greaterThan(Instant.EPOCH), lessThanOrEqualTo(Instant.now())));
         question.assertAllColumnsChecked();
 
@@ -75,30 +72,17 @@ class QuestionDatabaseIT {
     @Test
     void ensureThatBodyMustBeSet() {
         IllegalStateException thrown = assertThrows(
-                IllegalStateException.class,
-                () -> data.question().source(QuestionSource.SEED).insert());
+                IllegalStateException.class, () -> data.question().id(1L).insert());
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"body\""));
     }
 
     @Test
-    void ensureThatSourceMustBeSet() {
+    void ensureThatDifficultyMustBeWithinRange() {
         IllegalStateException thrown = assertThrows(
                 IllegalStateException.class,
-                () -> data.question().body("A question.").insert());
-
-        assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
-        assertThat(thrown.getCause().getMessage(), containsString("\"source\""));
-    }
-
-    @Test
-    void ensureThatDifficultyMustBeWithinRange() {
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> data.question()
-                .body("A question.")
-                .source(QuestionSource.SEED)
-                .difficulty(6)
-                .insert());
+                () -> data.question().body("A question.").difficulty(6).insert());
 
         assertThat(sqlStateOf(thrown), equalTo(CHECK_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("difficulty"));

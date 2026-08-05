@@ -2,7 +2,7 @@ package com.practiq.domain;
 
 import static jakarta.persistence.GenerationType.IDENTITY;
 
-import com.practiq.domain.types.QuestionOriginSource;
+import com.practiq.domain.types.QuestionSource;
 import jakarta.persistence.*;
 import java.time.Instant;
 import lombok.EqualsAndHashCode;
@@ -26,7 +26,7 @@ public class QuestionOrigin {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "source", nullable = false)
-    private QuestionOriginSource source;
+    private QuestionSource source;
 
     @Column(name = "document_id")
     private long documentId;

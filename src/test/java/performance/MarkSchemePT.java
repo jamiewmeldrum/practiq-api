@@ -5,7 +5,6 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
-import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
@@ -64,11 +63,7 @@ public class MarkSchemePT {
     }
 
     private void servableQuestionWithMarkScheme(long id, long conceptId, String markSchemeBody) {
-        data.question(id)
-                .status(QuestionStatus.APPROVED)
-                .body("Question " + id)
-                .source(QuestionSource.SEED)
-                .insert();
+        data.question(id).status(QuestionStatus.APPROVED).body("Question " + id).insert();
         data.link(id, conceptId).insert();
         data.markScheme(id, markSchemeBody).insert();
     }

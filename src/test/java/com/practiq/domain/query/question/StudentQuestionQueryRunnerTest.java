@@ -5,16 +5,13 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static utils.TestReflection.setField;
 
 import com.practiq.domain.Question;
 import com.practiq.domain.projection.LinkedQuestion;
 import com.practiq.domain.projection.QuestionConceptLink;
 import com.practiq.domain.types.QuestionDifficulty;
-import com.practiq.domain.types.QuestionSource;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
 import com.practiq.repository.QuestionConceptRepository;
@@ -138,12 +135,7 @@ class StudentQuestionQueryRunnerTest {
 
     private static Question approvedQuestion(long id) {
         Question question = new Question(
-                "Body " + id,
-                QuestionDifficulty.MEDIUM,
-                QuestionType.SHORT_ANSWER,
-                QuestionSource.SEED,
-                QuestionStatus.APPROVED,
-                "AQA GCSE Physics");
+                "Body " + id, QuestionDifficulty.MEDIUM, QuestionType.SHORT_ANSWER, QuestionStatus.APPROVED);
         setField(question, "id", id);
         return question;
     }
