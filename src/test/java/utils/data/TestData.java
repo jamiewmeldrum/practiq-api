@@ -12,14 +12,15 @@ public class TestData {
 
     public static final String SESSION_TOKEN_HEADER = "X-Session-Token";
 
-    protected static final String CONCEPT_TABLE = "concept";
-    protected static final String QUESTION_TABLE = "question";
-    protected static final String QUESTION_CONCEPT_TABLE = "question_concept";
-    protected static final String MARK_SCHEME_TABLE = "mark_scheme";
-    protected static final String QUESTION_ATTEMPT = "question_attempt";
-    protected static final String DOCUMENT = "document";
+    private static final String CONCEPT_TABLE = "concept";
+    private static final String QUESTION_TABLE = "question";
+    private static final String QUESTION_CONCEPT_TABLE = "question_concept";
+    private static final String MARK_SCHEME_TABLE = "mark_scheme";
+    private static final String QUESTION_ATTEMPT = "question_attempt";
+    private static final String DOCUMENT = "document";
+    private static final String QUESTION_ORIGIN = "question_origin";
 
-    protected static final String ISO_8601_UTC = "\\d{4}-\\d{2}-\\d{2}T.*Z";
+    private static final String ISO_8601_UTC = "\\d{4}-\\d{2}-\\d{2}T.*Z";
 
     protected final TestDatabase testDatabase;
 
@@ -31,9 +32,16 @@ public class TestData {
         testDatabase.clear(QUESTION_ATTEMPT);
         testDatabase.clear(MARK_SCHEME_TABLE);
         testDatabase.clear(QUESTION_CONCEPT_TABLE);
+        testDatabase.clear(QUESTION_ORIGIN);
         testDatabase.clear(QUESTION_TABLE);
-        testDatabase.clear(CONCEPT_TABLE);
+
         testDatabase.clear(DOCUMENT);
+
+        testDatabase.clear(CONCEPT_TABLE);
+    }
+
+    public String getInstantPattern() {
+        return ISO_8601_UTC;
     }
 
     public QuestionRow question() {
@@ -120,8 +128,16 @@ public class TestData {
         return testDatabase.selectAll(DOCUMENT);
     }
 
-    public String getInstantPattern() {
-        return ISO_8601_UTC;
+    public QuestionOriginRow questionOrigin() {
+        return new QuestionOriginRow();
+    }
+
+    public QuestionOriginRow questionOrigin(long questionId, QuestionOriginSource source) {
+        return new QuestionOriginRow(questionId, source);
+    }
+
+    public List<DBRow> retrieveQuestionOrigins() {
+        return testDatabase.selectAll(QUESTION_ORIGIN);
     }
 
     public final class QuestionRow {
@@ -354,6 +370,51 @@ public class TestData {
 
         public void insert() {
             testDatabase.insert(DOCUMENT, columns);
+        }
+    }
+
+    public final class QuestionOriginRow {
+        private final Map<String, Object> columns = new HashMap<>();
+
+        QuestionOriginRow() {}
+
+        QuestionOriginRow(long questionId, QuestionOriginSource source) {
+            columns.put("question_id", questionId);
+            columns.put("source", source.name());
+        }
+
+        public QuestionOriginRow id(long id) {
+            columns.put("id", id);
+            return this;
+        }
+
+        public QuestionOriginRow questionId(long questionId) {
+            columns.put("question_id", questionId);
+            return this;
+        }
+
+        public QuestionOriginRow source(QuestionOriginSource source) {
+            columns.put("source", source.name());
+            return this;
+        }
+
+        public QuestionOriginRow source(String source) {
+            columns.put("source", source);
+            return this;
+        }
+
+        public QuestionOriginRow documentId(long documentId) {
+            columns.put("document_id", documentId);
+            return this;
+        }
+
+        public QuestionOriginRow createdAt(OffsetDateTime createdAt) {
+            columns.put("created_at", createdAt);
+            return this;
+        }
+
+        public void insert() {
+            testDatabase.insert(QUESTION_ORIGIN, columns);
         }
     }
 }
