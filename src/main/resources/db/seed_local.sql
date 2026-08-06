@@ -219,7 +219,7 @@ from (values ('Which of the following is a vector quantity?
 -- ── Idempotent clear-out: children before parents ──────────────────────────
 -- Runs before the document delete below, so no question_origin row still points at a
 -- document we're about to remove (document_id has no ON DELETE action — documents
--- soft-delete to RETIRED, they're never hard-deleted; D-036).
+-- soft-delete to REMOVED, they're never hard-deleted; D-036).
 --
 -- question_concept and question_origin cascade from question (ON DELETE CASCADE).
 -- question_attempt and mark_scheme are cleared explicitly so this script does not depend
