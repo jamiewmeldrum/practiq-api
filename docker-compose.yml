@@ -5,7 +5,20 @@ services:
       POSTGRES_DB: practiq
       POSTGRES_USER: practiq
       POSTGRES_PASSWORD: practiq_local
-    ports: ["5432:5432"]
-    volumes: [postgres_data:/var/lib/postgresql/data]
+    ports: [ "5432:5432" ]
+    volumes: [ postgres_data:/var/lib/postgresql/data ]
+
+  localstack:
+    # TODO - to work around having to create an account with an auth token for now.
+    image: localstack/localstack:4.14.0
+    container_name: localstack
+    ports:
+      - 4566:4566
+    environment:
+      - SERVICES=s3
+      - GATEWAY_LISTEN=0.0.0.0:4566
+    volumes:
+      - ./infra/localstack/localstack-setup.sh:/etc/localstack/init/ready.d/localstack-setup.sh
+
 volumes:
   postgres_data:

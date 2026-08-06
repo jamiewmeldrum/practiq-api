@@ -36,11 +36,16 @@ dependencies {
     implementation("jakarta.validation:jakarta.validation-api")
     implementation("io.micronaut.sql:micronaut-hibernate-jpa")
     implementation("io.micronaut.data:micronaut-data-tx-hibernate")
+    implementation("io.micronaut.aws:micronaut-aws-sdk-v2")
+    implementation("io.micronaut.objectstorage:micronaut-object-storage-aws")
     compileOnly("io.micronaut:micronaut-http-client")
     compileOnly("org.projectlombok:lombok")
     runtimeOnly("ch.qos.logback:logback-classic")
     runtimeOnly("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
+    // Micronaut 4 dropped snakeyaml from core and made YAML opt-in. Without it the YAML
+    // property-source loader self-disables and every application*.yml is skipped silently.
+    runtimeOnly("org.yaml:snakeyaml")
     testImplementation("io.micronaut:micronaut-http-client")
     testImplementation("org.mockito:mockito-junit-jupiter")
     testImplementation("io.rest-assured:rest-assured:5.5.0")
@@ -116,7 +121,7 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.named<JavaExec>("run") {
     // Default `./gradlew run` to the `local` environment so the app uses the Compose
-    // Postgres in application-local.properties (jdbc:...localhost:5432). Without an active
+    // Postgres in application-local.yml (jdbc:...localhost:5432). Without an active
     // environment the base config has no datasource URL, so Test Resources fills the gap
     // and silently runs the app Update against a throwaway container instead of your real DB.
     // Override on the CLI when needed, e.g. MICRONAUT_ENVIRONMENTS=local,foo ./gradlew run.

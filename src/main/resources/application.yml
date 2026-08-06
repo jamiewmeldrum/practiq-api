@@ -1,0 +1,37 @@
+micronaut:
+  application:
+    name: practiq
+  serde:
+    serialization:
+      inclusion: always
+  data:
+    pageable:
+      default-page-size: 10
+      max-page-size: 50
+  object-storage:
+    aws:
+      default:
+        path-style-access-enabled: true
+      documents:
+        enabled: true
+        bucket: documents
+
+# No datasource URL here on purpose — each environment supplies its own, so a test run can
+# never fall through to the dev database.
+datasources:
+  default:
+    db-type: postgresql
+    dialect: POSTGRES
+
+jpa:
+  default:
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: none
+        format_sql: true
+
+flyway:
+  datasources:
+    default:
+      enabled: true

@@ -1,0 +1,24 @@
+datasources:
+  default:
+    url: jdbc:postgresql://localhost:5432/practiq
+    username: practiq
+    password: practiq_local
+    driver-class-name: org.postgresql.Driver
+
+micronaut:
+  object-storage:
+    aws:
+      default:
+        endpoint: http://localhost:4566
+
+# Dummy credentials for LocalStack. Real environments get theirs from the default AWS
+# credential chain, not from config.
+aws:
+  accessKeyId: test
+  secretKey: test
+  region: eu-west-1
+
+logger:
+  levels:
+    com.practiq: DEBUG
+    org.hibernate.SQL: DEBUG

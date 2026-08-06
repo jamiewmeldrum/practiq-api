@@ -2,7 +2,7 @@
 
 *Standing instructions for Claude Code. Read fully every session. Update the "Current sprint" marker as work
 progresses.*
- 
+
 ---
 
 ## 1. Behaviour rules (non-negotiable)
@@ -51,7 +51,7 @@ NOW:   [React] → [practiq-api] → [PostgreSQL]
                     ├→ practiq-extractor (Python, HTTP on localhost)
                     ├→ S3 (LocalStack locally)
                     └→ AIService (Stub locally / Claude API)
- 
+
 TARGET (Phase 4+ only): API → SQS → practiq-processor → extractor Lambda → POSTs back to API.
 ```
 
@@ -65,10 +65,11 @@ TARGET (Phase 4+ only): API → SQS → practiq-processor → extractor Lambda �
     - Micronaut 5.0 GA'd May 2026 and moved its baseline to Java 25. This project stays on 4.x/21 deliberately. Do not
       suggest upgrading to 5.0.
 - PostgreSQL 16 (Docker Compose) · Micronaut Data **JPA** · Flyway (hbm2ddl off, always)
-- Config format is **`application.properties`**, not YAML — Micronaut 4's default. Don't convert to `.yml`.
+- Config format is **`application.yml` (YAML)** — reverses D-004 (see D-043). Requires `snakeyaml` on the classpath;
+  Micronaut 4 doesn't bundle it, and without it `.yml` is **silently ignored** (no error). Layered profiles unchanged.
 - Environment profiles: `local` for dev loop (compose Postgres), `test` activated by `@MicronautTest`. Base
-  `application.properties` contains no datasource URL — environments provide it. This prevents tests accidentally
-  hitting the dev database.
+  `application.yml` contains no datasource URL — environments provide it. This prevents tests accidentally hitting the
+  dev database.
 - Docker: **native Docker Engine (`docker-ce`) in WSL2** — not Docker Desktop. Docker Desktop Home on Windows Home
   doesn't expose its Engine API as a Unix socket into WSL2. Native `docker-ce` is installed directly in Ubuntu and
   auto-starts via systemd. Testcontainers connects via `/run/docker.sock`.
@@ -126,11 +127,11 @@ exam_board:      id, name                                  -- AQA | OCR | Edexce
 specification:   id, exam_board_id, subject, level, name, version    -- level: gcse|a_level
 spec_section:    id, specification_id, parent_section_id NULL, name, section_ref, sort_order
 concept:         id, name, description, created_at         -- board-agnostic, granular ("Diffraction")
- 
+
 spec_section_concept: spec_section_id, concept_id          -- "AQA 6.2 covers Diffraction…"
 question_concept:     question_id, concept_id
 note_concept:         note_id, concept_id
- 
+
 question:  id, version (optimistic lock), body (TEXT, not null — Markdown, images via {{s3:key}}, MCQ via - [ ]/- [x]),
            difficulty int (nullable, 1-5),
            type (nullable — SHORT_ANSWER|EXTENDED|MCQ),
@@ -139,7 +140,7 @@ question:  id, version (optimistic lock), body (TEXT, not null — Markdown, ima
            -- NO source / source_spec columns — origin moved to its own table (see D-036)
            -- NO mark_scheme column — it's its own entity now (see D-018)
            -- no level column (see D-010) · no content jsonb (see D-009)
- 
+
 document:  id, s3_key (not null), filename (not null),
            source_spec (nullable — free-text provenance HINT at upload, advisory not binding),
            status (not null — enum UNAPPROVED|APPROVED|REJECTED|REMOVED),
@@ -149,7 +150,7 @@ document:  id, s3_key (not null), filename (not null),
            -- REMOVED = withdrawn (soft-delete) — distinct facts, distinct states.
            -- Never hard-deleted except by a deliberate GDPR "knife" (D-036).
            -- source_spec belongs here (artefact describing itself), NOT on question.
- 
+
 document_processing_job: id, document_id (FK, not null), type (not null — enum:
            QUESTION_HARVEST|NOTE_GENERATION|…), status (not null — enum
            PENDING|RUNNING|SUCCEEDED|FAILED), timestamps, created_at
@@ -159,33 +160,33 @@ document_processing_job: id, document_id (FK, not null), type (not null — enum
            -- origin uses). Branching workflow: harvest / note-gen / AI-gen over one
            -- APPROVED doc. job→question link is a deferred audit axis; question_origin
            -- points at the DOCUMENT, not the job.
- 
+
 question_origin: id, question_id (FK → question, not null, UNIQUE, ON DELETE CASCADE),
-           kind (not null — AUTHORED|EXTRACTED|GENERATED),
-           document_id (FK → document, nullable, non-null IFF kind=EXTRACTED),
+           authorship (not null — AUTHORED|EXTRACTED|GENERATED),
+           document_id (FK → document, nullable, non-null IFF authorship=EXTRACTED),
            created_at
            -- One row per question, written at creation. Cold data — off the hot
            -- question row deliberately (retrieved <1% of reads). Per-type table by
            -- pattern (NoteOrigin later, same shape) — NOT a polymorphic table, so the
            -- question→origin FK cascade is DB-enforced. See D-036.
-           -- Invariant (code-enforced): document_id present IFF kind=EXTRACTED.
- 
+           -- Invariant (code-enforced): document_id present IFF authorship=EXTRACTED.
+           -- Field named `authorship` (not kind/source) — D-041. Shipped Sprint 0.3 (tickets 2+3).
+
 mark_scheme: id, question_id (FK, not null, UNIQUE — 1:1), version (optimistic lock),
              body (TEXT, not null — Markdown, {{s3:key}} refs), created_at
                            -- Separate entity from question (D-018): different edit lifecycle.
-                           -- Mark schemes get tweaked in normal review; question type/source/
-                           -- status are frozen once set. Don't share a row / lock token /
+                           -- Mark schemes get tweaked in normal review; question type/status are frozen once set. Don't share a row / lock token /
                            -- contact surface across two workflows that don't move together.
                            -- Served via its own endpoint, keyed by question_id. Never inline
                            -- on the question payload.
- 
+
 note:      id, title, s3_key, level, status, created_at
- 
+
 question_attempt:           id, question_id, session_token, attempt_body, created_at
                            -- NO unique constraint on (question_id, session_token).
                            -- Repeated attempts are the revision loop, not a duplicate. See D-021.
                            -- Built in Sprint 0.2.
- 
+
 question_attempt_feedback: id, question_attempt_id, source (SELF|AI),
                            self_score int NULL, max_score int NULL,   -- SELF only
                            feedback TEXT NULL,                        -- AI only
@@ -195,7 +196,7 @@ question_attempt_feedback: id, question_attempt_id, source (SELF|AI),
                            -- AI marking / progress tracking. NOT created in Sprint 0.2.
                            -- `source` discriminator ⇒ CREATE whole in Phase 3, no migration owed.
                            -- One-to-many from attempt, ordered by created_at. See D-019.
- 
+
 -- Phase 6 only: app_user, topic_progress
 ```
 
@@ -207,10 +208,11 @@ question_attempt_feedback: id, question_attempt_id, source (SELF|AI),
 - `src/main/resources/db/seed_local.sql` exists for manual local data loading only — it is intentionally outside
   `db/migration/` so Flyway ignores it. Load it manually via `docker exec`. It will eventually move to a dedicated
   cross-cutting demo-data repository.
-  Principles: questions are tagged with concepts; spec sections map to concepts; one question serves any
-  board/spec/level sharing the concept. Spec revisions = new specification version + new mappings; questions untouched.
-  Synoptic questions = multiple concepts. Prefer **explicit join entities** over @ManyToMany for the junctions. *
-  *Students only ever see status=approved.**
+
+Principles: questions are tagged with concepts; spec sections map to concepts; one question serves any board/spec/level
+sharing the concept. Spec revisions = new specification version + new mappings; questions untouched. Synoptic
+questions = multiple concepts. Prefer **explicit join entities** over @ManyToMany for the junctions. **Students only
+ever see status=approved.**
 
 ## 7. API surface
 
@@ -227,7 +229,8 @@ GET  /api/v1/questions/{id}/attempts      this session's attempts, newest first,
 POST /api/v1/admin/documents              → presigned S3 URL
 POST /api/v1/admin/documents/{id}/complete → triggers async ingestion job
 GET  /api/v1/admin/questions/pending
-PUT  /api/v1/admin/questions/{id}/approve | /reject | /concepts
+PATCH /api/v1/admin/questions/{id}          review: set status (APPROVED|REJECTED) + field edits; If-Match/version -> 409 (D-027, D-042)
+PUT  /api/v1/admin/questions/{id}/concepts  replace the concept set (sub-collection — already RESTful)
 ```
 
 Conventions: versioned routes, validated DTOs, correct status codes (200/201/400/404/422/500), structured error body
@@ -355,7 +358,7 @@ which is true of all three; "integration" is a conceptual promise the suffix nev
 ### Performance tier specifics
 
 `@PerformanceTest` (bundles `@MicronautTest(transactional=false, environments="performance")`) ·
-`src/test/java/performance/` · `application-performance.properties` sets `hibernate.generate_statistics=true` ·
+`src/test/java/performance/` · `application-performance.yml` sets `hibernate.generate_statistics=true` ·
 `utils/StatementCounter` wraps Hibernate `Statistics`.
 
 - Asserts **JDBC statement counts per request, not output**. Every endpoint gets a happy-path absolute pin;
@@ -394,8 +397,8 @@ tests are owed per *new query*, not per endpoint.
   **, not path nesting under one relationship. Controllers map to one entity each. See D-015.
 - **`difficulty` serialises as `{value, code}`** — DB column stays a plain integer; `code` is derived at the
   serialisation layer via `TRIVIAL(1), EASY(2), MEDIUM(3), HARD(4), VERY_HARD(5)`. Whole object is `null` when
-  difficulty is unrated, not partially populated. Nominal enums (`type`/`source`/`status`) serialise as their bare
-  string code — no wrapper. See D-017.
+  difficulty is unrated, not partially populated. Nominal enums (`type`/`status`, and `authorship` on `question_origin`)
+  serialise as their bare string code — no wrapper. See D-017.
 - **Never add a unique constraint on `(question_id, session_token)`.** Repeated attempts at the same question are the
   core revision loop. Duplicates from network retries are accepted at this stage — see D-021. Idempotency keys are a
   hard prerequisite for AI grading, to be built *before* it, never as a follow-up.
@@ -434,9 +437,9 @@ tests are owed per *new query*, not per endpoint.
   origin is *cold* (read <1% of the time — keep it off the hot catalogue row) and *polymorphic in shape but not in
   table* (`NoteOrigin` later, same columns, its own hard FK). Per-type tables, **shared writing logic in code** (an
   origin-writer the extraction job and manual authoring both call) — not a shared polymorphic table, so the
-  content→origin FK cascade stays DB-enforced. `document_id` is non-null **iff** `kind=EXTRACTED` (generation is diffuse
-  and unattributable; authoring has no document). Documents are never hard-deleted outside a deliberate GDPR procedure,
-  so that invariant holds structurally. See D-036.
+  content→origin FK cascade stays DB-enforced. `document_id` is non-null **iff** `authorship=EXTRACTED` — the field is
+  named `authorship`, not `kind` (D-041). Generation is diffuse and unattributable; authoring has no document. Documents
+  are never hard-deleted outside a deliberate GDPR procedure, so that invariant holds structurally. See D-036.
 - **Read projections are distinct types from write entities.** `QuestionConceptLink` (projection) ≠ `QuestionConcept` (
   entity). Don't reuse the entity where a lean projection is what the read path needs. See D-030.
 - No secrets in code, config, or commits.
@@ -460,9 +463,12 @@ is no demo — the artefact is the repo + a conversation (D-035).**
 >
 > **Sprint 0.2 closed.** Question read API, mark scheme, and attempts all delivered.
 >
-> **Sprint 0.3 in progress:** `document` table DONE (D-039/D-040). Next: `question_origin` table (ticket 2 of the D-036
-> sequence), then drop `source`/`source_spec` from `question`, then seed rewrite. ⚠ `Document` entity has a live latent
-> defect — no status default, `save()` without explicit status fails; fixed at first construct-and-save path.
+> **Sprint 0.3 in progress:** `document` table DONE (D-039/D-040). **`question_origin` table DONE (tickets 2+3, D-036)
+** — migration + entity + repository + `QuestionOriginDatabaseIT`; `source`/`source_spec` dropped from `question`;
+> provenance field shipped as `authorship`, not `kind` (D-041); sample-data seed rewritten. Next: shared origin-writer +
+> async ingestion job (first writer of origin rows; enforces `document_id`-iff-`EXTRACTED`), LocalStack S3, presigned
+> upload, `document_processing_job`, `AIService`/`StubAIService`. ⚠ `Document` entity live latent defect (no status
+> default) still open — fixed at first construct-and-save (the ingestion ticket).
 >
 > **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged,
 > filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept
@@ -480,8 +486,8 @@ is no demo — the artefact is the repo + a conversation (D-035).**
 > carried CT persistence-disable D-007 write-up. **Sprint 0.3 (`document` table onward) is the main line.**
 >
 > **409 handler for `OptimisticLockException` moved to Sprint 1.3** — owed with the first write against a *versioned*
-> entity (admin approve/reject). `question_attempt` has no `@Version`, so the attempts POST cannot produce a conflict (
-> D-027 as corrected).
+> entity (the admin question-review `PATCH` — D-042). `question_attempt` has no `@Version`, so the attempts POST cannot
+> produce a conflict (D-027 as corrected).
 >
 > **Deliberately out of scope:** `question_attempt_feedback` — whole table deferred to Phase 3 (D-019 amendment; no
 > consumer for a self-score yet) · MCQ auto-marking (separate feature, unscheduled) · idempotency keys (D-021) · unique
