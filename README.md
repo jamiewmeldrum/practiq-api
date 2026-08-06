@@ -47,7 +47,7 @@ docker compose up -d            # Postgres 16 on localhost:5432
 ./gradlew run                   # serves http://localhost:8080
 ```
 
-`./gradlew run` defaults to the `local` environment (`application-local.properties`), so
+`./gradlew run` defaults to the `local` environment (`application-local.yml`), so
 the app connects to the Compose database. Verify it's up:
 
 ```bash
@@ -138,8 +138,8 @@ places:
 
 - **Format and destination** — `src/main/resources/logback.xml`: one console appender,
   `root level="info"`. This is where the line pattern and appenders are defined.
-- **Levels** — set per environment in `application*.properties` via
-  `logger.levels.<name>=<level>`. Micronaut applies these to Logback at startup, so the
+- **Levels** — set per environment in `application*.yml` under the
+  `logger.levels` map. Micronaut applies these to Logback at startup, so the
   local dev loop can be noisy while tests stay quiet, without touching the XML.
 
 ### Adding a logger in code
@@ -174,27 +174,31 @@ Global floor — change the root in `logback.xml`:
 <root level="info">          <!-- debug for a firehose, warn for near-silence -->
 ```
 
-Per-package, per-environment — add to the relevant properties file. To see `DEBUG`
-from your own code **in the local dev loop only**, add to `application-local.properties`:
+Per-package, per-environment — add to the relevant config file. To see `DEBUG`
+from your own code **in the local dev loop only**, add to `application-local.yml`:
 
-```properties
-logger.levels.com.practiq=DEBUG
+```yaml
+logger:
+  levels:
+    com.practiq: DEBUG
 ```
 
 Tests and every other environment inherit the root `info`, so this doesn't make test
 output noisy. Scope it tighter when chasing one thing —
-`logger.levels.com.practiq.service.ConceptService=TRACE` targets a single class.
+a `com.practiq.service.ConceptService: TRACE` entry targets a single class.
 
 ### Switching on framework logging
 
-The same `logger.levels.*` keys turn on framework internals while diagnosing. Add them
-to `application-local.properties` while you need them, then remove:
+The same `logger.levels` map turns on framework internals while diagnosing. Add them
+to `application-local.yml` while you need them, then remove:
 
-```properties
-logger.levels.org.hibernate.SQL=DEBUG               # generated SQL statements
-logger.levels.org.hibernate.orm.jdbc.bind=TRACE     # bound parameter values
-logger.levels.io.micronaut.http.client=DEBUG        # outbound HTTP (extractor client, later)
-logger.levels.org.flywaydb=DEBUG                    # migration execution
+```yaml
+logger:
+  levels:
+    org.hibernate.SQL: DEBUG               # generated SQL statements
+    org.hibernate.orm.jdbc.bind: TRACE     # bound parameter values
+    io.micronaut.http.client: DEBUG        # outbound HTTP (extractor client, later)
+    org.flywaydb: DEBUG                    # migration execution
 ```
 
 Inbound request access logging is separate (handled by Netty, not a logger level) —
@@ -409,7 +413,7 @@ how you find out what enough looks like.
 
 **Writing a component test.** Micronaut has no `@WebMvcTest`-style slice annotation, so a
 few things have to be arranged by hand to test the web layer without a database. The pattern
-lives in `ConceptControllerCT` + `src/test/resources/application-ctslice.properties`:
+lives in `ConceptControllerCT` + `src/test/resources/application-ctslice.yml`:
 
 ```java
 
