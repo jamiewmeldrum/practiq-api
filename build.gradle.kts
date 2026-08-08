@@ -54,6 +54,11 @@ dependencies {
     testImplementation("io.micronaut.test:micronaut-test-junit5")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // Teaches the Test Resources service how to start a LocalStack S3 and what properties to
+    // answer with (aws.services.s3.endpoint-override, pointed at the container it started).
+    // It goes on `testResourcesService`, not `testImplementation`, because the resolver runs in
+    // the forked Test Resources JVM — the tests themselves never see this dependency.
+    testResourcesService("io.micronaut.testresources:micronaut-test-resources-localstack-s3")
     errorprone("com.google.errorprone:error_prone_core:2.43.0")
 }
 
@@ -126,6 +131,9 @@ tasks.named<JavaExec>("run") {
     // and silently runs the app Update against a throwaway container instead of your real DB.
     // Override on the CLI when needed, e.g. MICRONAUT_ENVIRONMENTS=local,foo ./gradlew run.
     environment("MICRONAUT_ENVIRONMENTS", "local")
+    // See the Test-task block below — same reasoning, same throwaway LocalStack credentials.
+    environment("AWS_ACCESS_KEY_ID", "test")
+    environment("AWS_SECRET_ACCESS_KEY", "test")
 }
 
 // Unit (*Test) + component (*CT) tests: the every-change loop. Excludes *IT.
@@ -166,6 +174,16 @@ val performanceTest =
         include("**/*PT.class")
         mustRunAfter(tasks.test, integrationTest)
     }
+
+// LocalStack credentials for every tier. Deliberately environment variables rather than
+// application config: deployed AWS resolves credentials ambiently from the IAM role, so
+// supplying them the same way locally keeps one resolution path everywhere. It also covers
+// the S3 presigner, which builds its own client inside AwsS3Operations and never sees
+// Micronaut config. The values are irrelevant — LocalStack never verifies the signature.
+tasks.withType<Test>().configureEach {
+    environment("AWS_ACCESS_KEY_ID", "test")
+    environment("AWS_SECRET_ACCESS_KEY", "test")
+}
 
 // Local convenience only — CI names each tier explicitly (.github/workflows/ci.yml).
 tasks.check {

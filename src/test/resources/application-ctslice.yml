@@ -8,6 +8,11 @@ test-resources:
   containers:
     postgres:
       enabled: false
+    # Same for LocalStack. The base application.yml enables the `documents` object storage in
+    # every environment, so a CT that ever touched it would drag a container into the no-Docker
+    # tier. Disabled here so that can't happen by accident.
+    localstack:
+      enabled: false
 
 datasources:
   default:

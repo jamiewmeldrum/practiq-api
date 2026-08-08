@@ -8,5 +8,5 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-@MicronautTest(transactional = false, environments = "utils")
+@MicronautTest(transactional = false, environments = "test")
 public @interface IntegrationTest {}
