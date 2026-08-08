@@ -74,7 +74,22 @@ TARGET (Phase 4+ only): API → SQS → practiq-processor → extractor Lambda �
   doesn't expose its Engine API as a Unix socket into WSL2. Native `docker-ce` is installed directly in Ubuntu and
   auto-starts via systemd. Testcontainers connects via `/run/docker.sock`.
 - Lombok · Bean Validation on DTOs
-- LocalStack for S3 (added Sprint 1.2) — same SDK, endpoint override in local profile
+- LocalStack for S3 (Sprint 0.3) — same SDK, endpoint override in local/test profiles. **Presign gotchas learned — don't
+  re-derive these:**
+    - Each key under `micronaut.object-storage.aws` is a *separate* storage bean (`@EachProperty`, no primary). A second
+      key — including `default:` — makes unqualified injection ambiguous. Only `bucket`/`enabled` are valid there;
+      `endpoint` and path-style put there are silently ignored.
+    - Endpoint must be `s3.localhost.localstack.cloud`, not `localhost`: S3 puts the bucket in the hostname, so
+      `localhost` yields an unresolvable `documents.localhost`. The `*.localhost.localstack.cloud` public DNS wildcard
+      resolves bucket subdomains to 127.0.0.1 and matches prod URL shape. Path-style works for the client but **not for
+      presigning** and diverges from prod. (Depends on public DNS — breaks offline / behind rebinding-protective
+      resolvers, e.g. some CI.)
+    - Credentials must be **ambient env vars** (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`), not app config:
+      `AwsS3Operations` builds its presigner internally with only region+endpoint, so the presigner resolves via the SDK
+      default chain while the client uses Micronaut's provider. YAML creds satisfy the client but the presigner throws
+      `Unable to load credentials`. Env vars satisfy both, and match how a deployed IAM role resolves.
+    - `aws.region` is mandatory for presigning and is read from Micronaut's `Environment`; without it:
+      `Pre-signed requests require 'aws.region'`.
 - **App AI key env var: `PRACTIQ_ANTHROPIC_API_KEY`** — deliberately NOT `ANTHROPIC_API_KEY`, to avoid colliding with
   Claude Code's own credentials. Never committed, never in application config.
 - Local DB: `jdbc:postgresql://localhost:5432/practiq`, user/pass `practiq`/`practiq_local`.
@@ -143,12 +158,17 @@ question:  id, version (optimistic lock), body (TEXT, not null — Markdown, ima
 
 document:  id, s3_key (not null), filename (not null),
            source_spec (nullable — free-text provenance HINT at upload, advisory not binding),
-           status (not null — enum UNAPPROVED|APPROVED|REJECTED|REMOVED),
+           status (not null — enum AWAITING_UPLOAD|UNAPPROVED|APPROVED|REJECTED|REMOVED),
            version, created_at
            -- Artefact + approval gate ONLY. No processing state (see D-039).
            -- Only APPROVED docs get processed. REJECTED = refused at review;
            -- REMOVED = withdrawn (soft-delete) — distinct facts, distinct states.
            -- Never hard-deleted except by a deliberate GDPR "knife" (D-036).
+           -- Lifecycle: AWAITING_UPLOAD (registered, file not yet in storage) -> UNAPPROVED
+           -- (uploaded, awaiting review) -> APPROVED|REJECTED -> REMOVED. Upload is the first
+           -- stage of one lifecycle, so "approved but not uploaded" is unreachable (D-044).
+           -- Abandoned AWAITING_UPLOAD rows (file never arrived) are HARD-deleted by the
+           -- reconcile — nothing references them, so the soft-delete rule does not apply (D-044).
            -- source_spec belongs here (artefact describing itself), NOT on question.
 
 document_processing_job: id, document_id (FK, not null), type (not null — enum:
@@ -226,8 +246,8 @@ GET  /api/v1/questions/{id}/mark-scheme   the mark scheme. UNGATED — no attemp
 POST /api/v1/questions/{id}/attempts      X-Session-Token header (nested: genuine ownership, see D-019)
 GET  /api/v1/questions/{id}/attempts      this session's attempts, newest first, no pagination. NO feedback inline in 0.2 — no feedback rows until Phase 3 (D-019 amendment)
 --- admin: static API key header (X-Admin-Key) until Phase 6 ---
-POST /api/v1/admin/documents              → presigned S3 URL
-POST /api/v1/admin/documents/{id}/complete → triggers async ingestion job
+POST /api/v1/admin/documents              → register document (AWAITING_UPLOAD) + presigned upload URL
+POST /internal/document-upload-reconciliations → run upload reconcile (internal/mgmt surface, scheduled trigger): uploaded -> UNAPPROVED, expire abandoned. Old client /complete is gone (D-044/D-045)
 GET  /api/v1/admin/questions/pending
 PATCH /api/v1/admin/questions/{id}          review: set status (APPROVED|REJECTED) + field edits; If-Match/version -> 409 (D-027, D-042)
 PUT  /api/v1/admin/questions/{id}/concepts  replace the concept set (sub-collection — already RESTful)
@@ -463,12 +483,12 @@ is no demo — the artefact is the repo + a conversation (D-035).**
 >
 > **Sprint 0.2 closed.** Question read API, mark scheme, and attempts all delivered.
 >
-> **Sprint 0.3 in progress:** `document` table DONE (D-039/D-040). **`question_origin` table DONE (tickets 2+3, D-036)
-** — migration + entity + repository + `QuestionOriginDatabaseIT`; `source`/`source_spec` dropped from `question`;
-> provenance field shipped as `authorship`, not `kind` (D-041); sample-data seed rewritten. Next: shared origin-writer +
-> async ingestion job (first writer of origin rows; enforces `document_id`-iff-`EXTRACTED`), LocalStack S3, presigned
-> upload, `document_processing_job`, `AIService`/`StubAIService`. ⚠ `Document` entity live latent defect (no status
-> default) still open — fixed at first construct-and-save (the ingestion ticket).
+> **Sprint 0.3 in progress:** schema done (`document`, `question_origin`; `source`/`source_spec` dropped — D-036/D-041).
+**Current work: the document upload piece**, sliced 1–5 (see PRACTIQ_MASTER Sprint 0.3): (1) LocalStack S3 + CI
+> wiring → (2) presigned-upload endpoint + `AWAITING_UPLOAD` record → (3) server-owned reconcile (a run-resource on an
+> internal surface) → (4) trigger script → (5) Terraform-scheduled trigger (EventBridge→Lambda, LocalStack). No client
+`/complete` signal; no in-process scheduler (D-044/D-045). ⚠ `Document` has no status default — fixed in slice 2 (its
+> first construct-and-save). After this piece: review/approve (PATCH, 1.3) and extraction.
 >
 > **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged,
 > filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept

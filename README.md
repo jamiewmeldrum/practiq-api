@@ -9,7 +9,7 @@ Adaptive learning/practice platform API (Java 21 · Micronaut 4.10 · PostgreSQL
 The full loop from nothing running to a seeded, queryable app:
 
 ```bash
-docker compose up -d                       # 1. Postgres 16 on localhost:5432
+docker compose up -d                       # 1. Postgres 16 (:5432) + LocalStack S3 (:4566)
 ./gradlew run                              # 2. start the app — Flyway applies migrations at boot
 docker exec -i practiq-api-postgres-1 \
   psql -U practiq -d practiq < src/main/resources/db/seed_local.sql   # 3. load sample data
@@ -43,7 +43,7 @@ The sections below expand each step: [Running locally](#running-locally) for the
 Start the Compose Postgres, then run the app:
 
 ```bash
-docker compose up -d            # Postgres 16 on localhost:5432
+docker compose up -d            # Postgres 16 (:5432) + LocalStack S3 (:4566)
 ./gradlew run                   # serves http://localhost:8080
 ```
 
@@ -66,10 +66,47 @@ automatically. Add an environment variable to the run configuration:
 
 ```
 MICRONAUT_ENVIRONMENTS=local
+AWS_ACCESS_KEY_ID=test
+AWS_SECRET_ACCESS_KEY=test
 ```
 
-Without it, the app starts with no datasource URL and Test Resources spins up a throwaway
-Postgres container instead of connecting to your Compose DB.
+Without `MICRONAUT_ENVIRONMENTS`, the app starts with no datasource URL and Test Resources
+spins up a throwaway Postgres container instead of connecting to your Compose DB. The two
+AWS variables are the LocalStack credentials the `run` task supplies (see
+[LocalStack and S3](#localstack-and-s3)); without them any S3 call fails to resolve
+credentials.
+
+## LocalStack and S3
+
+`docker compose up -d` starts LocalStack alongside Postgres, with `SERVICES=s3` and the
+gateway on `localhost:4566`. `infra/localstack/localstack-setup.sh` is mounted into
+`/etc/localstack/init/ready.d/` and runs on every container start, creating the `documents`
+bucket. Nothing is persisted between runs, so each `compose up` gives you an empty bucket —
+which is what you want locally, and means a `compose down` is the reset button.
+
+Prove it works by hand:
+
+```bash
+docker exec localstack awslocal s3 ls                    # documents
+docker exec localstack sh -c \
+  'echo "hello practiq" > /tmp/probe.txt && awslocal s3 cp /tmp/probe.txt s3://documents/probe.txt'
+docker exec localstack awslocal s3 ls s3://documents     # probe.txt, 14 bytes
+docker exec localstack awslocal s3 cp s3://documents/probe.txt -   # hello practiq
+docker exec localstack awslocal s3 rm s3://documents/probe.txt
+```
+
+The app reaches it through `aws.services.s3.endpoint-override` in `application-local.yml`,
+pointed at `s3.localhost.localstack.cloud:4566` rather than `localhost:4566`. S3 puts the
+bucket in the hostname, so a plain `localhost` endpoint produces `documents.localhost`,
+which doesn't resolve; `*.localhost.localstack.cloud` is a public DNS wildcard onto
+127.0.0.1, so bucket subdomains work and local URLs take the same shape as real S3. It does
+mean this needs working public DNS.
+
+Credentials come from `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, not from
+`application-local.yml` — the `run` and `Test` tasks set them in `build.gradle.kts`.
+Deployed AWS resolves credentials ambiently from an IAM role, so supplying them the same way
+locally keeps one resolution path everywhere. The values are arbitrary; LocalStack never
+checks the signature.
 
 ## Local development data
 
@@ -341,7 +378,7 @@ verify.** Mocking everything around a thin layer just tests a tautology.
 |-------------|---------|--------------------------------------------------------------|--------------------------------|-------------------|
 | Unit        | `*Test` | one class, no context                                        | all deps mocked (Mockito)      | `test`            |
 | Component   | `*CT`   | real web layer (routing, binding, validation, serialization) | repository mocked, no DB       | `test`            |
-| Integration | `*IT`   | full stack                                                   | real Postgres (Testcontainers) | `integrationTest` |
+| Integration | `*IT`   | full stack                                                   | real Postgres + LocalStack S3  | `integrationTest` |
 | Performance | `*PT`   | full stack                                                   | real Postgres (Testcontainers) | `performanceTest` |
 
 ```bash
@@ -543,30 +580,58 @@ so you can't disable it for `test` while keeping it for `integrationTest` within
 Our `ctslice` trick removes the *Postgres* container; it cannot remove the service + ryuk.
 
 **Why we keep Test Resources anyway.** It's the part that *scales*. It provisions containers
-declaratively, supports a shared server, and ships modules for the resources we'll add next
-(LocalStack/S3 in Sprint 1.2) and across future services. Hand-rolling Testcontainers per
-`*IT` (or per service) to win a Docker-free `test` would trade a small, well-understood cost
-for boilerplate that grows with every new IT class, resource type, and microservice. That's
-optimising the wrong axis.
+declaratively, supports a shared server, and ships modules for the resources we add as we go —
+the LocalStack S3 the `*IT` tier uses arrived that way in Sprint 0.3, as one dependency and
+two lines of config. Hand-rolling Testcontainers per `*IT` (or per service) to win a
+Docker-free `test` would trade a small, well-understood cost for boilerplate that grows with
+every new IT class, resource type, and microservice. That's optimising the wrong axis.
 
 **The real fix, when it's worth it.** A genuinely Docker-free fast loop needs Test Resources
 *isolated to an integration module* (a separate Gradle module — or a shared convention plugin
 once there are multiple services — that applies the plugin, while the unit/component module
 does not). A separate source set alone is not enough, because the plugin is project-global.
 
-**Decision: deferred.** With a single `*IT` and ~1s of ryuk startup, the module split is
-premature and cuts against the monolith-first stance in `CLAUDE.md` §3. Revisit when the
-weight justifies it — **any of**: several `*IT` classes, LocalStack/S3 arriving (Sprint 1.2),
-or the first real service extraction (Phase 4, where shared build conventions get set up
-anyway). Tracked as `TODO(test-resources)` in `build.gradle.kts`.
+**Decision: deferred indefinitely.** Not "deferred until X" — there is no problem to solve.
+`./gradlew test` pays about a second of ryuk startup and is otherwise unaffected, and a fixed
+second is not worth a module split that cuts against the monolith-first stance in `CLAUDE.md` §3.
+
+An earlier version of this section listed triggers to revisit on: several `*IT` classes,
+LocalStack arriving, the first service extraction. Two of those have since happened — the tier
+is now 18 classes and LocalStack landed in Sprint 0.3 — and the fast loop is no different for
+it. They were the wrong signal: they measured how much the test suite had grown, not what it
+costs to run. The only thing that would justify revisiting is the everyday `test` loop actually
+becoming slow enough to interrupt the change/verify cycle, and if that ever happens, a
+one-second container start is unlikely to be why. Long-term backlog, tracked as
+`TODO(test-resources)` in `build.gradle.kts`.
 
 What the `ctslice` + `@ComponentTest` machinery buys us today is still real: component tests
 do no DB work and express the intended boundary (web layer in, persistence mocked). We keep
 it as the design statement, and the module split later turns "no Postgres container" into
 "no Docker at all" without changing how the tests are written.
 
-`*IT` tests use a real Postgres 16 via Micronaut Test Resources, so Docker must be available
-for `integrationTest`.
+### What the `*IT` tier provisions
+
+`*IT` tests get a real Postgres 16 **and** a LocalStack S3, both started by Micronaut Test
+Resources, so Docker must be available for `integrationTest`. Neither comes from
+`docker-compose.yml` — Compose is for the dev loop only, and a test run never touches it.
+
+The two are wired differently, which is worth knowing before you debug a connection error:
+
+- **Postgres** is resolved because the base `application.yml` deliberately has no datasource
+  URL, so Test Resources fills the gap.
+- **LocalStack** is resolved the same way — nothing in the test environment sets
+  `aws.services.s3.endpoint-override`, so Test Resources supplies it, pointed at the
+  container it started. The provider comes from the `testResourcesService` dependency in
+  `build.gradle.kts`; `localstack` in `test-resources.containers.localstack` is that
+  provider's own container name, not one we chose.
+
+Both images are pinned in `src/test/resources/application-test.yml`. Unpinned, they track
+`latest` and drift out from under CI.
+
+There is **no `ready.d` init script** in the test tier — Test Resources gives you a bare
+LocalStack. The `documents` bucket exists in an IT only because `utils/aws/S3TestUtils`
+creates it. That is the opposite of the Compose setup, where the init script owns the bucket
+and the app assumes it is already there.
 
 ### Integration tests share one database — keep them sequential
 

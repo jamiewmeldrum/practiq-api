@@ -1,7 +1,24 @@
-# Pin the Test Resources Postgres container to match the deploy/Compose target (PG 16).
-# Without this it defaults to postgres:latest, which drifts and can mask version-specific
-# SQL/Flyway issues that wouldn't surface until production.
+# Containers for the *IT tier, started by Test Resources — not by docker-compose.yml, which a
+# test run never touches. Both images are pinned; unpinned they default to `latest` and drift
+# out from under CI. Postgres matches the deploy/Compose target so version-specific SQL and
+# Flyway behaviour can't differ between here and production. Keep the LocalStack tag in step
+# with docker-compose.yml.
+#
+# `postgres` and `localstack` are the provider's own container names, not names chosen here —
+# they come from the test-resources modules on the build's testResourcesService classpath.
 test-resources:
   containers:
     postgres:
       image-name: postgres:16
+    localstack:
+      image-name: localstack/localstack:4.14.0
+
+# Test Resources supplies aws.services.s3.endpoint-override for the container it starts, but
+# only because nothing here sets it — it fills gaps, it does not override. Don't add an endpoint
+# to this file: it would win, and every IT would then talk to whatever it names instead of the
+# container. The region is set explicitly so the tier doesn't depend on ambient AWS config on a
+# developer machine or a runner, and because presigning reads it from Micronaut's Environment.
+# Credentials are deliberately absent — they arrive as env vars from the Test task in
+# build.gradle.kts.
+aws:
+  region: eu-west-1

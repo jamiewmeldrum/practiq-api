@@ -10,8 +10,8 @@ micronaut:
       max-page-size: 50
   object-storage:
     aws:
-      default:
-        path-style-access-enabled: true
+      # Each key here is a named storage with its own AwsS3Operations bean. Adding a second
+      # one makes unqualified injection ambiguous — qualify with @Named if that day comes.
       documents:
         enabled: true
         bucket: documents

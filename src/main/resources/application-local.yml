@@ -5,18 +5,16 @@ datasources:
     password: practiq_local
     driver-class-name: org.postgresql.Driver
 
-micronaut:
-  object-storage:
-    aws:
-      default:
-        endpoint: http://localhost:4566
-
-# Dummy credentials for LocalStack. Real environments get theirs from the default AWS
-# credential chain, not from config.
+# Point the S3 client at LocalStack. `localhost.localstack.cloud` is a public DNS record
+# whose wildcard resolves to 127.0.0.1, so bucket subdomains work locally — which means
+# URLs (presigned ones especially) take the same virtual-hosted shape as real S3 rather
+# than a path-style form that only exists locally. Needs working public DNS.
+# Credentials are deliberately absent — they come from the environment, as in deployed AWS.
 aws:
-  accessKeyId: test
-  secretKey: test
   region: eu-west-1
+  services:
+    s3:
+      endpoint-override: http://s3.localhost.localstack.cloud:4566
 
 logger:
   levels:
