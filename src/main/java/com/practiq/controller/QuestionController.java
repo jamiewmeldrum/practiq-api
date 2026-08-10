@@ -11,7 +11,6 @@ import io.micronaut.http.annotation.RequestBean;
 import io.micronaut.http.server.exceptions.NotFoundException;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
-import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -26,7 +25,7 @@ public class QuestionController {
     }
 
     @Get
-    public PageResponse<QuestionResponse> get(@Valid @RequestBean QuestionRequest request, Pageable pageable) {
+    public PageResponse<QuestionResponse> get(@RequestBean QuestionRequest request, Pageable pageable) {
         log.debug("Requested to GET approved questions");
         return questionService.get(request, pageable);
     }
