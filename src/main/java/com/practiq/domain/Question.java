@@ -41,7 +41,7 @@ public class Question {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private QuestionStatus status = QuestionStatus.PENDING;
+    private QuestionStatus status;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     @Generated
@@ -50,7 +50,7 @@ public class Question {
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<QuestionConcept> conceptLinks = new HashSet<>();
 
-    public Question() {}
+    protected Question() {}
 
     public Question(String body, QuestionDifficulty difficulty, QuestionType type, QuestionStatus status) {
         this.body = body;
