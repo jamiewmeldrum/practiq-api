@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 import static utils.TestReflection.setField;
 
 import com.practiq.domain.QuestionAttempt;
-import com.practiq.dto.filter.UserRequestFilter;
+import com.practiq.domain.identity.UserRef;
 import com.practiq.repository.QuestionAttemptRepository;
 import io.micronaut.data.model.Sort;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
@@ -50,7 +50,7 @@ class QuestionAttemptQueryRunnerTest {
                 new QuestionAttempt(questionId, sessionToken, "attempt 2"));
         when(questionAttemptRepository.findAll(anySpec(), eq(STABLE_ORDER))).thenReturn(found);
 
-        List<QuestionAttempt> result = runner.getQuestionAttempts(new UserRequestFilter(sessionToken), questionId);
+        List<QuestionAttempt> result = runner.getQuestionAttempts(new UserRef(sessionToken), questionId);
 
         assertEquals(found, result);
         verify(questionAttemptRepository).findAll(anySpec(), eq(STABLE_ORDER));

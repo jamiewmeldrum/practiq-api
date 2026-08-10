@@ -1,7 +1,7 @@
 package com.practiq.domain.query.attempt;
 
 import com.practiq.domain.QuestionAttempt;
-import com.practiq.dto.filter.UserRequestFilter;
+import com.practiq.domain.identity.UserRef;
 import com.practiq.repository.QuestionAttemptRepository;
 import io.micronaut.data.model.Sort;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
@@ -23,9 +23,8 @@ public class QuestionAttemptQueryRunner {
         this.questionAttemptSpecificationFactory = questionAttemptSpecificationFactory;
     }
 
-    public List<QuestionAttempt> getQuestionAttempts(UserRequestFilter userRequestFilter, long questionId) {
-        QuestionAttemptQuery questionAttemptQuery =
-                new QuestionAttemptQuery(questionId, userRequestFilter.sessionToken());
+    public List<QuestionAttempt> getQuestionAttempts(UserRef userRef, long questionId) {
+        QuestionAttemptQuery questionAttemptQuery = new QuestionAttemptQuery(questionId, userRef.sessionToken());
         QuerySpecification<QuestionAttempt> spec = questionAttemptSpecificationFactory.forQuery(questionAttemptQuery);
 
         return questionAttemptRepository.findAll(spec, STABLE_ORDER);

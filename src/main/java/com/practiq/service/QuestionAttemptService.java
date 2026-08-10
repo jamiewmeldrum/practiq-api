@@ -1,16 +1,15 @@
 package com.practiq.service;
 
 import com.practiq.domain.QuestionAttempt;
+import com.practiq.domain.identity.UserRef;
 import com.practiq.domain.query.attempt.QuestionAttemptQueryRunner;
 import com.practiq.domain.query.question.StudentQuestionQueryRunner;
-import com.practiq.dto.filter.UserRequestFilter;
 import com.practiq.dto.mapper.QuestionAttemptResponseMapper;
 import com.practiq.dto.request.QuestionAttemptRequest;
 import com.practiq.dto.response.QuestionAttemptResponse;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
@@ -29,12 +28,11 @@ public class QuestionAttemptService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<List<QuestionAttemptResponse>> getForQuestionId(
-            @Valid UserRequestFilter userRequestFilter, long questionId) {
+    public Optional<List<QuestionAttemptResponse>> getForQuestionId(@Valid UserRef userRef, long questionId) {
         log.debug("Getting question attempt for question id: {}", questionId);
 
         if (questionQueryRunner.doesQuestionExistForId(questionId)) {
-            return Optional.of(questionAttemptQueryRunner.getQuestionAttempts(userRequestFilter, questionId).stream()
+            return Optional.of(questionAttemptQueryRunner.getQuestionAttempts(userRef, questionId).stream()
                     .map(QuestionAttemptResponseMapper::toQuestionAttemptResponse)
                     .toList());
         } else {
@@ -44,11 +42,11 @@ public class QuestionAttemptService {
 
     @Transactional
     public Optional<QuestionAttemptResponse> postForQuestionId(
-            @NotBlank String sessionToken, @Valid QuestionAttemptRequest request, long questionId) {
+            @Valid UserRef userRef, @Valid QuestionAttemptRequest request, long questionId) {
         log.debug("Posting question attempt for question id: {}", questionId);
 
         if (questionQueryRunner.doesQuestionExistForId(questionId)) {
-            QuestionAttempt attempt = new QuestionAttempt(questionId, sessionToken, request.body());
+            QuestionAttempt attempt = new QuestionAttempt(questionId, userRef.sessionToken(), request.body());
             QuestionAttempt savedAttempt = questionAttemptQueryRunner.createQuestionAttempt(attempt);
             QuestionAttemptResponse response = QuestionAttemptResponseMapper.toQuestionAttemptResponse(savedAttempt);
             return Optional.of(response);

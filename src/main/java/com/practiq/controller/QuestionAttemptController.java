@@ -1,6 +1,6 @@
 package com.practiq.controller;
 
-import com.practiq.dto.filter.UserRequestFilter;
+import com.practiq.domain.identity.UserRef;
 import com.practiq.dto.request.QuestionAttemptRequest;
 import com.practiq.dto.response.QuestionAttemptResponse;
 import com.practiq.http.HttpConstants;
@@ -29,9 +29,8 @@ public class QuestionAttemptController {
             @Header(HttpConstants.SESSION_TOKEN_HEADER) String sessionToken, long questionId) {
         log.debug("Requested to GET question attempts for question id: {}", questionId);
 
-        UserRequestFilter userRequestFilter = new UserRequestFilter(sessionToken);
         return questionAttemptService
-                .getForQuestionId(userRequestFilter, questionId)
+                .getForQuestionId(new UserRef(sessionToken), questionId)
                 .orElseThrow(NotFoundException::new);
     }
 
@@ -45,7 +44,7 @@ public class QuestionAttemptController {
         log.trace("POST body: {}", request.body());
 
         return questionAttemptService
-                .postForQuestionId(sessionToken, request, questionId)
+                .postForQuestionId(new UserRef(sessionToken), request, questionId)
                 .orElseThrow(NotFoundException::new);
     }
 }
