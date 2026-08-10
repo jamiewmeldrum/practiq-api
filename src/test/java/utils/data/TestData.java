@@ -363,6 +363,11 @@ public class TestData {
             return this;
         }
 
+        public DocumentRow withoutStatus() {
+            columns.put("status", null);
+            return this;
+        }
+
         public DocumentRow createdAt(OffsetDateTime createdAt) {
             columns.put("created_at", createdAt);
             return this;

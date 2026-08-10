@@ -5,6 +5,7 @@ import static jakarta.persistence.GenerationType.IDENTITY;
 import com.practiq.domain.types.DocumentStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.ToString;
@@ -29,11 +30,11 @@ public class Document {
     @NotNull @Column(name = "filename", nullable = false)
     private String filename;
 
-    @Column(name = "source_spec")
+    @Size(max = 255) @Column(name = "source_spec")
     private String sourceSpec;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status")
+    @Column(name = "status", nullable = false)
     private DocumentStatus status;
 
     @Column(name = "created_at", insertable = false, updatable = false)

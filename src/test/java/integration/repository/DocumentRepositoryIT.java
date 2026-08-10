@@ -2,6 +2,7 @@ package integration.repository;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.TestReflection.setField;
 
@@ -9,6 +10,10 @@ import com.practiq.domain.Document;
 import com.practiq.repository.DocumentRepository;
 import jakarta.inject.Inject;
 import jakarta.persistence.OptimisticLockException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import java.util.Set;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
@@ -60,5 +65,27 @@ class DocumentRepositoryIT {
         Document survivor = documentRepository.findAll().getFirst();
         assertThat(survivor.getFilename(), equalTo("Updated first."));
         assertThat(survivor.getVersion(), equalTo(1));
+    }
+
+    @Test
+    void cannotSaveDocumentWithTooLongSourceSpec() {
+        data.document("s3key", "filename").insert();
+
+        // Check 255 chars saves
+        Document valid = documentRepository.findAll().getFirst();
+        setField(valid, "sourceSpec", RandomStringUtils.insecure().nextAlphanumeric(255));
+        documentRepository.update(valid);
+        assertThat(documentRepository.findAll().getFirst().getVersion(), equalTo(1));
+
+        // Check 256 chars doesn't save
+        Document invalid = documentRepository.findAll().getFirst();
+        setField(invalid, "sourceSpec", RandomStringUtils.insecure().nextAlphanumeric(256));
+        ConstraintViolationException thrown =
+                assertThrows(ConstraintViolationException.class, () -> documentRepository.update(invalid));
+
+        Set<ConstraintViolation<?>> constraintViolations = thrown.getConstraintViolations();
+        assertThat(constraintViolations.size(), is(1));
+        String message = constraintViolations.stream().findFirst().get().getMessage();
+        assertThat(message, equalTo("size must be between 0 and 255"));
     }
 }

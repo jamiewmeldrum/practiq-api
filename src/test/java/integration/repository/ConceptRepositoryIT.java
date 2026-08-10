@@ -3,6 +3,8 @@ package integration.repository;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.TestReflection.setField;
 
@@ -10,8 +12,12 @@ import com.practiq.domain.Concept;
 import com.practiq.repository.ConceptRepository;
 import jakarta.inject.Inject;
 import jakarta.persistence.OptimisticLockException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Set;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
@@ -83,5 +89,24 @@ class ConceptRepositoryIT {
         Concept survivor = conceptRepository.findAll().getFirst();
         assertThat(survivor.getDescription(), equalTo("Updated first."));
         assertThat(survivor.getVersion(), equalTo(1));
+    }
+
+    @Test
+    void cannotSaveConceptWithTooLongName() {
+        // Check 200 chars saves
+        String validName = RandomStringUtils.insecure().nextAlphanumeric(200);
+        Concept validConcept = conceptRepository.save(new Concept(validName, "description"));
+        assertThat(validConcept.getId(), instanceOf(Long.class));
+
+        // Check 201 chars doesn't save
+        String name = RandomStringUtils.insecure().nextAlphanumeric(201);
+        Concept invalidConcept = new Concept(name, "description");
+        ConstraintViolationException thrown =
+                assertThrows(ConstraintViolationException.class, () -> conceptRepository.save(invalidConcept));
+
+        Set<ConstraintViolation<?>> constraintViolations = thrown.getConstraintViolations();
+        assertThat(constraintViolations.size(), is(1));
+        String message = constraintViolations.stream().findFirst().get().getMessage();
+        assertThat(message, equalTo("size must be between 0 and 200"));
     }
 }

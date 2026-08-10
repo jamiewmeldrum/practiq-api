@@ -8,6 +8,7 @@ import static utils.data.TestDatabase.*;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.List;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
@@ -95,5 +96,26 @@ class ConceptDatabaseIT {
         // SQLState alone is conclusive here: name is the only unique constraint on the table. (Unlike the
         // not-null messages, a unique-violation message names the constraint, not a quoted column.)
         assertThat(sqlStateOf(thrown), equalTo(UNIQUE_VIOLATION));
+    }
+
+    @Test
+    void ensureThatNameMustNotBeTooLong() {
+        String name = RandomStringUtils.insecure().nextAlphanumeric(200);
+        data.concept().name(name).description("description").insert();
+
+        List<DBRow> concepts = data.retrieveConcepts();
+        DBRow concept = concepts.getFirst();
+        concept.assertThat("name", equalTo(name));
+
+        String nameTooLong = RandomStringUtils.insecure().nextAlphanumeric(201);
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> data.concept()
+                .name(nameTooLong)
+                .description("description")
+                .insert());
+
+        assertThat(sqlStateOf(thrown), equalTo(VALUE_TOO_LONG));
+        assertThat(
+                thrown.getCause().getMessage(),
+                containsString("ERROR: value too long for type character varying(200)"));
     }
 }
