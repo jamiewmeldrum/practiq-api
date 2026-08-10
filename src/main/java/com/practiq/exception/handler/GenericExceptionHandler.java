@@ -1,4 +1,4 @@
-package com.practiq.exception;
+package com.practiq.exception.handler;
 
 import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
 

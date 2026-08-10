@@ -467,6 +467,16 @@ tests are owed per *new query*, not per endpoint.
   defaults to EAGER and its inverse side can't be lazy without bytecode enhancement, so both directions fire wasted
   selects. **Carve-out:** `Question.conceptLinks` `@OneToMany` stays — that's *within* the aggregate, it's lazy, and the
   admin concepts write path needs it. See D-031.
+- **Entities never carry value defaults on fields.** An entity's initial state is set by a full-body constructor or a
+  named factory method; the no-arg constructor is protected (Hibernate's only). A field initialiser makes "I forgot to
+  set this" and "I meant this value" indistinguishable, and silently owns a decision that a second creation path would
+  want to make for itself. **Collection initialisers are not value defaults and stay** — an unset collection is an NPE,
+  not a lifecycle decision. **The DB column default stays and serves a different caller:** Hibernate lists every mapped
+  column in its INSERT, so a column default is never reachable from application writes — it guards non-JPA writers
+  only (`TestData`, seed scripts) and is pinned by the table's `*DatabaseIT`. *Applied:* `Question.status` lost
+  `= PENDING`; `Question`/`QuestionAttempt` no-arg constructors dropped to protected. `Document` and `QuestionOrigin`
+  are not yet compliant — implicit public no-arg constructor, no populating constructor — which is the document branch's
+  work.
 - **Origin is a separate per-type table, never columns on the content.** A question's provenance (`AUTHORED`/
   `EXTRACTED`/`GENERATED`, and the source document if extracted) lives in `question_origin`, not on `question`. Reasons:
   origin is *cold* (read <1% of the time — keep it off the hot catalogue row) and *polymorphic in shape but not in

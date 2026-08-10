@@ -58,6 +58,13 @@ curl http://localhost:8080/health
 > base config has no datasource URL and Micronaut Test Resources would start a throwaway
 > Postgres container instead of using your Compose DB.
 
+The `run` task also supplies `PRACTIQ_ADMIN_KEY=local-admin-key`, so admin routes expect
+`X-Admin-Key: local-admin-key` on a locally started app:
+
+```bash
+curl -H "X-Admin-Key: local-admin-key" http://localhost:8080/api/v1/admin/documents
+```
+
 ### Running/debugging from IntelliJ
 
 Running the application's main class directly in IntelliJ (e.g. to attach the debugger)
@@ -68,6 +75,7 @@ automatically. Add an environment variable to the run configuration:
 MICRONAUT_ENVIRONMENTS=local
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
+PRACTIQ_ADMIN_KEY=local-admin-key
 ```
 
 Without `MICRONAUT_ENVIRONMENTS`, the app starts with no datasource URL and Test Resources
@@ -75,6 +83,15 @@ spins up a throwaway Postgres container instead of connecting to your Compose DB
 AWS variables are the LocalStack credentials the `run` task supplies (see
 [LocalStack and S3](#localstack-and-s3)); without them any S3 call fails to resolve
 credentials.
+
+`PRACTIQ_ADMIN_KEY` fails differently from the other three: it is the only one the app
+refuses to start without. `application.yml` binds `practiq.admin-key` straight from it with
+no fallback, and `AdminKeyValidator` throws from its constructor if the value is missing or
+blank — so the context never comes up, and you find out at startup rather than on the first
+admin request. That is deliberate: a stand-in credential that silently defaulted to
+something would be worse than no credential at all. The value itself is a throwaway and is
+never committed to configuration — it lives in the `run` task and in your IDE run
+configuration, which is also how a deployed environment will supply the real one.
 
 ## LocalStack and S3
 

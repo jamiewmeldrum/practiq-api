@@ -1,8 +1,6 @@
-package com.practiq.exception;
+package com.practiq.exception.handler;
 
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
-import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
-import static io.micronaut.http.HttpStatus.NOT_FOUND;
+import static io.micronaut.http.HttpStatus.*;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;

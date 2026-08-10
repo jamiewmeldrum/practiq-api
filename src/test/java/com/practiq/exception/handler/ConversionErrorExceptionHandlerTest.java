@@ -1,4 +1,4 @@
-package com.practiq.exception;
+package com.practiq.exception.handler;
 
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static org.junit.jupiter.api.Assertions.assertEquals;

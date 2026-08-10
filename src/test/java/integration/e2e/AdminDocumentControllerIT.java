@@ -7,6 +7,7 @@ import static io.restassured.RestAssured.given;
 import static io.restassured.config.EncoderConfig.encoderConfig;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static utils.data.TestData.ADMIN_KEY;
 import static utils.data.TestData.ADMIN_KEY_HEADER;
 
 import com.practiq.domain.types.DocumentStatus;
@@ -35,7 +36,7 @@ class AdminDocumentControllerIT {
 
     private static final String TARGET_BUCKET = "documents";
 
-    private static final String DOCUMENTS_PATH = "/api/v1/admin/documents";
+    private static final String ADMIN_DOCUMENTS_PATH = "/api/v1/admin/documents";
 
     // TODO - I need to think about this more. I'm not sure I get it
     // The content type the presign signs for a .txt upload, spelled out rather than read from FileType so a
@@ -81,9 +82,9 @@ class AdminDocumentControllerIT {
 
         Response response = given().when()
                 .body(requestBody)
-                .header(new Header(ADMIN_KEY_HEADER, "admin"))
+                .header(new Header(ADMIN_KEY_HEADER, ADMIN_KEY))
                 .contentType(ContentType.JSON)
-                .post(DOCUMENTS_PATH)
+                .post(ADMIN_DOCUMENTS_PATH)
                 .then()
                 .statusCode(CREATED.getCode())
                 .contentType(ContentType.JSON)
