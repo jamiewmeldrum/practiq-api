@@ -34,4 +34,24 @@ public class QuestionOrigin {
     @Column(name = "created_at", insertable = false, updatable = false)
     @Generated
     private Instant createdAt;
+
+    protected QuestionOrigin() {}
+
+    private QuestionOrigin(long questionId, QuestionAuthorship authorship, Long documentId) {
+        this.questionId = questionId;
+        this.authorship = authorship;
+        this.documentId = documentId;
+    }
+
+    public static QuestionOrigin authored(long questionId) {
+        return new QuestionOrigin(questionId, QuestionAuthorship.AUTHORED, null);
+    }
+
+    public static QuestionOrigin extracted(long questionId, long documentId) {
+        return new QuestionOrigin(questionId, QuestionAuthorship.EXTRACTED, documentId);
+    }
+
+    public static QuestionOrigin generated(long questionId) {
+        return new QuestionOrigin(questionId, QuestionAuthorship.GENERATED, null);
+    }
 }
