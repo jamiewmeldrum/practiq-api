@@ -12,6 +12,7 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
+import jakarta.validation.Valid;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,7 +33,7 @@ public class QuestionService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<QuestionResponse> get(QuestionRequest request, Pageable pageable) {
+    public PageResponse<QuestionResponse> get(@Valid QuestionRequest request, Pageable pageable) {
         log.debug("Getting approved questions, page {}", pageable.getNumber());
         Page<LinkedQuestion> page = questionQueryRunner.findQuestionsPagedAndFiltered(
                 request.types(), request.difficulties(), request.conceptId(), pageable);

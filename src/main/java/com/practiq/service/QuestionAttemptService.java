@@ -9,6 +9,8 @@ import com.practiq.dto.request.QuestionAttemptRequest;
 import com.practiq.dto.response.QuestionAttemptResponse;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +30,7 @@ public class QuestionAttemptService {
 
     @Transactional(readOnly = true)
     public Optional<List<QuestionAttemptResponse>> getForQuestionId(
-            UserRequestFilter userRequestFilter, long questionId) {
+            @Valid UserRequestFilter userRequestFilter, long questionId) {
         log.debug("Getting question attempt for question id: {}", questionId);
 
         if (questionQueryRunner.doesQuestionExistForId(questionId)) {
@@ -42,7 +44,7 @@ public class QuestionAttemptService {
 
     @Transactional
     public Optional<QuestionAttemptResponse> postForQuestionId(
-            String sessionToken, QuestionAttemptRequest request, long questionId) {
+            @NotBlank String sessionToken, @Valid QuestionAttemptRequest request, long questionId) {
         log.debug("Posting question attempt for question id: {}", questionId);
 
         if (questionQueryRunner.doesQuestionExistForId(questionId)) {

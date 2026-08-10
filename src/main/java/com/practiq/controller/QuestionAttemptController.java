@@ -10,8 +10,6 @@ import io.micronaut.http.annotation.*;
 import io.micronaut.http.server.exceptions.NotFoundException;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,7 +26,7 @@ public class QuestionAttemptController {
 
     @Get("/{questionId}/attempts")
     public List<QuestionAttemptResponse> getForQuestionId(
-            @NotBlank @Header(HttpConstants.SESSION_TOKEN_HEADER) String sessionToken, long questionId) {
+            @Header(HttpConstants.SESSION_TOKEN_HEADER) String sessionToken, long questionId) {
         log.debug("Requested to GET question attempts for question id: {}", questionId);
 
         UserRequestFilter userRequestFilter = new UserRequestFilter(sessionToken);
@@ -40,8 +38,8 @@ public class QuestionAttemptController {
     @Post("/{questionId}/attempts")
     @Status(HttpStatus.CREATED)
     public QuestionAttemptResponse postForQuestionId(
-            @NotBlank @Header(HttpConstants.SESSION_TOKEN_HEADER) String sessionToken,
-            @Valid @Body QuestionAttemptRequest request,
+            @Header(HttpConstants.SESSION_TOKEN_HEADER) String sessionToken,
+            @Body QuestionAttemptRequest request,
             long questionId) {
         log.debug("Requested to POST question attempt for question id: {}", questionId);
         log.trace("POST body: {}", request.body());

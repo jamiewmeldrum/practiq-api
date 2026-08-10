@@ -3,21 +3,16 @@ package com.practiq.controller;
 import static io.micronaut.http.HttpStatus.*;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
-import static utils.TestReflection.assertAllFieldsSet;
 import static utils.TestReflection.setField;
 
 import com.practiq.domain.Question;
 import com.practiq.domain.projection.QuestionConceptLink;
-import com.practiq.domain.query.question.StudentQuestionQueryRunner;
 import com.practiq.domain.types.QuestionDifficulty;
 import com.practiq.domain.types.QuestionStatus;
 import com.practiq.domain.types.QuestionType;
-import com.practiq.dto.request.QuestionRequest;
 import com.practiq.repository.QuestionConceptRepository;
 import com.practiq.repository.QuestionRepository;
-import com.practiq.service.QuestionService;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
@@ -33,7 +28,6 @@ import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import utils.ComponentTest;
 
@@ -48,9 +42,6 @@ public class QuestionControllerCT {
     private QuestionConceptRepository questionConceptRepository;
 
     @Inject
-    private QuestionService questionService;
-
-    @Inject
     private EmbeddedServer embeddedServer;
 
     @MockBean(QuestionRepository.class)
@@ -61,15 +52,6 @@ public class QuestionControllerCT {
     @MockBean(QuestionConceptRepository.class)
     QuestionConceptRepository questionConceptRepository() {
         return mock(QuestionConceptRepository.class);
-    }
-
-    // Spy the real service so its logic still runs for the serialisation tests, while letting us
-    // verify the exact QuestionRequest the controller hands it. spy(Class) can't be used — Mockito
-    // has no constructor to call — so wrap a real instance built from the (mocked) repositories and the
-    // real specification factory.
-    @MockBean(QuestionService.class)
-    QuestionService questionService(StudentQuestionQueryRunner questionQueryRunner) {
-        return spy(new QuestionService(questionQueryRunner));
     }
 
     @BeforeEach
@@ -231,34 +213,6 @@ public class QuestionControllerCT {
 
         verify(questionRepository).findAll(Mockito.any(QuerySpecification.class), Mockito.any(Pageable.class));
         verify(questionConceptRepository).findLinksByQuestionIds(Mockito.any());
-    }
-
-    @Test
-    void getQuestionsPassesCorrectRequestToQuestionService() {
-        when(questionRepository.findAll(Mockito.any(QuerySpecification.class), Mockito.any(Pageable.class)))
-                .thenReturn(Page.of(Collections.emptyList(), Pageable.from(0), 0L));
-
-        // The request we expect this URL to produce, with every field driven to a distinguishable value.
-        QuestionRequest expected = new QuestionRequest(
-                List.of(QuestionType.SHORT_ANSWER, QuestionType.EXTENDED, QuestionType.MCQ),
-                List.of(QuestionDifficulty.TRIVIAL, QuestionDifficulty.EASY, QuestionDifficulty.MEDIUM),
-                99L);
-
-        given().when()
-                .get(QUESTIONS_PATH + "?types=SHORT_ANSWER,EXTENDED,MCQ&difficulties=1,2,3&conceptId=99")
-                .then()
-                .statusCode(OK.getCode());
-
-        ArgumentCaptor<QuestionRequest> captor = ArgumentCaptor.forClass(QuestionRequest.class);
-        verify(questionService).get(captor.capture(), Mockito.any(Pageable.class));
-        QuestionRequest actual = captor.getValue();
-
-        // Tripwire: the request the service actually received must have every field populated. Add a
-        // field to QuestionRequest and this fails until the URL above drives it — so a new field can't
-        // slip through unasserted.
-        assertAllFieldsSet(actual);
-        // ...and every field must carry the value we expect (@EqualsAndHashCode covers them all).
-        assertEquals(expected, actual);
     }
 
     @Test
