@@ -9,7 +9,6 @@ import io.micronaut.http.annotation.*;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.netty.util.internal.StringUtil;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,7 +29,7 @@ public class AdminDocumentController {
             @NotBlank @Header(HttpConstants.ADMIN_KEY_HEADER)
                     String adminKey, // TODO - would be nice to have an annotation to auto check this has been provided
             // or at least wrap this @MandatoryHeader or something
-            @Valid @Body PostDocumentRequest request) {
+            @Body PostDocumentRequest request) {
         log.debug("Requested to POST document with filename {}", request.filename());
 
         // TODO - this authenticates nothing: any non-blank header value is accepted, so the endpoint is

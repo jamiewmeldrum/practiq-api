@@ -8,6 +8,7 @@ import com.practiq.storage.FileType;
 import com.practiq.storage.S3DocumentStorage;
 import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
+import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.UUID;
 
@@ -22,7 +23,7 @@ public class DocumentService {
         this.documentStorage = documentStorage;
     }
 
-    public UploadDocumentResponse stageDocumentUpload(PostDocumentRequest request) {
+    public UploadDocumentResponse stageDocumentUpload(@Valid PostDocumentRequest request) {
 
         // TODO - likely brittle so resolve shortly
         String filename = request.filename();
