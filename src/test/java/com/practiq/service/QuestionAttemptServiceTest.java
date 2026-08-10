@@ -8,9 +8,9 @@ import static org.mockito.Mockito.when;
 import static utils.TestReflection.setField;
 
 import com.practiq.domain.QuestionAttempt;
+import com.practiq.domain.identity.UserRef;
 import com.practiq.domain.query.attempt.QuestionAttemptQueryRunner;
 import com.practiq.domain.query.question.StudentQuestionQueryRunner;
-import com.practiq.dto.filter.UserRequestFilter;
 import com.practiq.dto.request.QuestionAttemptRequest;
 import com.practiq.dto.response.QuestionAttemptResponse;
 import java.time.Instant;
@@ -38,12 +38,11 @@ class QuestionAttemptServiceTest {
     void getQuestionAttemptByIdReturnsOptionalEmptyIfNoQuestionForId() {
         long questionId = 5L;
         String sessionToken = "session-token";
-        UserRequestFilter userRequestFilter = new UserRequestFilter(sessionToken);
+        UserRef userRef = new UserRef(sessionToken);
 
         when(questionQueryRunner.doesQuestionExistForId(questionId)).thenReturn(false);
 
-        Optional<List<QuestionAttemptResponse>> attempts =
-                questionAttemptService.getForQuestionId(userRequestFilter, questionId);
+        Optional<List<QuestionAttemptResponse>> attempts = questionAttemptService.getForQuestionId(userRef, questionId);
 
         assertThat(attempts.isPresent(), is(false));
 
@@ -54,27 +53,26 @@ class QuestionAttemptServiceTest {
     void getQuestionAttemptByIdReturnsOptionalOfEmptyListIfNoAttemptsForQuestion() {
         long questionId = 5L;
         String sessionToken = "session-token";
-        UserRequestFilter userRequestFilter = new UserRequestFilter(sessionToken);
+        UserRef userRef = new UserRef(sessionToken);
 
         when(questionQueryRunner.doesQuestionExistForId(questionId)).thenReturn(true);
-        when(questionAttemptQueryRunner.getQuestionAttempts(userRequestFilter, questionId))
+        when(questionAttemptQueryRunner.getQuestionAttempts(userRef, questionId))
                 .thenReturn(List.of());
 
-        Optional<List<QuestionAttemptResponse>> attempts =
-                questionAttemptService.getForQuestionId(userRequestFilter, questionId);
+        Optional<List<QuestionAttemptResponse>> attempts = questionAttemptService.getForQuestionId(userRef, questionId);
 
         assertThat(attempts.isPresent(), is(true));
         assertThat(attempts.get(), empty());
 
         verify(questionQueryRunner).doesQuestionExistForId(questionId);
-        verify(questionAttemptQueryRunner).getQuestionAttempts(userRequestFilter, questionId);
+        verify(questionAttemptQueryRunner).getQuestionAttempts(userRef, questionId);
     }
 
     @Test
     void getQuestionAttemptByIdReturnsOptionalListIfAttemptsForQuestion() {
         long questionId = 5L;
         String sessionToken = "session-token";
-        UserRequestFilter userRequestFilter = new UserRequestFilter(sessionToken);
+        UserRef userRef = new UserRef(sessionToken);
 
         long attemptId1 = 10L;
         String attemptBody1 = "attempt1";
@@ -91,11 +89,10 @@ class QuestionAttemptServiceTest {
         setField(attempt2, "createdAt", createdAt2);
 
         when(questionQueryRunner.doesQuestionExistForId(questionId)).thenReturn(true);
-        when(questionAttemptQueryRunner.getQuestionAttempts(userRequestFilter, questionId))
+        when(questionAttemptQueryRunner.getQuestionAttempts(userRef, questionId))
                 .thenReturn(List.of(attempt1, attempt2));
 
-        Optional<List<QuestionAttemptResponse>> attempts =
-                questionAttemptService.getForQuestionId(userRequestFilter, questionId);
+        Optional<List<QuestionAttemptResponse>> attempts = questionAttemptService.getForQuestionId(userRef, questionId);
 
         // The full ordered response list is the service's observable outcome — asserted independently of how it
         // is produced, so a mis-wired or broken mapping fails here even though the mapper's own test stays green.
@@ -115,7 +112,7 @@ class QuestionAttemptServiceTest {
         assertThat(attemptResponse2.getCreatedAt(), equalTo(createdAt2));
 
         verify(questionQueryRunner).doesQuestionExistForId(questionId);
-        verify(questionAttemptQueryRunner).getQuestionAttempts(userRequestFilter, questionId);
+        verify(questionAttemptQueryRunner).getQuestionAttempts(userRef, questionId);
     }
 
     @Test
@@ -128,7 +125,7 @@ class QuestionAttemptServiceTest {
         when(questionQueryRunner.doesQuestionExistForId(questionId)).thenReturn(false);
 
         Optional<QuestionAttemptResponse> attempt =
-                questionAttemptService.postForQuestionId(sessionToken, request, questionId);
+                questionAttemptService.postForQuestionId(new UserRef(sessionToken), request, questionId);
 
         assertThat(attempt.isPresent(), is(false));
 
@@ -153,7 +150,7 @@ class QuestionAttemptServiceTest {
         when(questionAttemptQueryRunner.createQuestionAttempt(incomingAttempt)).thenReturn(attemptDB);
 
         Optional<QuestionAttemptResponse> attempt =
-                questionAttemptService.postForQuestionId(sessionToken, request, questionId);
+                questionAttemptService.postForQuestionId(new UserRef(sessionToken), request, questionId);
 
         assertThat(attempt.isPresent(), is(true));
 

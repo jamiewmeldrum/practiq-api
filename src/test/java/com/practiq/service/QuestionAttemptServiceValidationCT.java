@@ -3,7 +3,7 @@ package com.practiq.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.practiq.dto.filter.UserRequestFilter;
+import com.practiq.domain.identity.UserRef;
 import com.practiq.dto.request.QuestionAttemptRequest;
 import jakarta.inject.Inject;
 import jakarta.validation.ConstraintViolationException;
@@ -20,33 +20,36 @@ class QuestionAttemptServiceValidationCT {
     private QuestionAttemptService questionAttemptService;
 
     @Test
-    void getForQuestionIdRejectsBlankSessionTokenOnFilter() {
-        UserRequestFilter filter = new UserRequestFilter(BLANK);
+    void getForQuestionIdRejectsBlankSessionTokenOnUserRef() {
+        UserRef userRef = new UserRef(BLANK);
 
         ConstraintViolationException exception = assertThrows(
-                ConstraintViolationException.class, () -> questionAttemptService.getForQuestionId(filter, QUESTION_ID));
+                ConstraintViolationException.class,
+                () -> questionAttemptService.getForQuestionId(userRef, QUESTION_ID));
 
-        assertEquals("getForQuestionId.userRequestFilter.sessionToken: must not be blank", exception.getMessage());
+        assertEquals("getForQuestionId.userRef.sessionToken: must not be blank", exception.getMessage());
     }
 
     @Test
-    void postForQuestionIdRejectsBlankSessionToken() {
+    void postForQuestionIdRejectsBlankSessionTokenOnUserRef() {
+        UserRef userRef = new UserRef(BLANK);
         QuestionAttemptRequest request = new QuestionAttemptRequest("an attempt");
 
         ConstraintViolationException exception = assertThrows(
                 ConstraintViolationException.class,
-                () -> questionAttemptService.postForQuestionId(BLANK, request, QUESTION_ID));
+                () -> questionAttemptService.postForQuestionId(userRef, request, QUESTION_ID));
 
-        assertEquals("postForQuestionId.sessionToken: must not be blank", exception.getMessage());
+        assertEquals("postForQuestionId.userRef.sessionToken: must not be blank", exception.getMessage());
     }
 
     @Test
     void postForQuestionIdRejectsBlankBodyOnRequest() {
+        UserRef userRef = new UserRef("a session token");
         QuestionAttemptRequest request = new QuestionAttemptRequest(BLANK);
 
         ConstraintViolationException exception = assertThrows(
                 ConstraintViolationException.class,
-                () -> questionAttemptService.postForQuestionId("a session token", request, QUESTION_ID));
+                () -> questionAttemptService.postForQuestionId(userRef, request, QUESTION_ID));
 
         assertEquals("postForQuestionId.request.body: must not be blank", exception.getMessage());
     }
