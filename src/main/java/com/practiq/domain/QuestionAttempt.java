@@ -35,7 +35,7 @@ public class QuestionAttempt {
     @Generated
     private Instant createdAt;
 
-    public QuestionAttempt() {}
+    protected QuestionAttempt() {}
 
     public QuestionAttempt(long questionId, String sessionToken, String body) {
         this.questionId = questionId;
