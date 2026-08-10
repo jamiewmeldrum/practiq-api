@@ -1,4 +1,4 @@
-package com.practiq.exception;
+package com.practiq.exception.handler;
 
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.annotation.Controller;

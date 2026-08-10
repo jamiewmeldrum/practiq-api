@@ -38,3 +38,6 @@ jpa:
           allow_jdbc_metadata_access: false
         temp:
           use_jdbc_metadata_defaults: false
+
+practiq:
+  admin-key: "b10ef800-3a3a-4395-9bbd-bfe2fa316872"

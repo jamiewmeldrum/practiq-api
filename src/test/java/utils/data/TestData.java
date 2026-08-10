@@ -13,6 +13,8 @@ public class TestData {
     public static final String SESSION_TOKEN_HEADER = "X-Session-Token";
     public static final String ADMIN_KEY_HEADER = "X-Admin-Key";
 
+    public static final String ADMIN_KEY = "b10ef800-3a3a-4395-9bbd-bfe2fa316872";
+
     private static final String CONCEPT_TABLE = "concept";
     private static final String QUESTION_TABLE = "question";
     private static final String QUESTION_CONCEPT_TABLE = "question_concept";
