@@ -66,6 +66,22 @@ class DocumentDatabaseIT {
     }
 
     @Test
+    void ensureThatStatusMustBeSet() {
+        data.document("s3:path1", "file:path").status(DocumentStatus.APPROVED).insert();
+
+        List<DBRow> documents = data.retrieveDocuments();
+        DBRow document = documents.getFirst();
+        document.assertThat("status", equalTo(DocumentStatus.APPROVED.name()));
+
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class,
+                () -> data.document("s3:path2", "file:path").withoutStatus().insert());
+
+        assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
+        assertThat(thrown.getCause().getMessage(), containsString("status"));
+    }
+
+    @Test
     void ensureThatStatusMustBeValid() {
         data.document("s3:path1", "file:path").status(DocumentStatus.APPROVED).insert();
 

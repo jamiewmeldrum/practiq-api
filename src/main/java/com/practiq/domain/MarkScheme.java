@@ -19,7 +19,7 @@ public class MarkScheme {
     @GeneratedValue(strategy = IDENTITY)
     private long id;
 
-    @Column(name = "question_id", nullable = false, updatable = false)
+    @Column(name = "question_id", nullable = false, updatable = false, unique = true)
     private long questionId;
 
     @Version

@@ -4,6 +4,7 @@ import static jakarta.persistence.GenerationType.IDENTITY;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.ToString;
@@ -22,7 +23,7 @@ public class Concept {
     @Version
     private int version;
 
-    @NotNull @Column(name = "name", nullable = false, unique = true)
+    @NotNull @Size(max = 200) @Column(name = "name", nullable = false, unique = true)
     private String name;
 
     @NotNull @Column(name = "description", nullable = false)
