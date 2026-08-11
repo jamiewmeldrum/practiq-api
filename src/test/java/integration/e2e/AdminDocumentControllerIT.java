@@ -76,7 +76,7 @@ class AdminDocumentControllerIT {
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("filename", filename);
-        requestBody.put("contentType", "txt");
+        requestBody.put("contentType", SIGNED_CONTENT_TYPE);
         requestBody.put("contentLength", content.length);
         requestBody.put("sourceSpec", sourceSpec);
 
