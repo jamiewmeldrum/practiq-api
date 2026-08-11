@@ -7,7 +7,7 @@ plugins {
     id("io.micronaut.test-resources") version "4.6.2"
     id("io.micronaut.aot") version "4.6.2"
     id("com.diffplug.spotless") version "7.2.1"
-    id("net.ltgt.errorprone") version "4.3.0"
+    id("net.ltgt.errorprone") version "5.1.0"
 }
 
 version = "0.1"
