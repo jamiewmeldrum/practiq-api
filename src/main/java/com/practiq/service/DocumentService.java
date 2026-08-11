@@ -32,7 +32,7 @@ public class DocumentService {
                 stagedDocumentUpload.key(), stagedDocumentUpload.filename(), stagedDocumentUpload.sourceSpec());
 
         URI uri = documentStorage.generatePresignedUploadURI(
-                stagedDocumentUpload.key(), stagedDocumentUpload.mediaType(), stagedDocumentUpload.contentLength());
+                stagedDocumentUpload.key(), stagedDocumentUpload.contentType(), stagedDocumentUpload.contentLength());
 
         documentRepository.save(document);
         return new UploadDocumentResponse(document.getId(), uri.toString());

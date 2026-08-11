@@ -6,6 +6,7 @@ import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import utils.RegexUtils;
 
 @Singleton
 public class TestData {
@@ -22,8 +23,6 @@ public class TestData {
     private static final String QUESTION_ATTEMPT = "question_attempt";
     private static final String DOCUMENT = "document";
     private static final String QUESTION_ORIGIN = "question_origin";
-
-    private static final String ISO_8601_UTC = "\\d{4}-\\d{2}-\\d{2}T.*Z";
 
     protected final TestDatabase testDatabase;
 
@@ -42,7 +41,7 @@ public class TestData {
     }
 
     public String getInstantPattern() {
-        return ISO_8601_UTC;
+        return RegexUtils.ISO_8601_UTC;
     }
 
     public QuestionRow question() {
