@@ -5,7 +5,10 @@ import com.practiq.exception.EntityValidationException;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.exceptions.ContentLengthExceededException;
 import jakarta.inject.Singleton;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.utils.StringUtils;
 
@@ -14,8 +17,8 @@ public class DocumentStager {
 
     public static final int MAX_CONTENT_LENGTH = 1024 * 1024 * 5; // 5Mb
 
-    private static final Set<MediaType> ACCEPTED_MEDIA_TYPES = Arrays.stream(DocumentFileType.values())
-            .map(DocumentFileType::mediaType)
+    private static final Set<MediaType> ACCEPTED_CONTENT_TYPES = Arrays.stream(DocumentFileType.values())
+            .map(DocumentFileType::contentType)
             .collect(Collectors.toSet());
 
     public DocumentStager() {}
@@ -27,39 +30,51 @@ public class DocumentStager {
                     "Length of content (%s) is greater than %s".formatted(contentLength, MAX_CONTENT_LENGTH));
         }
 
-        String targetMediaType = request.contentType();
-        MediaType requestedMediaType = MediaType.of(targetMediaType.toLowerCase(Locale.ROOT));
-        if (!isAcceptedMediaType(requestedMediaType)) {
-            throw new EntityValidationException("Unsupported media type specified: " + targetMediaType);
+        String targetContentType = request.contentType();
+        if (StringUtils.isBlank(targetContentType)) {
+            throw new EntityValidationException("contentType", "must not be blank");
+        }
+
+        MediaType requestedContentType = parseContentType(targetContentType);
+        if (!isAcceptedContentType(requestedContentType)) {
+            throw new EntityValidationException(
+                    "contentType", "'%s' is not a supported content type".formatted(targetContentType));
         }
 
         String filename = request.filename();
+        if (StringUtils.isBlank(filename)) {
+            throw new EntityValidationException("filename", "must not be blank");
+        }
+
         String extension = fileExtension(filename);
         if (StringUtils.isBlank(extension)) {
-            throw new EntityValidationException("File extension is could not be determined: " + filename);
+            throw new EntityValidationException("filename", "must have a file extension");
         }
 
-        MediaType derivedMediaType = mediaTypeOf(extension)
-                .orElseThrow(() ->
-                        new EntityValidationException("Unrecognised file extension for file with name: " + filename));
-        if (!isAcceptedMediaType(derivedMediaType)) {
-            throw new EntityValidationException("Unsupported file type for file with name: " + filename);
+        MediaType derivedContentType = MediaType.forExtension(extension)
+                .orElseThrow(() -> new EntityValidationException(
+                        "filename", "'.%s' is not a recognised file extension".formatted(extension)));
+        if (!isAcceptedContentType(derivedContentType)) {
+            throw new EntityValidationException("filename", "'.%s' files are not supported".formatted(extension));
         }
 
-        if (!requestedMediaType.equals(derivedMediaType)) {
+        if (!requestedContentType.equals(derivedContentType)) {
             throw new EntityValidationException(
-                    "Media type for file %s does not match specified type %s: ".formatted(filename, targetMediaType));
+                    "contentType",
+                    "'%s' does not match the '.%s' file extension".formatted(targetContentType, extension));
         }
 
         String key = UUID.randomUUID() + "." + extension;
-        return new StagedDocumentUpload(key, filename, request.sourceSpec(), derivedMediaType, contentLength);
+        return new StagedDocumentUpload(key, filename, request.sourceSpec(), derivedContentType, contentLength);
     }
 
-    private Optional<MediaType> mediaTypeOf(String fileExtension) {
-        if (StringUtils.isBlank(fileExtension)) {
-            return Optional.empty();
+    private MediaType parseContentType(String targetContentType) {
+        try {
+            return MediaType.of(targetContentType.toLowerCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new EntityValidationException(
+                    "contentType", "'%s' is not a valid content type".formatted(targetContentType));
         }
-        return MediaType.forExtension(fileExtension);
     }
 
     private String fileExtension(String filename) {
@@ -70,7 +85,7 @@ public class DocumentStager {
         return filename.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
-    private static boolean isAcceptedMediaType(MediaType mediaType) {
-        return ACCEPTED_MEDIA_TYPES.contains(mediaType);
+    private static boolean isAcceptedContentType(MediaType contentType) {
+        return ACCEPTED_CONTENT_TYPES.contains(contentType);
     }
 }

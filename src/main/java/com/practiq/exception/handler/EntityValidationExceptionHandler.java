@@ -3,6 +3,7 @@ package com.practiq.exception.handler;
 import static io.micronaut.http.HttpStatus.UNPROCESSABLE_ENTITY;
 
 import com.practiq.dto.response.ErrorResponse;
+import com.practiq.exception.EntityValidationError;
 import com.practiq.exception.EntityValidationException;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.HttpRequest;
@@ -24,7 +25,11 @@ public class EntityValidationExceptionHandler
     public HttpResponse<ErrorResponse> handle(HttpRequest request, EntityValidationException exception) {
         log.debug("Invalid entity state: {} {}", request.getMethodName(), request.getUri());
         log.trace(exception.getMessage(), exception);
+
+        EntityValidationError error = exception.error();
+        String message = "%s: %s".formatted(error.errorField(), error.failureReason());
+
         return HttpResponseFactory.INSTANCE.status(
-                UNPROCESSABLE_ENTITY, new ErrorResponse(exception.getMessage(), UNPROCESSABLE_ENTITY.getCode()));
+                UNPROCESSABLE_ENTITY, new ErrorResponse(message, UNPROCESSABLE_ENTITY.getCode()));
     }
 }

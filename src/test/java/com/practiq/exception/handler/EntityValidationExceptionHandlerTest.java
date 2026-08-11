@@ -12,18 +12,19 @@ import org.junit.jupiter.api.Test;
 
 class EntityValidationExceptionHandlerTest {
 
+    private final EntityValidationExceptionHandler handler = new EntityValidationExceptionHandler();
+
     @Test
     void handleBuildsUnprocessableEntityEnvelopeFromTheExceptionMessage() {
         HttpRequest<?> request = HttpRequest.POST("/api/v1/admin/documents", "{}");
 
-        EntityValidationExceptionHandler handler = new EntityValidationExceptionHandler();
-        HttpResponse<ErrorResponse> response =
-                handler.handle(request, new EntityValidationException("Unsupported media type specified: text/csv"));
+        HttpResponse<ErrorResponse> response = handler.handle(
+                request, new EntityValidationException("contentType", "'text/csv' is not a supported content type"));
 
         assertEquals(UNPROCESSABLE_ENTITY.getCode(), response.getStatus().getCode());
         ErrorResponse body = response.body();
         assertNotNull(body);
-        assertEquals("Unsupported media type specified: text/csv", body.error());
+        assertEquals("contentType: 'text/csv' is not a supported content type", body.error());
         assertEquals(UNPROCESSABLE_ENTITY.getCode(), body.status());
     }
 }

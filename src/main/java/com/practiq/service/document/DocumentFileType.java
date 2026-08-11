@@ -18,14 +18,14 @@ public enum DocumentFileType {
     DOC("doc"),
     DOCX("docx");
 
-    private final MediaType mediaType;
+    private final MediaType contentType;
 
     DocumentFileType(String extension) {
-        this.mediaType = MediaType.forExtension(extension)
-                .orElseThrow(() -> new IllegalStateException("No media type known for extension ." + extension));
+        this.contentType = MediaType.forExtension(extension)
+                .orElseThrow(() -> new IllegalStateException("No content type known for extension ." + extension));
     }
 
-    public MediaType mediaType() {
-        return mediaType;
+    public MediaType contentType() {
+        return contentType;
     }
 }
