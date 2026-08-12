@@ -58,6 +58,13 @@ curl http://localhost:8080/health
 > base config has no datasource URL and Micronaut Test Resources would start a throwaway
 > Postgres container instead of using your Compose DB.
 
+The `run` task also supplies `PRACTIQ_ADMIN_KEY=local-admin-key`, so admin routes expect
+`X-Admin-Key: local-admin-key` on a locally started app:
+
+```bash
+curl -H "X-Admin-Key: local-admin-key" http://localhost:8080/api/v1/admin/documents
+```
+
 ### Running/debugging from IntelliJ
 
 Running the application's main class directly in IntelliJ (e.g. to attach the debugger)
@@ -68,6 +75,7 @@ automatically. Add an environment variable to the run configuration:
 MICRONAUT_ENVIRONMENTS=local
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
+PRACTIQ_ADMIN_KEY=local-admin-key
 ```
 
 Without `MICRONAUT_ENVIRONMENTS`, the app starts with no datasource URL and Test Resources
@@ -75,6 +83,15 @@ spins up a throwaway Postgres container instead of connecting to your Compose DB
 AWS variables are the LocalStack credentials the `run` task supplies (see
 [LocalStack and S3](#localstack-and-s3)); without them any S3 call fails to resolve
 credentials.
+
+`PRACTIQ_ADMIN_KEY` fails differently from the other three: it is the only one the app
+refuses to start without. `application.yml` binds `practiq.admin-key` straight from it with
+no fallback, and `AdminKeyValidator` throws from its constructor if the value is missing or
+blank — so the context never comes up, and you find out at startup rather than on the first
+admin request. That is deliberate: a stand-in credential that silently defaulted to
+something would be worse than no credential at all. The value itself is a throwaway and is
+never committed to configuration — it lives in the `run` task and in your IDE run
+configuration, which is also how a deployed environment will supply the real one.
 
 ## LocalStack and S3
 
@@ -260,6 +277,7 @@ change, not a data artefact.
 | `GET /api/v1/concepts`      | all concepts, `created_at` ascending — bare array (deliberately unpaged) |
 | `GET /api/v1/concepts/{id}` | one concept, or the 404 envelope                                         |
 | `GET /api/v1/questions`     | paginated, filterable question catalogue — see below                     |
+| `POST /api/v1/admin/documents` | registers a document and returns a presigned upload URL — see below   |
 
 ### `GET /api/v1/questions`
 
@@ -305,6 +323,30 @@ Paged responses use an envelope; unpaged collections (concepts) deliberately don
 enums (`type`) serialise as their bare code. Provenance fields (`source`, `status`,
 `source_spec`) are deliberately not exposed to students.
 
+### `POST /api/v1/admin/documents`
+
+Admin-gated by the static `X-Admin-Key` header (the stopgap until real auth). Registers a
+document at `AWAITING_UPLOAD` with a server-minted UUID `s3_key`, and returns a presigned
+`PUT` URL the caller uploads to directly — the API never carries the bytes.
+
+```json
+{ "filename": "aqa-2007-paper1.pdf", "contentType": "application/pdf", "contentLength": 2048,
+  "sourceSpec": "AQA 2007" }
+```
+
+returns `201` with `{"id": 7, "url": "https://…", "expiresAt": "2026-08-12T18:10:00Z"}`.
+
+The product limits live in one place, `service/document/DocumentUploadRules`: **25MB** maximum
+declared size and a **10 minute** URL expiry. Both are bound into the signature, so S3 rejects a
+body of a different length and the URL simply stops working — the size cap holds before any
+bytes (or bill) land. `contentType` is validated against an allow-list *and* against the type
+derived from the filename extension; the derived one is what gets signed, so a client's declared
+value is checked, never trusted.
+
+The upload must send exactly the signed `Content-Type` and `Content-Length`. They are inside
+`X-Amz-SignedHeaders`, so any deviation — including a `; charset=…` suffix a client library adds
+for you — invalidates the signature against real S3.
+
 ## Error handling
 
 All errors aim to return one envelope: `{"error": "...", "status": <code>}` (see
@@ -317,10 +359,20 @@ Current coverage:
   Micronaut's default). For enum-typed params it enumerates the legal values, e.g.
   `?types=BAD` → `"types: must be one of SHORT_ANSWER, EXTENDED, MCQ"` and
   `?difficulties=9` → `"difficulties: must be one of 1(TRIVIAL), 2(EASY), …"`.
+- **401** — `UnauthorizedExceptionHandler` (admin routes: missing, blank or wrong
+  `X-Admin-Key`). The header binds as `@Nullable` so an absent one reaches the validator rather
+  than failing to bind, and all three cases return a byte-identical body — a caller cannot tell
+  a missing key from a wrong one.
 - **404** — `NotFoundExceptionHandler` (unmatched route / missing resource).
-- **422** — `ConstraintViolationExceptionHandler` (bean-validation failures on an
-  otherwise-parseable request, e.g. `@UniqueElements` duplicates), one message per
-  violation, sorted and joined.
+- **413** — two handlers, deliberately distinguishable. `ContentLengthExceededHandler` answers
+  when Micronaut rejects an oversized HTTP body; `ContentTooLargeExceptionHandler` answers our
+  own product rules, e.g. `"contentLength: must not be greater than 26214400"`.
+- **422** — two sources, one format. `ConstraintViolationExceptionHandler` (bean-validation
+  failures on an otherwise-parseable request, e.g. `@UniqueElements` duplicates), one message
+  per violation, sorted and joined; and `EntityValidationExceptionHandler` for rules expressed
+  in code rather than annotations. Both emit `field: reason` (`"filename: must not be blank"`),
+  so a client sees one grammar regardless of which layer rejected the request. The format is
+  built once in `dto/mapper/ErrorResponseMapper`, not at each throw site.
 - **500** — `GenericExceptionHandler` catches any otherwise-unhandled `Exception` as a
   last-resort safety net: consistent envelope, logged at `ERROR`, no internals leaked.
   (An escaping `OptimisticLockException` currently lands here too — pinned by a CT; the
@@ -410,6 +462,17 @@ having — so that's what the name encodes:
 | `*RepositoryIT` / `*SpecificationFactoryIT` | Do I understand the method I'm calling?                |
 | `*DatabaseIT`                               | Does the migration say what I think it says?           |
 | `*PT`                                       | Is the query plan the shape I think it is?             |
+
+### Tests never import an application constant
+
+A test that asserts against `MAX_CONTENT_LENGTH` imported from production moves in lockstep with it:
+change the value and the test still passes, having proved nothing. Product values are therefore
+restated as **test-side** constants — `TestData.MAX_UPLOAD_CONTENT_LENGTH`, `TestData.UPLOAD_URL_EXPIRY`
+— so the two are independent statements of the same rule and a change on either side is a failure you
+have to look at. That is the pin.
+
+The exception is a static import of the method under test (`ConceptResponseMapperTest` importing
+`toConceptResponse`): that is the subject of the test, not a value it is checking against.
 
 **Three IT flavours, one tier.** `*ControllerIT`, `*RepositoryIT` and `*DatabaseIT` share a tier because
 they share a *mechanism* — they need a container and run in `integrationTest`. They differ in the question,
@@ -627,6 +690,16 @@ The two are wired differently, which is worth knowing before you debug a connect
 
 Both images are pinned in `src/test/resources/application-test.yml`. Unpinned, they track
 `latest` and drift out from under CI.
+
+**Presigning does not need any of this.** Computing a presigned URL is a local HMAC over the
+request parameters — no call is made to S3 — so `S3DocumentStorageCT` produces a genuinely
+signed URL in the Docker-free `test` tier, and asserts what a client actually receives
+(`X-Amz-Expires`, `X-Amz-SignedHeaders`). It needs only `aws.region` in
+`application-ctslice.yml`; credentials already arrive as env vars on every `Test` task. Worth
+knowing the division: the CT evidences that the signature carries the right parameters, the IT
+evidences that the URL addresses the right object and a real `PUT` lands. LocalStack does **not**
+verify signatures, so the IT cannot evidence signature validity — a URL with a fabricated
+`X-Amz-Signature` uploads successfully against it.
 
 There is **no `ready.d` init script** in the test tier — Test Resources gives you a bare
 LocalStack. The `documents` bucket exists in an IT only because `utils/aws/S3TestUtils`

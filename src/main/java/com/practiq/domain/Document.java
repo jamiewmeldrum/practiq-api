@@ -40,4 +40,17 @@ public class Document {
     @Column(name = "created_at", insertable = false, updatable = false)
     @Generated
     private Instant createdAt;
+
+    protected Document() {}
+
+    private Document(String s3Key, String filename, String sourceSpec, DocumentStatus status) {
+        this.s3Key = s3Key;
+        this.filename = filename;
+        this.sourceSpec = sourceSpec;
+        this.status = status;
+    }
+
+    public static Document newUpload(String s3Key, String filename, String sourceSpec) {
+        return new Document(s3Key, filename, sourceSpec, DocumentStatus.AWAITING_UPLOAD);
+    }
 }

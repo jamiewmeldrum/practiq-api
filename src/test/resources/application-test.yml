@@ -22,3 +22,6 @@ test-resources:
 # build.gradle.kts.
 aws:
   region: eu-west-1
+
+practiq:
+  admin-key: "b10ef800-3a3a-4395-9bbd-bfe2fa316872"

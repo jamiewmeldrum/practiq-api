@@ -2,15 +2,25 @@ package utils.data;
 
 import com.practiq.domain.types.*;
 import jakarta.inject.Singleton;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import utils.RegexUtils;
 
 @Singleton
 public class TestData {
 
     public static final String SESSION_TOKEN_HEADER = "X-Session-Token";
+    public static final String ADMIN_KEY_HEADER = "X-Admin-Key";
+
+    public static final String ADMIN_KEY = "b10ef800-3a3a-4395-9bbd-bfe2fa316872";
+
+    // Stated independently of the application's DocumentUploadRules so a change to either side is a
+    // test failure rather than a silent move: these pin the product limits, they do not follow them.
+    public static final int MAX_UPLOAD_CONTENT_LENGTH = 26214400; // 25Mb
+    public static final Duration UPLOAD_URL_EXPIRY = Duration.ofMinutes(10);
 
     private static final String CONCEPT_TABLE = "concept";
     private static final String QUESTION_TABLE = "question";
@@ -19,8 +29,6 @@ public class TestData {
     private static final String QUESTION_ATTEMPT = "question_attempt";
     private static final String DOCUMENT = "document";
     private static final String QUESTION_ORIGIN = "question_origin";
-
-    private static final String ISO_8601_UTC = "\\d{4}-\\d{2}-\\d{2}T.*Z";
 
     protected final TestDatabase testDatabase;
 
@@ -39,7 +47,7 @@ public class TestData {
     }
 
     public String getInstantPattern() {
-        return ISO_8601_UTC;
+        return RegexUtils.ISO_8601_UTC;
     }
 
     public QuestionRow question() {

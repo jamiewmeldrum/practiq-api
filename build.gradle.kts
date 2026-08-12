@@ -134,6 +134,10 @@ tasks.named<JavaExec>("run") {
     // See the Test-task block below — same reasoning, same throwaway LocalStack credentials.
     environment("AWS_ACCESS_KEY_ID", "test")
     environment("AWS_SECRET_ACCESS_KEY", "test")
+    // Supplied here rather than in application-local.yml so the dev loop resolves the key the same
+    // way a deployed environment does — through PRACTIQ_ADMIN_KEY — and so no key literal ships
+    // inside the jar's resources. Throwaway: it gates a stand-in check until accounts arrive.
+    environment("PRACTIQ_ADMIN_KEY", "local-admin-key")
 }
 
 // Unit (*Test) + component (*CT) tests: the every-change loop. Excludes *IT.
@@ -183,6 +187,7 @@ val performanceTest =
 tasks.withType<Test>().configureEach {
     environment("AWS_ACCESS_KEY_ID", "test")
     environment("AWS_SECRET_ACCESS_KEY", "test")
+    environment("PRACTIQ_ADMIN_KEY", "b10ef800-3a3a-4395-9bbd-bfe2fa316872")
 }
 
 // Local convenience only — CI names each tier explicitly (.github/workflows/ci.yml).

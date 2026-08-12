@@ -38,3 +38,14 @@ jpa:
           allow_jdbc_metadata_access: false
         temp:
           use_jdbc_metadata_defaults: false
+
+# Presigning is a local HMAC over the request parameters — no call is made to S3 — so the CT tier
+# can produce a real signed URL with LocalStack disabled and Docker out of the picture. It needs
+# the region because the presigner reads it from Micronaut's Environment. No endpoint override on
+# purpose: without one the URL comes out in the shape production emits, which is what the CT
+# asserts. Credentials arrive as env vars from the Test task in build.gradle.kts, as everywhere.
+aws:
+  region: eu-west-1
+
+practiq:
+  admin-key: "b10ef800-3a3a-4395-9bbd-bfe2fa316872"
