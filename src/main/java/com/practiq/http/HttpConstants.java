@@ -6,6 +6,7 @@ package com.practiq.http;
 public final class HttpConstants {
 
     public static final String SESSION_TOKEN_HEADER = "X-Session-Token";
+    public static final String ADMIN_KEY_HEADER = "X-Admin-Key";
 
     private HttpConstants() {}
 }

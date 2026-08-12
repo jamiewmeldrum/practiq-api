@@ -35,9 +35,27 @@ public class Document {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
+    // TODO - not null?
     private DocumentStatus status;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     @Generated
     private Instant createdAt;
+
+    protected Document() {}
+
+    private Document(String s3Key, String filename) {
+        this.s3Key = s3Key;
+        this.filename = filename;
+        this.status = DocumentStatus.AWAITING_UPLOAD;
+    }
+
+    public static Document newUpload(String s3Key, String filename) {
+        return new Document(s3Key, filename);
+    }
+
+    public Document withSourceSpec(String sourceSpec) {
+        this.sourceSpec = sourceSpec;
+        return this;
+    }
 }
