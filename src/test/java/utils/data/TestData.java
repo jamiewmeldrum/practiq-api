@@ -11,6 +11,7 @@ import java.util.Map;
 public class TestData {
 
     public static final String SESSION_TOKEN_HEADER = "X-Session-Token";
+    public static final String ADMIN_KEY_HEADER = "X-Admin-Key";
 
     private static final String CONCEPT_TABLE = "concept";
     private static final String QUESTION_TABLE = "question";

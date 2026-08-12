@@ -1,6 +1,9 @@
 package utils.aws;
 
 import jakarta.inject.Singleton;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -50,5 +53,31 @@ public class S3TestUtils {
     public void createObject(String bucketName, String objectKey, String content) {
         s3Client.putObject(
                 PutObjectRequest.builder().bucket(bucketName).key(objectKey).build(), RequestBody.fromString(content));
+    }
+
+    public Optional<String> getContentType(String bucketName, String objectKey) {
+        try {
+            return Optional.of(s3Client.headObject(HeadObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(objectKey)
+                            .build())
+                    .contentType());
+        } catch (NoSuchKeyException e) {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<String> getFileContent(String bucketName, String objectKey) throws IOException {
+        try {
+            return Optional.of(new String(
+                    s3Client.getObject(GetObjectRequest.builder()
+                                    .bucket(bucketName)
+                                    .key(objectKey)
+                                    .build())
+                            .readAllBytes(),
+                    StandardCharsets.UTF_8));
+        } catch (NoSuchKeyException e) {
+            return Optional.empty();
+        }
     }
 }

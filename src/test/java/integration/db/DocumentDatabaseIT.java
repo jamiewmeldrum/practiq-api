@@ -40,7 +40,7 @@ class DocumentDatabaseIT {
         document.assertThat("s3_key", equalTo(s3Key));
         document.assertThat("filename", equalTo(filename));
         document.assertThat("source_spec", nullValue());
-        document.assertThat("status", equalTo(DocumentStatus.UNAPPROVED.name()));
+        document.assertThat("status", equalTo(DocumentStatus.AWAITING_UPLOAD.name()));
         document.assertThat("created_at", allOf(greaterThan(Instant.EPOCH), lessThanOrEqualTo(Instant.now())));
         document.assertAllColumnsChecked();
     }

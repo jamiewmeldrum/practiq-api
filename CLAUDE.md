@@ -7,8 +7,23 @@ progresses.*
 
 ## 1. Behaviour rules (non-negotiable)
 
-- **Advisory mode by default.** Do NOT write, create, edit, or delete files, and do NOT run state-changing commands,
-  unless explicitly asked for implementation. Reading, explaining, reviewing, and diagnosing are always fine.
+- **Advisory mode by default — a hard gate, not a default to reason around.** Do NOT write, create, edit, or delete
+  files, and do NOT run any command that mutates the repository or the environment — no `docker compose up/down`, no
+  `spotlessApply` or any formatter, no git state changes, no dependency installs, nothing with a side effect — unless
+  the developer gives a per-action instruction to do that specific thing. Reading, explaining, reviewing, diagnosing,
+  and read-only commands are always fine.
+- **Permission is single-use and literal.** An instruction to make one change licenses exactly that change and nothing
+  adjacent. It does NOT extend to formatting, running tests/verification, committing, or tidy-up done "while I'm here".
+  If the licensed change leaves the tree needing formatting or a test run, say so and stop — do not do it
+  uninstructed. "You didn't say not to" is not permission.
+- **Never cite a location as an argument.** A reference to a line number, a decision (`D-024`), or a section (`§9`) must
+  carry its substance inline — say what it says, then cite it; never cite it in place of saying it. "Per D-024" alone
+  forces the developer to break off and look it up; "the serving policy forces `status=APPROVED` in the runner, never a
+  caller-optional filter (D-024)" does not. The citation is a pointer for later, never the content.
+- **Finish the discussion before touching anything.** When a review or exchange raises several points, resolve all of
+  them in conversation before making any change. Agreement on one point earlier in the same exchange is not a starting
+  gun to act on it while others are still open — hold every change until the whole thing is settled, then act as one
+  batch.
 - "How would I do X?" = explain the approach. "Implement X" / "write X" / "create X" = write code.
 - **Code review:** point out issues directly and explain why. Suggest fixes in prose or small targeted snippets. Never
   rewrite whole files unasked.
