@@ -1,7 +1,7 @@
 package com.practiq.storage;
 
-import static com.practiq.storage.S3DocumentStorage.UPLOAD_TIMEOUT_MINUTES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.micronaut.http.MediaType;
 import jakarta.inject.Inject;
@@ -9,6 +9,7 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -22,23 +23,32 @@ class S3DocumentStorageCT {
     private S3DocumentStorage storage;
 
     @Test
-    void generatePresignedUploadURIBindsTheContentTypeLengthAndExpiryIntoTheSignature() {
+    void presignUploadBindsTheContentTypeLengthAndExpiryIntoTheSignature() {
         String key = "0e6f1b0a-1c3d-4f5e-8a9b-2c3d4e5f6a7b.pdf";
-        long contentLength = 2048;
+        int contentLength = 2048;
+        Duration expiresIn = Duration.ofMinutes(10);
 
-        // S3 expresses the presign's lifetime in seconds, so the 10-minute timeout is signed as 600.
-        long expirySeconds = Duration.ofMinutes(UPLOAD_TIMEOUT_MINUTES).toSeconds();
+        Instant before = Instant.now();
 
-        URI url = storage.generatePresignedUploadURI(key, MediaType.APPLICATION_PDF_TYPE, contentLength);
+        PresignedUpload presigned = storage.presignUpload(
+                new PresignedUploadRequest(key, MediaType.APPLICATION_PDF_TYPE, contentLength, expiresIn));
 
+        URI url = presigned.url();
         Map<String, String> query = queryParameters(url);
 
         assertEquals("documents.s3.eu-west-1.amazonaws.com", url.getHost(), "url was " + url);
         assertEquals("/" + key, url.getPath(), "url was " + url);
         assertEquals("AWS4-HMAC-SHA256", query.get("X-Amz-Algorithm"), "query was " + query);
-        assertEquals(String.valueOf(expirySeconds), query.get("X-Amz-Expires"), "query was " + query);
+        // S3 expresses the presign's lifetime in seconds, so ten minutes is signed as 600.
+        assertEquals(String.valueOf(expiresIn.toSeconds()), query.get("X-Amz-Expires"), "query was " + query);
         assertEquals("content-length;content-type;host", query.get("X-Amz-SignedHeaders"), "query was " + query);
         assertEquals("test/eu-west-1/s3/aws4_request", credentialWithoutDate(query), "query was " + query);
+
+        // The reported expiry is the presigner's own, so it must sit within the window that was asked for.
+        assertTrue(presigned.expiresAt().isAfter(before), "expiresAt was " + presigned.expiresAt());
+        assertTrue(
+                presigned.expiresAt().isBefore(before.plus(expiresIn).plusSeconds(1)),
+                "expiresAt was " + presigned.expiresAt());
     }
 
     private Map<String, String> queryParameters(URI url) {

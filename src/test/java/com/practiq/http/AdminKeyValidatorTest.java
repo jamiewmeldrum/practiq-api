@@ -61,4 +61,11 @@ class AdminKeyValidatorTest {
 
         assertEquals(UNBOUND_KEY_MESSAGE, thrown.getMessage());
     }
+
+    @Test
+    void validatorDoesNotConstructWhenTheConfiguredKeyIsWhitespace() {
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> new AdminKeyValidator("   "));
+
+        assertEquals(UNBOUND_KEY_MESSAGE, thrown.getMessage());
+    }
 }

@@ -6,6 +6,7 @@ import com.practiq.dto.request.PostDocumentRequest;
 import com.practiq.dto.response.UploadDocumentResponse;
 import com.practiq.http.AdminKeyValidator;
 import com.practiq.service.DocumentService;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.*;
 import io.micronaut.scheduling.TaskExecutors;
@@ -28,7 +29,9 @@ public class AdminDocumentController {
     @Post
     @Status(HttpStatus.CREATED)
     public UploadDocumentResponse postDocumentAndReturnPresignUrl(
-            @Header(ADMIN_KEY_HEADER) String adminKey, @Body PostDocumentRequest request) {
+            // Nullable so an absent header reaches the validator rather than failing to bind: a caller must
+            // not be able to tell a missing key from a wrong one.
+            @Nullable @Header(ADMIN_KEY_HEADER) String adminKey, @Body PostDocumentRequest request) {
         log.debug("Requested to POST document with filename {}", request.filename());
 
         adminKeyValidator.validate(adminKey);

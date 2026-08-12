@@ -14,7 +14,7 @@ class StagedDocumentUploadTest {
         String key = "cf5c1c1e-8a7d-4b0e-9f2a-6d3b7c8e1f04.pdf";
         String filename = "physics-notes.pdf";
         String sourceSpec = "AQA GCSE Physics";
-        long contentLength = 2048;
+        int contentLength = 2048;
 
         StagedDocumentUpload staged =
                 new StagedDocumentUpload(key, filename, sourceSpec, MediaType.APPLICATION_PDF_TYPE, contentLength);

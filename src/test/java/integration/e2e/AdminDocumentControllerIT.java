@@ -9,6 +9,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static utils.data.TestData.ADMIN_KEY;
 import static utils.data.TestData.ADMIN_KEY_HEADER;
+import static utils.data.TestData.UPLOAD_URL_EXPIRY;
 
 import com.practiq.domain.types.DocumentStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
@@ -20,6 +21,7 @@ import jakarta.inject.Inject;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,7 +40,6 @@ class AdminDocumentControllerIT {
 
     private static final String ADMIN_DOCUMENTS_PATH = "/api/v1/admin/documents";
 
-    // TODO - I need to think about this more. I'm not sure I get it
     // The content type the presign signs for a .txt upload, spelled out rather than read from FileType so a
     // change to that mapping fails here instead of moving in lockstep with it. The client must send this
     // header byte-for-byte: it is inside X-Amz-SignedHeaders, so any deviation (including a charset suffix)
@@ -66,8 +67,6 @@ class AdminDocumentControllerIT {
         RestAssured.port = embeddedServer.getPort();
     }
 
-    // TODO - review this and decide what to extract/improve - some checks want to be a broader e.g. make sure s3 key is
-    // uuid
     @Test
     void canPostDocumentThenPutDocumentInS3UsingPresignResponse() throws IOException {
         String filename = "practiq-presign.txt";
@@ -93,6 +92,7 @@ class AdminDocumentControllerIT {
 
         Number documentId = response.path("id");
         String presignedUrl = response.path("url");
+        Instant expiresAt = Instant.parse(response.path("expiresAt"));
 
         List<DBRow> documents = data.retrieveDocuments();
         assertThat(documents.size(), equalTo(1));
@@ -103,6 +103,8 @@ class AdminDocumentControllerIT {
         document.assertThat("filename", equalTo(filename));
         document.assertThat("source_spec", equalTo(sourceSpec));
         document.assertThat("status", equalTo(DocumentStatus.AWAITING_UPLOAD.name()));
+        assertThat(document.get("created_at").toString(), matchesPattern(data.getInstantPattern()));
+        document.assertThat("version", equalTo(0));
 
         // The key is server-minted, never the client's filename: two admins uploading "paper.pdf" must not
         // collide, and a caller must not be able to name an object it does not own.
@@ -112,6 +114,11 @@ class AdminDocumentControllerIT {
         // The URL the caller is handed must address the very object the row records — otherwise the row and
         // the artefact drift apart and the reconcile has nothing to match on.
         assertThat(URI.create(presignedUrl).getPath(), endsWith("/" + s3Key));
+
+        // The caller is told how long the URL it was handed lasts, so it can fail fast rather than
+        // discovering an expired signature mid-upload.
+        assertThat(expiresAt.isAfter(Instant.now()), equalTo(true));
+        assertThat(expiresAt.isBefore(Instant.now().plus(UPLOAD_URL_EXPIRY)), equalTo(true));
 
         given().urlEncodingEnabled(false)
                 // RestAssured appends "; charset=..." to text/* by default, which would not match the signed
