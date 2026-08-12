@@ -1,7 +1,10 @@
 package com.practiq.service.document;
 
+import static com.practiq.service.document.DocumentUploadRules.MAX_CONTENT_LENGTH;
+
 import com.practiq.exception.ContentTooLargeException;
 import com.practiq.exception.EntityValidationException;
+import com.practiq.util.StringUtil;
 import io.micronaut.http.MediaType;
 import jakarta.inject.Singleton;
 import java.util.Arrays;
@@ -9,12 +12,9 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import software.amazon.awssdk.utils.StringUtils;
 
 @Singleton
 public class DocumentStager {
-
-    public static final int MAX_CONTENT_LENGTH = 1024 * 1024 * 5; // 5Mb
 
     private static final Set<MediaType> ACCEPTED_CONTENT_TYPES = Arrays.stream(DocumentFileType.values())
             .map(DocumentFileType::contentType)
@@ -38,7 +38,7 @@ public class DocumentStager {
 
         String filename = command.filename();
         String extension = fileExtension(filename);
-        if (StringUtils.isBlank(extension)) {
+        if (StringUtil.isBlank(extension)) {
             throw new EntityValidationException("filename", "must have a file extension");
         }
 

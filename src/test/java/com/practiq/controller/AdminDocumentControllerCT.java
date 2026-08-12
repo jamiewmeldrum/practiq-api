@@ -1,6 +1,5 @@
 package com.practiq.controller;
 
-import static com.practiq.service.document.DocumentStager.MAX_CONTENT_LENGTH;
 import static io.micronaut.http.HttpStatus.*;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -9,12 +8,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static utils.data.TestData.ADMIN_KEY;
 import static utils.data.TestData.ADMIN_KEY_HEADER;
+import static utils.data.TestData.MAX_UPLOAD_CONTENT_LENGTH;
+import static utils.data.TestData.UPLOAD_URL_EXPIRY;
 
 import com.practiq.domain.Document;
 import com.practiq.domain.types.DocumentStatus;
 import com.practiq.repository.DocumentRepository;
+import com.practiq.storage.PresignedUploadRequest;
 import com.practiq.storage.S3DocumentStorage;
-import io.micronaut.http.MediaType;
 import io.micronaut.objectstorage.aws.AwsS3Operations;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.micronaut.test.annotation.MockBean;
@@ -26,6 +27,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -92,7 +94,7 @@ public class AdminDocumentControllerCT {
                 .then()
                 .statusCode(CREATED.getCode())
                 .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("id", "url"))
+                .body("keySet()", containsInAnyOrder("id", "url", "expiresAt"))
                 .extract()
                 .response();
 
@@ -116,6 +118,12 @@ public class AdminDocumentControllerCT {
 
         assertThat(presignedUrl.getPath(), equalTo("/" + document.getS3Key()));
         assertThat(presignedUrl.getQuery(), containsString("X-Amz-Signature="));
+
+        // The expiry is the presigner's own, so the caller knows how long the URL it was handed lasts.
+        Instant expiresAt = Instant.parse(response.path("expiresAt"));
+
+        assertThat(expiresAt.isAfter(Instant.now()), equalTo(true));
+        assertThat(expiresAt.isBefore(Instant.now().plus(UPLOAD_URL_EXPIRY)), equalTo(true));
     }
 
     @Test
@@ -136,7 +144,7 @@ public class AdminDocumentControllerCT {
                 .then()
                 .statusCode(CREATED.getCode())
                 .contentType(ContentType.JSON)
-                .body("keySet()", containsInAnyOrder("id", "url"));
+                .body("keySet()", containsInAnyOrder("id", "url", "expiresAt"));
 
         ArgumentCaptor<Document> savedDocument = ArgumentCaptor.forClass(Document.class);
         verify(documentRepository).save(savedDocument.capture());
@@ -148,7 +156,7 @@ public class AdminDocumentControllerCT {
     void postDocumentErrorsAndSavesNothingWhenThePresignFails() {
         doThrow(new IllegalStateException("presigner unavailable"))
                 .when(documentStorage)
-                .generatePresignedUploadURI(anyString(), any(MediaType.class), anyLong());
+                .presignUpload(any(PresignedUploadRequest.class));
 
         given().when()
                 .body(aValidRequestBody())
@@ -186,7 +194,7 @@ public class AdminDocumentControllerCT {
     @Test
     void postDocumentErrorsIfContentLengthExceedsTheMaximum() {
         Map<String, Object> requestBody = aValidRequestBody();
-        requestBody.put("contentLength", MAX_CONTENT_LENGTH + 1);
+        requestBody.put("contentLength", MAX_UPLOAD_CONTENT_LENGTH + 1);
 
         given().when()
                 .body(requestBody)
@@ -197,7 +205,7 @@ public class AdminDocumentControllerCT {
                 .statusCode(REQUEST_ENTITY_TOO_LARGE.getCode())
                 .contentType(ContentType.JSON)
                 .body("keySet()", containsInAnyOrder("error", "status"))
-                .body("error", equalTo("contentLength: must not be greater than " + MAX_CONTENT_LENGTH))
+                .body("error", equalTo("contentLength: must not be greater than " + MAX_UPLOAD_CONTENT_LENGTH))
                 .body("status", equalTo(413));
 
         verify(documentRepository, never()).save(any(Document.class));
@@ -230,10 +238,15 @@ public class AdminDocumentControllerCT {
                 .contentType(ContentType.JSON)
                 .post(ADMIN_DOCUMENTS_PATH)
                 .then()
-                .statusCode(BAD_REQUEST.getCode())
+                .statusCode(UNAUTHORIZED.getCode())
                 .contentType(ContentType.JSON)
-                .body("error", equalTo("Required Header [" + ADMIN_KEY_HEADER + "] not specified"))
-                .body("status", equalTo(400));
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                // Byte-for-byte the response a wrong key gets, so an absent header is not a distinguishable
+                // signal to an unauthenticated caller.
+                .body("error", equalTo("Unauthorised to access " + ADMIN_DOCUMENTS_PATH))
+                .body("status", equalTo(401));
+
+        verify(documentRepository, never()).save(any(Document.class));
     }
 
     @Test

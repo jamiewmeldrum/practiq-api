@@ -1,9 +1,9 @@
 package com.practiq.service.document;
 
-import static com.practiq.service.document.DocumentStager.MAX_CONTENT_LENGTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static utils.data.TestData.MAX_UPLOAD_CONTENT_LENGTH;
 
 import com.practiq.exception.ContentTooLargeException;
 import com.practiq.exception.EntityValidationError;
@@ -38,7 +38,7 @@ class DocumentStagerTest {
     void stageUploadStagesTheUploadWhenContentLengthIsAtTheMaximum() {
         String filename = "physics-notes.pdf";
         String sourceSpec = "AQA GCSE Physics";
-        int contentLength = MAX_CONTENT_LENGTH;
+        int contentLength = MAX_UPLOAD_CONTENT_LENGTH;
 
         DocumentUploadCommand command =
                 new DocumentUploadCommand(filename, "application/pdf", contentLength, sourceSpec);
@@ -54,7 +54,7 @@ class DocumentStagerTest {
 
     @Test
     void stageUploadThrowsWhenContentLengthIsOneOverTheMaximum() {
-        int contentLength = MAX_CONTENT_LENGTH + 1;
+        int contentLength = MAX_UPLOAD_CONTENT_LENGTH + 1;
 
         DocumentUploadCommand command =
                 new DocumentUploadCommand("physics-notes.pdf", "application/pdf", contentLength, "AQA GCSE Physics");
@@ -63,7 +63,7 @@ class DocumentStagerTest {
                 assertThrows(ContentTooLargeException.class, () -> stager.stageUpload(command));
 
         assertEquals(
-                new EntityValidationError("contentLength", "must not be greater than " + MAX_CONTENT_LENGTH),
+                new EntityValidationError("contentLength", "must not be greater than " + MAX_UPLOAD_CONTENT_LENGTH),
                 exception.error());
     }
 

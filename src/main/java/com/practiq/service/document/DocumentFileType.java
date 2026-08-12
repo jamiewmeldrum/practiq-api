@@ -12,7 +12,6 @@ public enum DocumentFileType {
     PNG("png"),
     GIF("gif"),
     WEBP("webp"),
-    SVG("svg"),
     BMP("bmp"),
     TXT("txt"),
     DOC("doc"),
