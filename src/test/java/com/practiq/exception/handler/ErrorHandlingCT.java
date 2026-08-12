@@ -16,6 +16,9 @@ import utils.ComponentTest;
 
 @ComponentTest
 @Property(name = "spec.name", value = "ErrorHandlingCT")
+// A tiny request limit so an oversized body can be provoked with a few kilobytes. No other slice in
+// this class posts a body, so lowering it class-wide affects nothing else.
+@Property(name = "micronaut.server.max-request-size", value = "1KB")
 class ErrorHandlingCT {
 
     private static final String INVALID_RESOURCES_PATH = "/api/v1/invalid_resource";
@@ -26,6 +29,39 @@ class ErrorHandlingCT {
     @BeforeEach
     void setUp() {
         RestAssured.port = embeddedServer.getPort();
+    }
+
+    // Proves the handler formats a ContentLengthExceededException it is handed.
+    @Test
+    void contentLengthExceededReturnsRequestEntityTooLargeEnvelope() {
+        String path = "/test/errors/content-length-exceeded";
+
+        given().when()
+                .get(path)
+                .then()
+                .statusCode(REQUEST_ENTITY_TOO_LARGE.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("Content length too long for request made to url " + path))
+                .body("status", equalTo(413));
+    }
+
+    // Proves the handler is the one Micronaut actually reaches for a genuinely oversized body — the
+    // @Replaces above the framework's own handler is a claim only a real request can settle.
+    @Test
+    void aBodyOverTheRequestSizeLimitReturnsRequestEntityTooLargeEnvelope() {
+        String path = "/test/errors/echo";
+
+        given().when()
+                .body("a".repeat(2048))
+                .contentType(ContentType.TEXT)
+                .post(path)
+                .then()
+                .statusCode(REQUEST_ENTITY_TOO_LARGE.getCode())
+                .contentType(ContentType.JSON)
+                .body("keySet()", containsInAnyOrder("error", "status"))
+                .body("error", equalTo("Content length too long for request made to url " + path))
+                .body("status", equalTo(413));
     }
 
     @Test

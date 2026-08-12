@@ -1,9 +1,8 @@
 package com.practiq.service.document;
 
-import com.practiq.dto.request.PostDocumentRequest;
+import com.practiq.exception.ContentTooLargeException;
 import com.practiq.exception.EntityValidationException;
 import io.micronaut.http.MediaType;
-import io.micronaut.http.exceptions.ContentLengthExceededException;
 import jakarta.inject.Singleton;
 import java.util.Arrays;
 import java.util.Locale;
@@ -23,29 +22,21 @@ public class DocumentStager {
 
     public DocumentStager() {}
 
-    public StagedDocumentUpload stageUpload(PostDocumentRequest request) {
-        int contentLength = request.contentLength();
+    public StagedDocumentUpload stageUpload(DocumentUploadCommand command) {
+        int contentLength = command.contentLength();
         if (contentLength > MAX_CONTENT_LENGTH) {
-            throw new ContentLengthExceededException(
-                    "Length of content (%s) is greater than %s".formatted(contentLength, MAX_CONTENT_LENGTH));
+            throw new ContentTooLargeException(
+                    "contentLength", "must not be greater than %s".formatted(MAX_CONTENT_LENGTH));
         }
 
-        String targetContentType = request.contentType();
-        if (StringUtils.isBlank(targetContentType)) {
-            throw new EntityValidationException("contentType", "must not be blank");
-        }
-
+        String targetContentType = command.contentType();
         MediaType requestedContentType = parseContentType(targetContentType);
         if (!isAcceptedContentType(requestedContentType)) {
             throw new EntityValidationException(
                     "contentType", "'%s' is not a supported content type".formatted(targetContentType));
         }
 
-        String filename = request.filename();
-        if (StringUtils.isBlank(filename)) {
-            throw new EntityValidationException("filename", "must not be blank");
-        }
-
+        String filename = command.filename();
         String extension = fileExtension(filename);
         if (StringUtils.isBlank(extension)) {
             throw new EntityValidationException("filename", "must have a file extension");
@@ -65,7 +56,7 @@ public class DocumentStager {
         }
 
         String key = UUID.randomUUID() + "." + extension;
-        return new StagedDocumentUpload(key, filename, request.sourceSpec(), derivedContentType, contentLength);
+        return new StagedDocumentUpload(key, filename, command.sourceSpec(), derivedContentType, contentLength);
     }
 
     private MediaType parseContentType(String targetContentType) {

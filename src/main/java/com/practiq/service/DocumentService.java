@@ -5,6 +5,7 @@ import com.practiq.dto.request.PostDocumentRequest;
 import com.practiq.dto.response.UploadDocumentResponse;
 import com.practiq.repository.DocumentRepository;
 import com.practiq.service.document.DocumentStager;
+import com.practiq.service.document.DocumentUploadCommand;
 import com.practiq.service.document.StagedDocumentUpload;
 import com.practiq.storage.S3DocumentStorage;
 import jakarta.inject.Singleton;
@@ -26,7 +27,10 @@ public class DocumentService {
     }
 
     public UploadDocumentResponse stageDocumentUpload(@Valid PostDocumentRequest request) {
-        StagedDocumentUpload stagedDocumentUpload = documentStager.stageUpload(request);
+        DocumentUploadCommand uploadCommand = new DocumentUploadCommand(
+                request.filename(), request.contentType(), request.contentLength(), request.sourceSpec());
+
+        StagedDocumentUpload stagedDocumentUpload = documentStager.stageUpload(uploadCommand);
 
         Document document = Document.newUpload(
                 stagedDocumentUpload.key(), stagedDocumentUpload.filename(), stagedDocumentUpload.sourceSpec());
