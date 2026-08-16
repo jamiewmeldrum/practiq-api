@@ -5,7 +5,7 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.data.TestDatabase.*;
 
-import com.practiq.domain.types.QuestionAuthorship;
+import com.practiq.foundation.types.QuestionAuthorship;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.List;

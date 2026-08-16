@@ -279,6 +279,21 @@ change, not a data artefact.
 | `GET /api/v1/questions`     | paginated, filterable question catalogue — see below                     |
 | `POST /api/v1/admin/documents` | registers a document and returns a presigned upload URL — see below   |
 
+### Validation applied to every route
+
+| Sent | Answer |
+|---|---|
+| a path id below `1` | **422** `id: must be greater than or equal to 1` — an id that can never name a row is a bad value, not an absent one |
+| a path id that is not a number | **400** `id: invalid value` |
+| `page`/`size` that are not numbers | **400** — the same conversion failure a bad filter gives |
+| `page` below `0`, `size` below `1` | **422**, naming the rule |
+| `size` above `micronaut.data.pageable.max-page-size` | **422** `size: must not be greater than 50` — stated back rather than silently clamped, because a client handed 50 rows after asking for 500 cannot tell a ceiling from the end of the data |
+| `sort` on any endpoint | **422** `sort: is not supported` — the query runners impose a total order so pages cannot straddle, so no client sort could be honoured |
+| a blank or over-64-character `X-Session-Token` | **422**, before any lookup runs |
+
+Paging past the end is **not** an error: the envelope echoes the requested position with no rows, which is
+what lets a client walk pages without knowing the total in advance.
+
 ### `GET /api/v1/questions`
 
 Serves the **student catalogue**: only `APPROVED` questions that are linked to at least
@@ -421,6 +436,60 @@ The hook is a convenience, not a gate — it can be skipped, unset, or never ena
 enforcement**: the pull request pipeline runs `spotlessCheck` as its own gate, so badly formatted
 code fails regardless of anyone's local setup.
 
+## Layering
+
+Three layers and two leaf tiers. Imports run one way only, and that direction is the one thing here a
+compiler can check.
+
+```
+web/          inbound adapter — controllers, request/response DTOs, mappers, exception handlers, binders
+service/      business logic — models, commands, policies, accessors, mappers
+persistence/  outbound adapter — entities, projections, repositories, query runners, specification factories
+storage/      outbound adapter — S3
+foundation/   shared vocabulary — enums, exception types, pure helpers
+```
+
+`web → service → persistence`. `persistence` and `storage` import nothing of ours but `foundation`;
+`foundation` imports nothing of ours at all. A grep for `com.practiq.service` under `persistence/` should
+return nothing, and the same for `com.practiq.web` under `service/`.
+
+**Nothing is called `domain`.** The name was tried and dropped: logic lives in services, so there is no rich
+domain model for it to describe. Each layer owns the types it hands out, and the service's are records under
+`service/<feature>/dto/`.
+
+**The service never exposes a persistence type.** `ConceptEntity` becomes `Concept`, `QuestionEntity` becomes
+`Question`, and so on — the bare noun belongs to the type that crosses a boundary, the `Entity` suffix to the
+one Hibernate manages. Entities and projections may reach the service; they may not reach the web layer. That
+boundary is held by the service's return signatures, not by naming.
+
+**Service models are not entity shadows.** They carry what is safe to expose beyond the service — including
+things the wire never sees. `Question` carries `version` and `status`; `QuestionResponse` carries neither.
+`QuestionAttempt` carries the session token; the response drops it rather than echoing a caller-supplied,
+credential-shaped value back into bodies and logs.
+
+### Where a query gets built
+
+Persistence answers the query it is handed. It does not know who is asking or why.
+
+```
+QuestionService → QuestionAccessor → QuestionQueryRunner → QuestionRepository
+                       ↑ holds the policy
+```
+
+- **`StudentQuestionQueryPolicy`** (service) decides what an audience may see: `APPROVED`, concept-linked.
+- **`QuestionAccessor`** (service) is the only place that policy is applied. It is built per audience by
+  `QuestionAccessorFactory` and injected by qualifier — `@Named("student")` — so the choice is made once in a
+  field declaration and a holder of the student accessor cannot make an admin read.
+- **`QuestionQueryRunner`** (persistence) executes: the specification, the stable `(created_at, id)` order,
+  and the two-query concept-link stitch. It has no policy and no idea one exists.
+
+The accessor also owns the one guarantee no other tier can make — that an id query matched at most one row.
+The runner cannot know that; the accessor can, because it built the query.
+
+**Accessors exist only where there is a query to build** — a policy to apply or a cardinality expectation to
+enforce. Concept, mark scheme and attempts have neither, so their services use named repository finders
+directly. There is exactly one accessor in the codebase, and that is deliberate.
+
 ## Testing
 
 Four tiers. The guiding rule: **put each test where it can actually observe the behaviour it claims to
@@ -459,7 +528,7 @@ having — so that's what the name encodes:
 | `*Test`                                     | Does this logic do what it should?                     |
 | `*CT`                                       | Does the web layer bind, serialise and map correctly?  |
 | `*ControllerIT`                             | Does the definition of done actually hold, end to end? |
-| `*RepositoryIT` / `*SpecificationFactoryIT` | Do I understand the method I'm calling?                |
+| `*RepositoryIT`                             | Do I understand the method I'm calling?                |
 | `*DatabaseIT`                               | Does the migration say what I think it says?           |
 | `*PT`                                       | Is the query plan the shape I think it is?             |
 
@@ -467,9 +536,10 @@ having — so that's what the name encodes:
 
 A test that asserts against `MAX_CONTENT_LENGTH` imported from production moves in lockstep with it:
 change the value and the test still passes, having proved nothing. Product values are therefore
-restated as **test-side** constants — `TestData.MAX_UPLOAD_CONTENT_LENGTH`, `TestData.UPLOAD_URL_EXPIRY`
-— so the two are independent statements of the same rule and a change on either side is a failure you
-have to look at. That is the pin.
+restated as **test-side** constants — the block at the top of `TestData`, named for what they pin
+(`DOCUMENT_FILENAME_MAX_LENGTH`, `QUESTION_ATTEMPT_SESSION_TOKEN_MAX_LENGTH`, and so on) — so the two are
+independent statements of the same rule and a change on either side is a failure you have to look at. That
+is the pin.
 
 The exception is a static import of the method under test (`ConceptResponseMapperTest` importing
 `toConceptResponse`): that is the subject of the test, not a value it is checking against.
@@ -484,6 +554,25 @@ app calls them. Swap `findOne(spec)` for a hand-rolled query and the repository 
 tests a method production abandoned, and it goes stale silently. Only the controller IT's meaning survives
 that refactor.
 
+### Proving the right collaborator was wired in
+
+`QuestionService` is bound to a policy-bound accessor by qualifier alone. Get that wrong and every read
+silently widens — students receive `PENDING` questions, with a 200 and a plausible body.
+
+No unit test can catch it: a unit test constructs the accessor itself, so it proves the accessor works, not
+that the right one arrived. `QuestionServiceAccessorCT` starts the real context, mocks only the repository,
+and resolves the specification the service caused through `utils.CriteriaProbe` — asserting it carries
+`status = APPROVED` and the concept-link `EXISTS`.
+
+That test is worth having only if it fails when the wiring breaks, so it was checked against a policy with
+its restrictions removed. Both cases failed.
+
+**`CriteriaProbe` proves which criteria calls were made, never which rows come back.** That is why the
+specification factories are proven in `QuestionRepositoryIT` and `QuestionAttemptRepositoryIT` instead: the
+concept filter has to be a correlated `EXISTS` rather than a join, because a join multiplies question rows
+per link and corrupts `totalCount` — and a probe sees a subquery either way. Only real rows can tell those
+apart.
+
 ### Why there's a performance tier
 
 `*PT` asserts **how** the data was fetched, not **what** came back. Each endpoint gets a happy-path pin on
@@ -497,8 +586,9 @@ invariance check also passes, because the statement count stays constant. The on
 absolute number of statements. Tests that assert what came back structurally cannot see this. That's the
 whole reason the tier exists.
 
-The counts are deliberate magic numbers, each with a comment saying what it's made of. Update the pin
-consciously when you legitimately add a query — the friction is the feature.
+The counts are deliberate magic numbers. Update the pin consciously when you legitimately add a query —
+the friction is the feature. They are not annotated with what they are made of: such a comment restates the
+code, and the first refactor leaves a correct number with a false explanation.
 
 ### Calibration
 

@@ -5,22 +5,27 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.TestReflection.setField;
+import static utils.data.TestData.QUESTION_BODY_MAX_LENGTH;
 
-import com.practiq.domain.Question;
-import com.practiq.domain.query.question.QuestionQuery;
-import com.practiq.domain.query.question.QuestionSpecificationFactory;
-import com.practiq.domain.types.QuestionDifficulty;
-import com.practiq.domain.types.QuestionStatus;
-import com.practiq.domain.types.QuestionType;
-import com.practiq.repository.QuestionRepository;
+import com.practiq.foundation.types.QuestionDifficulty;
+import com.practiq.foundation.types.QuestionStatus;
+import com.practiq.foundation.types.QuestionType;
+import com.practiq.persistence.QuestionEntity;
+import com.practiq.persistence.query.question.QuestionQuery;
+import com.practiq.persistence.query.question.QuestionSpecificationFactory;
+import com.practiq.persistence.repository.QuestionRepository;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.Sort;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.inject.Inject;
 import jakarta.persistence.OptimisticLockException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
@@ -49,13 +54,13 @@ class QuestionRepositoryIT {
     void ensureVersionIncrements() {
         data.question().body("A question.").insert();
 
-        Question question = questionRepository.findAll().getFirst();
+        QuestionEntity question = questionRepository.findAll().getFirst();
         assertThat(question.getVersion(), equalTo(0));
 
         setField(question, "body", "A modified question.");
         questionRepository.update(question);
 
-        Question modifiedQuestion = questionRepository.findAll().getFirst();
+        QuestionEntity modifiedQuestion = questionRepository.findAll().getFirst();
         assertThat(modifiedQuestion.getVersion(), equalTo(1));
     }
 
@@ -66,10 +71,10 @@ class QuestionRepositoryIT {
     void ensureStaleVersionUpdateIsRejected() {
         data.question().body("A question.").insert();
 
-        Question stale = questionRepository.findAll().getFirst();
+        QuestionEntity stale = questionRepository.findAll().getFirst();
 
         // A concurrent editor wins the race: the row moves to version 1.
-        Question current = questionRepository.findAll().getFirst();
+        QuestionEntity current = questionRepository.findAll().getFirst();
         setField(current, "body", "Updated first.");
         questionRepository.update(current);
 
@@ -77,7 +82,7 @@ class QuestionRepositoryIT {
         setField(stale, "body", "Updated second, from stale state.");
         assertThrows(OptimisticLockException.class, () -> questionRepository.update(stale));
 
-        Question survivor = questionRepository.findAll().getFirst();
+        QuestionEntity survivor = questionRepository.findAll().getFirst();
         assertThat(survivor.getBody(), equalTo("Updated first."));
         assertThat(survivor.getVersion(), equalTo(1));
     }
@@ -114,10 +119,10 @@ class QuestionRepositoryIT {
 
         QuestionQuery query = baseQuery().conceptId(conceptId).build();
 
-        QuerySpecification<Question> spec = questionSpecificationFactory.forQuery(query);
+        QuerySpecification<QuestionEntity> spec = questionSpecificationFactory.forQuery(query);
         Pageable ordered = Pageable.from(0, 10, STABLE_ORDER);
 
-        List<Question> results = questionRepository.findAll(spec, ordered).getContent();
+        List<QuestionEntity> results = questionRepository.findAll(spec, ordered).getContent();
 
         assertThat(ids(results), contains(earliestByTime, sameTimeLowId, sameTimeHighId));
     }
@@ -296,8 +301,10 @@ class QuestionRepositoryIT {
     void findByIdAndStatusReturnsOptionalEmptyIfNoMatchOnId() {
         long conceptId = 10L;
         data.concept(conceptId).insert();
-        servableQuestion(7L, conceptId);
-        servableQuestion(8L, conceptId);
+        data.question(7L).status(QuestionStatus.APPROVED).insert();
+        data.link(7L, conceptId).insert();
+        data.question(8L).status(QuestionStatus.APPROVED).insert();
+        data.link(8L, conceptId).insert();
 
         // 9 is neither of the two rows present.
         assertThat(findForQuestionId(9L).isPresent(), is(false));
@@ -312,7 +319,8 @@ class QuestionRepositoryIT {
         data.question(rejectedId).status(QuestionStatus.REJECTED).insert();
         data.link(rejectedId, conceptId).insert();
 
-        servableQuestion(8L, conceptId);
+        data.question(8L).status(QuestionStatus.APPROVED).insert();
+        data.link(8L, conceptId).insert();
 
         assertThat(findForQuestionId(rejectedId).isPresent(), is(false));
     }
@@ -325,7 +333,8 @@ class QuestionRepositoryIT {
         long unlinkedId = 7L;
         data.question(unlinkedId).status(QuestionStatus.APPROVED).insert();
 
-        servableQuestion(8L, conceptId);
+        data.question(8L).status(QuestionStatus.APPROVED).insert();
+        data.link(8L, conceptId).insert();
 
         assertThat(findForQuestionId(unlinkedId).isPresent(), is(false));
     }
@@ -336,10 +345,12 @@ class QuestionRepositoryIT {
         data.concept(conceptId).insert();
 
         long id = 7L;
-        servableQuestion(id, conceptId);
-        servableQuestion(8L, conceptId);
+        data.question(id).status(QuestionStatus.APPROVED).insert();
+        data.link(id, conceptId).insert();
+        data.question(8L).status(QuestionStatus.APPROVED).insert();
+        data.link(8L, conceptId).insert();
 
-        Optional<Question> question = findForQuestionId(id);
+        Optional<QuestionEntity> question = findForQuestionId(id);
 
         assertThat(question.isPresent(), is(true));
         assertThat(question.get().getId(), is(id));
@@ -354,8 +365,10 @@ class QuestionRepositoryIT {
     void existsReturnsTrueIfQuestionIsApprovedAndLinked() {
         long conceptId = 10L;
         data.concept(conceptId).insert();
-        servableQuestion(7L, conceptId);
-        servableQuestion(8L, conceptId);
+        data.question(7L).status(QuestionStatus.APPROVED).insert();
+        data.link(7L, conceptId).insert();
+        data.question(8L).status(QuestionStatus.APPROVED).insert();
+        data.link(8L, conceptId).insert();
 
         assertThat(existsForQuestionId(7L), is(true));
     }
@@ -364,8 +377,10 @@ class QuestionRepositoryIT {
     void existsReturnsFalseIfNoQuestionForId() {
         long conceptId = 10L;
         data.concept(conceptId).insert();
-        servableQuestion(7L, conceptId);
-        servableQuestion(8L, conceptId);
+        data.question(7L).status(QuestionStatus.APPROVED).insert();
+        data.link(7L, conceptId).insert();
+        data.question(8L).status(QuestionStatus.APPROVED).insert();
+        data.link(8L, conceptId).insert();
 
         assertThat(existsForQuestionId(9L), is(false));
     }
@@ -379,7 +394,8 @@ class QuestionRepositoryIT {
         data.question(rejectedId).status(QuestionStatus.REJECTED).insert();
         data.link(rejectedId, conceptId).insert();
 
-        servableQuestion(8L, conceptId);
+        data.question(8L).status(QuestionStatus.APPROVED).insert();
+        data.link(8L, conceptId).insert();
 
         assertThat(existsForQuestionId(rejectedId), is(false));
     }
@@ -393,21 +409,17 @@ class QuestionRepositoryIT {
         long unlinkedId = 7L;
         data.question(unlinkedId).status(QuestionStatus.APPROVED).insert();
 
-        servableQuestion(8L, conceptId);
+        data.question(8L).status(QuestionStatus.APPROVED).insert();
+        data.link(8L, conceptId).insert();
 
         assertThat(existsForQuestionId(unlinkedId), is(false));
     }
 
-    private void servableQuestion(long id, long conceptId) {
-        data.question(id).status(QuestionStatus.APPROVED).insert();
-        data.link(id, conceptId).insert();
-    }
-
-    private List<Question> findQuestions(QuestionQuery query) {
+    private List<QuestionEntity> findQuestions(QuestionQuery query) {
         return questionRepository.findAll(questionSpecificationFactory.forQuery(query));
     }
 
-    private Optional<Question> findForQuestionId(long questionId) {
+    private Optional<QuestionEntity> findForQuestionId(long questionId) {
         QuestionQuery query = baseQuery().questionId(questionId).build();
         return questionRepository.findOne(questionSpecificationFactory.forQuery(query));
     }
@@ -422,7 +434,39 @@ class QuestionRepositoryIT {
         return QuestionQuery.builder().status(QuestionStatus.APPROVED).requiresConceptLink(true);
     }
 
-    private static List<Long> ids(List<Question> questions) {
-        return questions.stream().map(Question::getId).collect(toList());
+    private static List<Long> ids(List<QuestionEntity> questions) {
+        return questions.stream().map(QuestionEntity::getId).collect(toList());
+    }
+
+    @Test
+    void cannotSaveQuestionWithTooLongBody() {
+        String validBody = RandomStringUtils.insecure().nextAlphanumeric(QUESTION_BODY_MAX_LENGTH);
+        QuestionEntity validQuestion = questionRepository.save(
+                new QuestionEntity(validBody, QuestionDifficulty.EASY, QuestionType.MCQ, QuestionStatus.APPROVED));
+        assertThat(validQuestion.getBody(), equalTo(validBody));
+
+        String body = RandomStringUtils.insecure().nextAlphanumeric(QUESTION_BODY_MAX_LENGTH + 1);
+        QuestionEntity invalidQuestion =
+                new QuestionEntity(body, QuestionDifficulty.EASY, QuestionType.MCQ, QuestionStatus.APPROVED);
+        ConstraintViolationException thrown =
+                assertThrows(ConstraintViolationException.class, () -> questionRepository.save(invalidQuestion));
+
+        Set<ConstraintViolation<?>> constraintViolations = thrown.getConstraintViolations();
+        assertThat(constraintViolations.size(), is(1));
+        String message = constraintViolations.stream().findFirst().get().getMessage();
+        assertThat(message, equalTo("size must be between 0 and " + QUESTION_BODY_MAX_LENGTH));
+    }
+
+    @Test
+    void cannotSaveQuestionWithoutStatus() {
+        QuestionEntity invalidQuestion =
+                new QuestionEntity("A question.", QuestionDifficulty.EASY, QuestionType.MCQ, null);
+        ConstraintViolationException thrown =
+                assertThrows(ConstraintViolationException.class, () -> questionRepository.save(invalidQuestion));
+
+        Set<ConstraintViolation<?>> constraintViolations = thrown.getConstraintViolations();
+        assertThat(constraintViolations.size(), is(1));
+        String message = constraintViolations.stream().findFirst().get().getMessage();
+        assertThat(message, equalTo("must not be null"));
     }
 }

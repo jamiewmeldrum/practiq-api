@@ -6,7 +6,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static utils.data.TestData.SESSION_TOKEN_HEADER;
 
-import com.practiq.domain.types.QuestionStatus;
+import com.practiq.foundation.types.QuestionStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
 import io.restassured.http.Header;
@@ -18,15 +18,11 @@ import utils.PerformanceTest;
 import utils.StatementCounter;
 import utils.data.TestData;
 
-// Pins the JDBC statement count for serving a session's question attempts — a row-scaling path. Beyond the
-// fixed happy-path count it asserts the count does NOT grow with the number of attempts, which is the
-// property an eager association (N+1) would break.
 @PerformanceTest
 public class QuestionAttemptPT {
 
     private static final String QUESTION_ATTEMPTS_PATH = "/api/v1/questions/%s/attempts";
 
-    // The exists(spec) visibility gate + the findAll(spec, sort) attempt fetch.
     private static final long EXPECTED_STATEMENTS = 2L;
 
     @Inject
@@ -97,7 +93,6 @@ public class QuestionAttemptPT {
                 .then()
                 .statusCode(OK.getCode()));
 
-        // The count is a property of the query plan, not the row count: more attempts, same statements.
         assertThat(more, equalTo(fewer));
     }
 }

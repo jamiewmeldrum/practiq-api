@@ -3,11 +3,14 @@ package integration.db;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static utils.data.TestData.QUESTION_ATTEMPT_BODY_MAX_LENGTH;
+import static utils.data.TestData.QUESTION_ATTEMPT_SESSION_TOKEN_MAX_LENGTH;
 import static utils.data.TestDatabase.*;
 
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.List;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
@@ -121,5 +124,54 @@ class QuestionAttemptDatabaseIT {
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"session_token\""));
+    }
+
+    @Test
+    void ensureThatBodyMustNotBeTooLong() {
+        long questionId = 1L;
+        data.question(questionId).insert();
+
+        String body = RandomStringUtils.insecure().nextAlphanumeric(QUESTION_ATTEMPT_BODY_MAX_LENGTH);
+        data.questionAttempt(questionId, "session-token", body).insert();
+
+        List<DBRow> attempts = data.retrieveQuestionAttempts();
+        DBRow attempt = attempts.getFirst();
+        attempt.assertThat("body", equalTo(body));
+
+        String bodyTooLong = RandomStringUtils.insecure().nextAlphanumeric(QUESTION_ATTEMPT_BODY_MAX_LENGTH + 1);
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> data.questionAttempt(
+                        questionId, "another-session-token", bodyTooLong)
+                .insert());
+
+        assertThat(sqlStateOf(thrown), equalTo(VALUE_TOO_LONG));
+        assertThat(
+                thrown.getCause().getMessage(),
+                containsString(
+                        "ERROR: value too long for type character varying(" + QUESTION_ATTEMPT_BODY_MAX_LENGTH + ")"));
+    }
+
+    @Test
+    void ensureThatSessionTokenMustNotBeTooLong() {
+        long questionId = 1L;
+        data.question(questionId).insert();
+
+        String sessionToken = RandomStringUtils.insecure().nextAlphanumeric(QUESTION_ATTEMPT_SESSION_TOKEN_MAX_LENGTH);
+        data.questionAttempt(questionId, sessionToken, "body").insert();
+
+        List<DBRow> attempts = data.retrieveQuestionAttempts();
+        DBRow attempt = attempts.getFirst();
+        attempt.assertThat("session_token", equalTo(sessionToken));
+
+        String sessionTokenTooLong =
+                RandomStringUtils.insecure().nextAlphanumeric(QUESTION_ATTEMPT_SESSION_TOKEN_MAX_LENGTH + 1);
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class, () -> data.questionAttempt(questionId, sessionTokenTooLong, "body")
+                        .insert());
+
+        assertThat(sqlStateOf(thrown), equalTo(VALUE_TOO_LONG));
+        assertThat(
+                thrown.getCause().getMessage(),
+                containsString("ERROR: value too long for type character varying("
+                        + QUESTION_ATTEMPT_SESSION_TOKEN_MAX_LENGTH + ")"));
     }
 }

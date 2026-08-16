@@ -15,13 +15,11 @@ import utils.PerformanceTest;
 import utils.StatementCounter;
 import utils.data.TestData;
 
-// Pins the JDBC statement count for serving a single concept by id.
 @PerformanceTest
 public class ConceptByIdPT {
 
     private static final String CONCEPTS_PATH = "/api/v1/concepts";
 
-    // A single findById.
     private static final long EXPECTED_STATEMENTS = 1L;
 
     @Inject

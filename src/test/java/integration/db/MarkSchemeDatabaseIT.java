@@ -3,11 +3,13 @@ package integration.db;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static utils.data.TestData.MARK_SCHEME_BODY_MAX_LENGTH;
 import static utils.data.TestDatabase.*;
 
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.List;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
@@ -115,5 +117,32 @@ class MarkSchemeDatabaseIT {
 
         assertThat(sqlStateOf(thrown), equalTo(NOT_NULL_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("\"body\""));
+    }
+
+    @Test
+    void ensureThatBodyMustNotBeTooLong() {
+        long questionId = 1L;
+        data.question(questionId).insert();
+
+        String body = RandomStringUtils.insecure().nextAlphanumeric(MARK_SCHEME_BODY_MAX_LENGTH);
+        data.markScheme(questionId, body).insert();
+
+        List<DBRow> markSchemes = data.retrieveMarkSchemes();
+        DBRow markScheme = markSchemes.getFirst();
+        markScheme.assertThat("body", equalTo(body));
+
+        long otherQuestionId = 2L;
+        data.question(otherQuestionId).insert();
+
+        String bodyTooLong = RandomStringUtils.insecure().nextAlphanumeric(MARK_SCHEME_BODY_MAX_LENGTH + 1);
+        IllegalStateException thrown =
+                assertThrows(IllegalStateException.class, () -> data.markScheme(otherQuestionId, bodyTooLong)
+                        .insert());
+
+        assertThat(sqlStateOf(thrown), equalTo(VALUE_TOO_LONG));
+        assertThat(
+                thrown.getCause().getMessage(),
+                containsString(
+                        "ERROR: value too long for type character varying(" + MARK_SCHEME_BODY_MAX_LENGTH + ")"));
     }
 }

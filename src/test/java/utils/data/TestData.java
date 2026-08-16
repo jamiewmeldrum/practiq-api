@@ -1,6 +1,6 @@
 package utils.data;
 
-import com.practiq.domain.types.*;
+import com.practiq.foundation.types.*;
 import jakarta.inject.Singleton;
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -17,10 +17,19 @@ public class TestData {
 
     public static final String ADMIN_KEY = "b10ef800-3a3a-4395-9bbd-bfe2fa316872";
 
-    // Stated independently of the application's DocumentUploadRules so a change to either side is a
-    // test failure rather than a silent move: these pin the product limits, they do not follow them.
-    public static final int MAX_UPLOAD_CONTENT_LENGTH = 26214400; // 25Mb
-    public static final Duration UPLOAD_URL_EXPIRY = Duration.ofMinutes(10);
+    // Stated independently of the application's own constants so a change to either side is a test
+    // failure rather than a silent move: these pin the limits, they do not follow them.
+    public static final int DOCUMENT_UPLOAD_MAX_CONTENT_LENGTH = 26214400; // 25Mb
+    public static final Duration DOCUMENT_UPLOAD_URL_EXPIRY = Duration.ofMinutes(10);
+    public static final int DOCUMENT_FILENAME_MAX_LENGTH = 255;
+    public static final int DOCUMENT_SOURCE_SPEC_MAX_LENGTH = 255;
+    public static final int DOCUMENT_S3_KEY_MAX_LENGTH = 255;
+    public static final int CONCEPT_NAME_MAX_LENGTH = 200;
+    public static final int CONCEPT_DESCRIPTION_MAX_LENGTH = 500;
+    public static final int MARK_SCHEME_BODY_MAX_LENGTH = 10000;
+    public static final int QUESTION_BODY_MAX_LENGTH = 10000;
+    public static final int QUESTION_ATTEMPT_BODY_MAX_LENGTH = 25000;
+    public static final int QUESTION_ATTEMPT_SESSION_TOKEN_MAX_LENGTH = 64;
 
     private static final String CONCEPT_TABLE = "concept";
     private static final String QUESTION_TABLE = "question";

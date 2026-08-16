@@ -7,11 +7,9 @@ import static io.restassured.RestAssured.given;
 import static io.restassured.config.EncoderConfig.encoderConfig;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
-import static utils.data.TestData.ADMIN_KEY;
-import static utils.data.TestData.ADMIN_KEY_HEADER;
-import static utils.data.TestData.UPLOAD_URL_EXPIRY;
+import static utils.data.TestData.*;
 
-import com.practiq.domain.types.DocumentStatus;
+import com.practiq.foundation.types.DocumentStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
@@ -118,7 +116,7 @@ class AdminDocumentControllerIT {
         // The caller is told how long the URL it was handed lasts, so it can fail fast rather than
         // discovering an expired signature mid-upload.
         assertThat(expiresAt.isAfter(Instant.now()), equalTo(true));
-        assertThat(expiresAt.isBefore(Instant.now().plus(UPLOAD_URL_EXPIRY)), equalTo(true));
+        assertThat(expiresAt.isBefore(Instant.now().plus(DOCUMENT_UPLOAD_URL_EXPIRY)), equalTo(true));
 
         given().urlEncodingEnabled(false)
                 // RestAssured appends "; charset=..." to text/* by default, which would not match the signed

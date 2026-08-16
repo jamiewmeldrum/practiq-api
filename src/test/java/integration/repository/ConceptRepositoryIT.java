@@ -1,15 +1,14 @@
 package integration.repository;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.TestReflection.setField;
+import static utils.data.TestData.CONCEPT_DESCRIPTION_MAX_LENGTH;
+import static utils.data.TestData.CONCEPT_NAME_MAX_LENGTH;
 
-import com.practiq.domain.Concept;
-import com.practiq.repository.ConceptRepository;
+import com.practiq.persistence.ConceptEntity;
+import com.practiq.persistence.repository.ConceptRepository;
 import jakarta.inject.Inject;
 import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.ConstraintViolation;
@@ -49,22 +48,22 @@ class ConceptRepositoryIT {
 
         data.concept().name("Earlier").description("d").createdAt(earlier).insert();
 
-        List<Concept> concepts = conceptRepository.listOrderByCreatedAtAsc();
+        List<ConceptEntity> concepts = conceptRepository.listOrderByCreatedAtAsc();
 
-        assertThat(concepts.stream().map(Concept::getName).toList(), contains("Earlier", "Later"));
+        assertThat(concepts.stream().map(ConceptEntity::getName).toList(), contains("Earlier", "Later"));
     }
 
     @Test
     void ensureVersionIncrements() {
         data.concept(1L).insert();
 
-        Concept concept = conceptRepository.findAll().getFirst();
+        ConceptEntity concept = conceptRepository.findAll().getFirst();
         assertThat(concept.getVersion(), equalTo(0));
 
         setField(concept, "description", "modified description");
         conceptRepository.update(concept);
 
-        Concept modifiedConcept = conceptRepository.findAll().getFirst();
+        ConceptEntity modifiedConcept = conceptRepository.findAll().getFirst();
         assertThat(modifiedConcept.getVersion(), equalTo(1));
     }
 
@@ -75,10 +74,10 @@ class ConceptRepositoryIT {
     void ensureStaleVersionUpdateIsRejected() {
         data.concept(1L).insert();
 
-        Concept stale = conceptRepository.findAll().getFirst();
+        ConceptEntity stale = conceptRepository.findAll().getFirst();
 
         // A concurrent editor wins the race: the row moves to version 1.
-        Concept current = conceptRepository.findAll().getFirst();
+        ConceptEntity current = conceptRepository.findAll().getFirst();
         setField(current, "description", "Updated first.");
         conceptRepository.update(current);
 
@@ -86,27 +85,42 @@ class ConceptRepositoryIT {
         setField(stale, "description", "Updated second, from stale state.");
         assertThrows(OptimisticLockException.class, () -> conceptRepository.update(stale));
 
-        Concept survivor = conceptRepository.findAll().getFirst();
+        ConceptEntity survivor = conceptRepository.findAll().getFirst();
         assertThat(survivor.getDescription(), equalTo("Updated first."));
         assertThat(survivor.getVersion(), equalTo(1));
     }
 
     @Test
     void cannotSaveConceptWithTooLongName() {
-        // Check 200 chars saves
-        String validName = RandomStringUtils.insecure().nextAlphanumeric(200);
-        Concept validConcept = conceptRepository.save(new Concept(validName, "description"));
+        String validName = RandomStringUtils.insecure().nextAlphanumeric(CONCEPT_NAME_MAX_LENGTH);
+        ConceptEntity validConcept = conceptRepository.save(new ConceptEntity(validName, "description"));
         assertThat(validConcept.getId(), instanceOf(Long.class));
 
-        // Check 201 chars doesn't save
-        String name = RandomStringUtils.insecure().nextAlphanumeric(201);
-        Concept invalidConcept = new Concept(name, "description");
+        String name = RandomStringUtils.insecure().nextAlphanumeric(CONCEPT_NAME_MAX_LENGTH + 1);
+        ConceptEntity invalidConcept = new ConceptEntity(name, "description");
         ConstraintViolationException thrown =
                 assertThrows(ConstraintViolationException.class, () -> conceptRepository.save(invalidConcept));
 
         Set<ConstraintViolation<?>> constraintViolations = thrown.getConstraintViolations();
         assertThat(constraintViolations.size(), is(1));
         String message = constraintViolations.stream().findFirst().get().getMessage();
-        assertThat(message, equalTo("size must be between 0 and 200"));
+        assertThat(message, equalTo("size must be between 0 and " + CONCEPT_NAME_MAX_LENGTH));
+    }
+
+    @Test
+    void cannotSaveConceptWithTooLongDescription() {
+        String validDescription = RandomStringUtils.insecure().nextAlphanumeric(CONCEPT_DESCRIPTION_MAX_LENGTH);
+        ConceptEntity validConcept = conceptRepository.save(new ConceptEntity("name", validDescription));
+        assertThat(validConcept.getId(), instanceOf(Long.class));
+
+        String description = RandomStringUtils.insecure().nextAlphanumeric(CONCEPT_DESCRIPTION_MAX_LENGTH + 1);
+        ConceptEntity invalidConcept = new ConceptEntity("another name", description);
+        ConstraintViolationException thrown =
+                assertThrows(ConstraintViolationException.class, () -> conceptRepository.save(invalidConcept));
+
+        Set<ConstraintViolation<?>> constraintViolations = thrown.getConstraintViolations();
+        assertThat(constraintViolations.size(), is(1));
+        String message = constraintViolations.stream().findFirst().get().getMessage();
+        assertThat(message, equalTo("size must be between 0 and " + CONCEPT_DESCRIPTION_MAX_LENGTH));
     }
 }

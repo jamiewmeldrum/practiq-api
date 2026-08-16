@@ -3,12 +3,14 @@ package integration.db;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static utils.data.TestData.QUESTION_BODY_MAX_LENGTH;
 import static utils.data.TestDatabase.*;
 
-import com.practiq.domain.types.QuestionStatus;
+import com.practiq.foundation.types.QuestionStatus;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.List;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
@@ -86,5 +88,25 @@ class QuestionDatabaseIT {
 
         assertThat(sqlStateOf(thrown), equalTo(CHECK_VIOLATION));
         assertThat(thrown.getCause().getMessage(), containsString("difficulty"));
+    }
+
+    @Test
+    void ensureThatBodyMustNotBeTooLong() {
+        String body = RandomStringUtils.insecure().nextAlphanumeric(QUESTION_BODY_MAX_LENGTH);
+        data.question().body(body).insert();
+
+        List<DBRow> questions = data.retrieveQuestions();
+        DBRow question = questions.getFirst();
+        question.assertThat("body", equalTo(body));
+
+        String bodyTooLong = RandomStringUtils.insecure().nextAlphanumeric(QUESTION_BODY_MAX_LENGTH + 1);
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class,
+                () -> data.question().body(bodyTooLong).insert());
+
+        assertThat(sqlStateOf(thrown), equalTo(VALUE_TOO_LONG));
+        assertThat(
+                thrown.getCause().getMessage(),
+                containsString("ERROR: value too long for type character varying(" + QUESTION_BODY_MAX_LENGTH + ")"));
     }
 }

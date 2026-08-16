@@ -1,6 +1,6 @@
 package com.practiq.storage;
 
-import com.practiq.util.StringUtil;
+import com.practiq.foundation.util.StringUtil;
 import io.micronaut.http.MediaType;
 import java.time.Duration;
 

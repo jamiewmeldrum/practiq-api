@@ -5,9 +5,9 @@ import static io.micronaut.http.HttpStatus.OK;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
-import com.practiq.domain.types.QuestionDifficulty;
-import com.practiq.domain.types.QuestionStatus;
-import com.practiq.domain.types.QuestionType;
+import com.practiq.foundation.types.QuestionDifficulty;
+import com.practiq.foundation.types.QuestionStatus;
+import com.practiq.foundation.types.QuestionType;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
@@ -199,11 +199,36 @@ class QuestionControllerIT {
         // created_at leads; id breaks ties within an equal timestamp. earliest has the highest id but the
         // earliest time, so it still sorts first — and the day2/day3 pairs prove the id tiebreak. Full
         // order: [5, 1, 2, 3, 4].
-        approvedLinkedQuestion(5L, "Earliest by time.", day1, conceptId);
-        approvedLinkedQuestion(1L, "Day two, lower id.", day2, conceptId);
-        approvedLinkedQuestion(2L, "Day two, higher id.", day2, conceptId);
-        approvedLinkedQuestion(3L, "Day three, lower id.", day3, conceptId);
-        approvedLinkedQuestion(4L, "Day three, higher id.", day3, conceptId);
+        data.question(5L)
+                .status(QuestionStatus.APPROVED)
+                .body("Earliest by time.")
+                .createdAt(day1)
+                .insert();
+        data.link(5L, conceptId).insert();
+        data.question(1L)
+                .status(QuestionStatus.APPROVED)
+                .body("Day two, lower id.")
+                .createdAt(day2)
+                .insert();
+        data.link(1L, conceptId).insert();
+        data.question(2L)
+                .status(QuestionStatus.APPROVED)
+                .body("Day two, higher id.")
+                .createdAt(day2)
+                .insert();
+        data.link(2L, conceptId).insert();
+        data.question(3L)
+                .status(QuestionStatus.APPROVED)
+                .body("Day three, lower id.")
+                .createdAt(day3)
+                .insert();
+        data.link(3L, conceptId).insert();
+        data.question(4L)
+                .status(QuestionStatus.APPROVED)
+                .body("Day three, higher id.")
+                .createdAt(day3)
+                .insert();
+        data.link(4L, conceptId).insert();
 
         // Walk all three pages at size 2. Each is a contiguous, non-overlapping slice of the one total
         // order — including the last, partial page at index 2 — so a row can't straddle, repeat or vanish.
@@ -249,9 +274,24 @@ class QuestionControllerIT {
         OffsetDateTime sameInstant = OffsetDateTime.parse("2026-01-01T00:00:00Z");
         // Equal created_at across all three, so the order is decided purely by the id tiebreak. Repeated
         // calls must reproduce it identically rather than return an arbitrary (DB-dependent) order.
-        approvedLinkedQuestion(1L, "One.", sameInstant, conceptId);
-        approvedLinkedQuestion(2L, "Two.", sameInstant, conceptId);
-        approvedLinkedQuestion(3L, "Three.", sameInstant, conceptId);
+        data.question(1L)
+                .status(QuestionStatus.APPROVED)
+                .body("One.")
+                .createdAt(sameInstant)
+                .insert();
+        data.link(1L, conceptId).insert();
+        data.question(2L)
+                .status(QuestionStatus.APPROVED)
+                .body("Two.")
+                .createdAt(sameInstant)
+                .insert();
+        data.link(2L, conceptId).insert();
+        data.question(3L)
+                .status(QuestionStatus.APPROVED)
+                .body("Three.")
+                .createdAt(sameInstant)
+                .insert();
+        data.link(3L, conceptId).insert();
 
         for (int call = 0; call < 2; call++) {
             given().when()
@@ -269,8 +309,16 @@ class QuestionControllerIT {
     void getQuestionByIdReturnsNotFoundIfNoQuestionExistsForId() {
         long conceptId = 100L;
         data.concept(conceptId).insert();
-        approvedLinkedQuestion(7L, "Servable question seven.", conceptId);
-        approvedLinkedQuestion(8L, "Servable question eight.", conceptId);
+        data.question(7L)
+                .status(QuestionStatus.APPROVED)
+                .body("Servable question seven.")
+                .insert();
+        data.link(7L, conceptId).insert();
+        data.question(8L)
+                .status(QuestionStatus.APPROVED)
+                .body("Servable question eight.")
+                .insert();
+        data.link(8L, conceptId).insert();
 
         // 9 is neither of the two rows present.
         String path = QUESTIONS_PATH + "/" + 9L;
@@ -292,7 +340,11 @@ class QuestionControllerIT {
         data.question(targetId).status(QuestionStatus.REJECTED).insert();
         data.link(targetId, conceptId).insert();
 
-        approvedLinkedQuestion(8L, "Servable question eight.", conceptId);
+        data.question(8L)
+                .status(QuestionStatus.APPROVED)
+                .body("Servable question eight.")
+                .insert();
+        data.link(8L, conceptId).insert();
 
         String path = QUESTIONS_PATH + "/" + targetId;
         given().when()
@@ -314,7 +366,11 @@ class QuestionControllerIT {
         long targetId = 7L;
         data.question(targetId).status(QuestionStatus.APPROVED).insert();
 
-        approvedLinkedQuestion(8L, "Servable question eight.", conceptId);
+        data.question(8L)
+                .status(QuestionStatus.APPROVED)
+                .body("Servable question eight.")
+                .insert();
+        data.link(8L, conceptId).insert();
 
         String path = QUESTIONS_PATH + "/" + targetId;
         given().when()
@@ -343,7 +399,11 @@ class QuestionControllerIT {
                 .insert();
         data.link(id, conceptId).insert();
 
-        approvedLinkedQuestion(8L, "Servable question eight.", conceptId);
+        data.question(8L)
+                .status(QuestionStatus.APPROVED)
+                .body("Servable question eight.")
+                .insert();
+        data.link(8L, conceptId).insert();
 
         given().when()
                 .get(QUESTIONS_PATH + "/" + id)
@@ -357,19 +417,5 @@ class QuestionControllerIT {
                 .body("type", equalTo(type.name()))
                 .body("createdAt", matchesPattern(data.getInstantPattern()))
                 .body("linkedConceptIds", contains((int) conceptId));
-    }
-
-    private void approvedLinkedQuestion(long id, String body, long conceptId) {
-        data.question(id).status(QuestionStatus.APPROVED).body(body).insert();
-        data.link(id, conceptId).insert();
-    }
-
-    private void approvedLinkedQuestion(long id, String body, OffsetDateTime createdAt, long conceptId) {
-        data.question(id)
-                .status(QuestionStatus.APPROVED)
-                .body(body)
-                .createdAt(createdAt)
-                .insert();
-        data.link(id, conceptId).insert();
     }
 }

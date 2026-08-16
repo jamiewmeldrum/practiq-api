@@ -1,0 +1,4 @@
+ALTER TABLE document
+    ALTER COLUMN filename TYPE VARCHAR(255);
+ALTER TABLE document
+    ALTER COLUMN s3_key TYPE VARCHAR(255);

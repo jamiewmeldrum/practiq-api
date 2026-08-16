@@ -2,9 +2,10 @@ package com.practiq.service.document;
 
 import static com.practiq.service.document.DocumentUploadRules.MAX_CONTENT_LENGTH;
 
-import com.practiq.exception.ContentTooLargeException;
-import com.practiq.exception.EntityValidationException;
-import com.practiq.util.StringUtil;
+import com.practiq.foundation.exception.ContentTooLargeException;
+import com.practiq.foundation.exception.EntityValidationException;
+import com.practiq.foundation.util.StringUtil;
+import com.practiq.service.document.dto.request.DocumentPresignUploadCommand;
 import io.micronaut.http.MediaType;
 import jakarta.inject.Singleton;
 import java.util.Arrays;
@@ -22,7 +23,7 @@ public class DocumentStager {
 
     public DocumentStager() {}
 
-    public StagedDocumentUpload stageUpload(DocumentUploadCommand command) {
+    public StagedDocumentUpload stageUpload(DocumentPresignUploadCommand command) {
         int contentLength = command.contentLength();
         if (contentLength > MAX_CONTENT_LENGTH) {
             throw new ContentTooLargeException(
