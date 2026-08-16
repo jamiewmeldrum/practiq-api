@@ -4,9 +4,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 
-import com.practiq.domain.projection.QuestionConceptLink;
-import com.practiq.domain.types.QuestionStatus;
-import com.practiq.repository.QuestionConceptRepository;
+import com.practiq.foundation.types.QuestionStatus;
+import com.practiq.persistence.projection.QuestionConceptLinkProjection;
+import com.practiq.persistence.repository.QuestionConceptRepository;
 import jakarta.inject.Inject;
 import java.util.List;
 import java.util.Set;
@@ -49,7 +49,7 @@ class QuestionConceptRepositoryIT {
         data.link(singleLinked, conceptA).insert();
         data.link(outsideTheSet, conceptB).insert();
 
-        List<QuestionConceptLink> links =
+        List<QuestionConceptLinkProjection> links =
                 questionConceptRepository.findLinksByQuestionIds(Set.of(multiLinked, singleLinked, unlinked));
 
         // Exactly the pairs for the requested questions: both of the multi-linked question's concepts and
@@ -58,9 +58,9 @@ class QuestionConceptRepositoryIT {
         assertThat(
                 links,
                 containsInAnyOrder(
-                        new QuestionConceptLink(multiLinked, conceptA),
-                        new QuestionConceptLink(multiLinked, conceptB),
-                        new QuestionConceptLink(singleLinked, conceptA)));
+                        new QuestionConceptLinkProjection(multiLinked, conceptA),
+                        new QuestionConceptLinkProjection(multiLinked, conceptB),
+                        new QuestionConceptLinkProjection(singleLinked, conceptA)));
     }
 
     @Test
@@ -70,7 +70,7 @@ class QuestionConceptRepositoryIT {
         data.question(unlinkedOne).status(QuestionStatus.APPROVED).insert();
         data.question(unlinkedTwo).status(QuestionStatus.APPROVED).insert();
 
-        List<QuestionConceptLink> links =
+        List<QuestionConceptLinkProjection> links =
                 questionConceptRepository.findLinksByQuestionIds(Set.of(unlinkedOne, unlinkedTwo));
 
         assertThat(links, empty());

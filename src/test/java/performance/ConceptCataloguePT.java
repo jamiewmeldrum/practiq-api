@@ -23,7 +23,6 @@ public class ConceptCataloguePT {
 
     private static final String CONCEPTS_PATH = "/api/v1/concepts";
 
-    // A single unpaged SELECT — no count query, and no associations to resolve.
     private static final long EXPECTED_STATEMENTS = 1L;
 
     @Inject
@@ -46,7 +45,9 @@ public class ConceptCataloguePT {
 
     @Test
     void servingTheConceptListFiresAConstantNumberOfStatements() {
-        insertConcepts(3);
+        for (long id = 1; id <= 3; id++) {
+            data.concept(id).insert();
+        }
 
         long count = statements.countDuring(
                 () -> given().when().get(CONCEPTS_PATH).then().statusCode(OK.getCode()));
@@ -56,24 +57,21 @@ public class ConceptCataloguePT {
 
     @Test
     void servingMoreConceptsDoesNotFireMoreStatements() {
-        insertConcepts(2);
+        for (long id = 1; id <= 2; id++) {
+            data.concept(id).insert();
+        }
 
         long fewer = statements.countDuring(
                 () -> given().when().get(CONCEPTS_PATH).then().statusCode(OK.getCode()));
 
         data.clear();
-        insertConcepts(6);
+        for (long id = 1; id <= 6; id++) {
+            data.concept(id).insert();
+        }
 
         long more = statements.countDuring(
                 () -> given().when().get(CONCEPTS_PATH).then().statusCode(OK.getCode()));
 
-        // Nothing caps this endpoint's rows, so cost must be independent of how many concepts exist.
         assertThat(more, equalTo(fewer));
-    }
-
-    private void insertConcepts(int count) {
-        for (long id = 1; id <= count; id++) {
-            data.concept(id).insert();
-        }
     }
 }

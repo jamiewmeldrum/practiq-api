@@ -6,7 +6,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static utils.data.TestData.SESSION_TOKEN_HEADER;
 
-import com.practiq.domain.types.QuestionStatus;
+import com.practiq.foundation.types.QuestionStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;

@@ -26,8 +26,6 @@ public class AdminDocumentPostPT {
 
     private static final String ADMIN_DOCUMENTS_PATH = "/api/v1/admin/documents";
 
-    // One INSERT. The @Generated read-back of id/created_at rides Postgres's `insert … returning`, so a
-    // second statement appearing means that mechanism broke. Presigning is local and touches no database.
     private static final long EXPECTED_STATEMENTS = 1L;
 
     @Inject

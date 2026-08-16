@@ -122,6 +122,7 @@ com.practiq
   ai/                 AIService interface + StubAIService + ClaudeAIService
   ingestion/          async ingestion job + extractor HTTP client (Sprint 1.2+)
   config/             configuration
+  util/               cross-cutting helpers used across layers (e.g. formatting, ids)
   dto/                request/response records — never expose entities
   dto/mapper/         static mapper methods (ConceptResponseMapper, QuestionResponseMapper, …)
 ```
@@ -372,6 +373,12 @@ which is true of all three; "integration" is a conceptual promise the suffix nev
   it depends on — globally-seeded data hides what a test actually relies on.
 - **Statics only for values that must change together** (endpoint paths, pinned statement counts, stub
   sentinels). Test data values are per-test locals.
+- **Tests never import an application constant.** A test asserting against a production constant (e.g.
+  `MAX_CONTENT_LENGTH`) moves in lockstep with it — change the constant and every test still passes, having proved
+  nothing; the value is untested by construction. Restate the expected value test-side, so production and test are two
+  independent statements of the same rule and a change on either is a failure someone has to look at. (It earned this
+  immediately: raising the cap to 25MB broke three tests that would otherwise have gone green in silence.) The one
+  exception is a static import of the *method under test* — that's the subject, not an expected value.
 - **Never mock entities.** Build real instances + `TestReflection.setField` for DB-assigned fields (`id`,
   `createdAt`, `version`) — a mocked entity answers whatever you stubbed and can't catch a mapper reading the
   wrong field. Reflection for anything a constructor *could* set is a missing constructor, not a convention.

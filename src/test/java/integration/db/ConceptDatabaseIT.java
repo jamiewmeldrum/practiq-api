@@ -3,6 +3,8 @@ package integration.db;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static utils.data.TestData.CONCEPT_DESCRIPTION_MAX_LENGTH;
+import static utils.data.TestData.CONCEPT_NAME_MAX_LENGTH;
 import static utils.data.TestDatabase.*;
 
 import jakarta.inject.Inject;
@@ -100,14 +102,14 @@ class ConceptDatabaseIT {
 
     @Test
     void ensureThatNameMustNotBeTooLong() {
-        String name = RandomStringUtils.insecure().nextAlphanumeric(200);
+        String name = RandomStringUtils.insecure().nextAlphanumeric(CONCEPT_NAME_MAX_LENGTH);
         data.concept().name(name).description("description").insert();
 
         List<DBRow> concepts = data.retrieveConcepts();
         DBRow concept = concepts.getFirst();
         concept.assertThat("name", equalTo(name));
 
-        String nameTooLong = RandomStringUtils.insecure().nextAlphanumeric(201);
+        String nameTooLong = RandomStringUtils.insecure().nextAlphanumeric(CONCEPT_NAME_MAX_LENGTH + 1);
         IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> data.concept()
                 .name(nameTooLong)
                 .description("description")
@@ -116,6 +118,28 @@ class ConceptDatabaseIT {
         assertThat(sqlStateOf(thrown), equalTo(VALUE_TOO_LONG));
         assertThat(
                 thrown.getCause().getMessage(),
-                containsString("ERROR: value too long for type character varying(200)"));
+                containsString("ERROR: value too long for type character varying(" + CONCEPT_NAME_MAX_LENGTH + ")"));
+    }
+
+    @Test
+    void ensureThatDescriptionMustNotBeTooLong() {
+        String description = RandomStringUtils.insecure().nextAlphanumeric(CONCEPT_DESCRIPTION_MAX_LENGTH);
+        data.concept().name("name").description(description).insert();
+
+        List<DBRow> concepts = data.retrieveConcepts();
+        DBRow concept = concepts.getFirst();
+        concept.assertThat("description", equalTo(description));
+
+        String descriptionTooLong = RandomStringUtils.insecure().nextAlphanumeric(CONCEPT_DESCRIPTION_MAX_LENGTH + 1);
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> data.concept()
+                .name("another name")
+                .description(descriptionTooLong)
+                .insert());
+
+        assertThat(sqlStateOf(thrown), equalTo(VALUE_TOO_LONG));
+        assertThat(
+                thrown.getCause().getMessage(),
+                containsString(
+                        "ERROR: value too long for type character varying(" + CONCEPT_DESCRIPTION_MAX_LENGTH + ")"));
     }
 }

@@ -6,7 +6,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.matchesPattern;
 
-import com.practiq.domain.types.QuestionStatus;
+import com.practiq.foundation.types.QuestionStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
@@ -39,8 +39,12 @@ class MarkSchemeControllerIT {
     void getMarkSchemeForQuestionIdReturnsNotFoundIfNoQuestionExistsForId() {
         long conceptId = 10L;
         data.concept(conceptId).insert();
-        servableQuestionWithMarkScheme(7L, conceptId, "Mark scheme for seven.");
-        servableQuestionWithMarkScheme(8L, conceptId, "Mark scheme for eight.");
+        data.question(7L).status(QuestionStatus.APPROVED).insert();
+        data.link(7L, conceptId).insert();
+        data.markScheme(7L, "Mark scheme for seven.").insert();
+        data.question(8L).status(QuestionStatus.APPROVED).insert();
+        data.link(8L, conceptId).insert();
+        data.markScheme(8L, "Mark scheme for eight.").insert();
 
         // 9 is neither of the two rows present, so a handler returning any row is caught.
         String path = MARK_SCHEME_PATH.formatted(9L);
@@ -63,7 +67,9 @@ class MarkSchemeControllerIT {
         data.link(rejectedId, conceptId).insert();
         data.markScheme(rejectedId, "Mark scheme for the rejected question.").insert();
 
-        servableQuestionWithMarkScheme(8L, conceptId, "Mark scheme for eight.");
+        data.question(8L).status(QuestionStatus.APPROVED).insert();
+        data.link(8L, conceptId).insert();
+        data.markScheme(8L, "Mark scheme for eight.").insert();
 
         String path = MARK_SCHEME_PATH.formatted(rejectedId);
         given().when()
@@ -86,7 +92,9 @@ class MarkSchemeControllerIT {
         data.question(unlinkedId).status(QuestionStatus.APPROVED).insert();
         data.markScheme(unlinkedId, "Mark scheme for the unlinked question.").insert();
 
-        servableQuestionWithMarkScheme(8L, conceptId, "Mark scheme for eight.");
+        data.question(8L).status(QuestionStatus.APPROVED).insert();
+        data.link(8L, conceptId).insert();
+        data.markScheme(8L, "Mark scheme for eight.").insert();
 
         String path = MARK_SCHEME_PATH.formatted(unlinkedId);
         given().when()
@@ -109,7 +117,9 @@ class MarkSchemeControllerIT {
         data.question(noSchemeId).status(QuestionStatus.APPROVED).insert();
         data.link(noSchemeId, conceptId).insert();
 
-        servableQuestionWithMarkScheme(8L, conceptId, "Mark scheme for eight.");
+        data.question(8L).status(QuestionStatus.APPROVED).insert();
+        data.link(8L, conceptId).insert();
+        data.markScheme(8L, "Mark scheme for eight.").insert();
 
         String path = MARK_SCHEME_PATH.formatted(noSchemeId);
         given().when()
@@ -147,11 +157,5 @@ class MarkSchemeControllerIT {
                 .body("questionId", equalTo((int) questionId))
                 .body("body", equalTo(body))
                 .body("createdAt", matchesPattern(data.getInstantPattern()));
-    }
-
-    private void servableQuestionWithMarkScheme(long questionId, long conceptId, String markSchemeBody) {
-        data.question(questionId).status(QuestionStatus.APPROVED).insert();
-        data.link(questionId, conceptId).insert();
-        data.markScheme(questionId, markSchemeBody).insert();
     }
 }

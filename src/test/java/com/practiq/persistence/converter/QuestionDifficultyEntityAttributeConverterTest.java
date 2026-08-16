@@ -1,0 +1,45 @@
+package com.practiq.persistence.converter;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import com.practiq.foundation.types.QuestionDifficulty;
+import org.junit.jupiter.api.Test;
+
+class QuestionDifficultyEntityAttributeConverterTest {
+
+    private static final int[] OUT_OF_RANGE_VALUES = {0, 6, -1, 100};
+
+    private final QuestionDifficultyEntityAttributeConverter converter =
+            new QuestionDifficultyEntityAttributeConverter();
+
+    @Test
+    void roundTripsEveryDifficulty() {
+        for (QuestionDifficulty difficulty : QuestionDifficulty.values()) {
+            Integer column = converter.convertToDatabaseColumn(difficulty);
+
+            assertEquals(difficulty.value(), column);
+            assertEquals(difficulty, converter.convertToEntityAttribute(column));
+        }
+    }
+
+    @Test
+    void convertToDatabaseColumnMapsNullToNull() {
+        assertNull(converter.convertToDatabaseColumn(null));
+    }
+
+    @Test
+    void convertToEntityAttributeMapsNullToNull() {
+        assertNull(converter.convertToEntityAttribute(null));
+    }
+
+    // Can't happen while the difficulty CHECK constraint (1..5) stands, but the converter must fail
+    // loudly rather than silently return null if a bad value ever reaches it from the database.
+    @Test
+    void convertToEntityAttributeRejectsOutOfRangeValues() {
+        for (int value : OUT_OF_RANGE_VALUES) {
+            IllegalArgumentException exception =
+                    assertThrows(IllegalArgumentException.class, () -> converter.convertToEntityAttribute(value));
+            assertEquals("Unknown difficulty: " + value, exception.getMessage());
+        }
+    }
+}

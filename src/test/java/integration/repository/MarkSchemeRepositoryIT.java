@@ -5,12 +5,17 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.TestReflection.setField;
+import static utils.data.TestData.MARK_SCHEME_BODY_MAX_LENGTH;
 
-import com.practiq.domain.MarkScheme;
-import com.practiq.repository.MarkSchemeRepository;
+import com.practiq.persistence.MarkSchemeEntity;
+import com.practiq.persistence.repository.MarkSchemeRepository;
 import jakarta.inject.Inject;
 import jakarta.persistence.OptimisticLockException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import java.util.Optional;
+import java.util.Set;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import utils.IntegrationTest;
@@ -36,13 +41,13 @@ class MarkSchemeRepositoryIT {
         data.question(questionId).insert();
         data.markScheme(questionId, "body").insert();
 
-        MarkScheme markScheme = markSchemeRepository.findAll().getFirst();
+        MarkSchemeEntity markScheme = markSchemeRepository.findAll().getFirst();
         assertThat(markScheme.getVersion(), equalTo(0));
 
         setField(markScheme, "body", "A modified mark scheme.");
         markSchemeRepository.update(markScheme);
 
-        MarkScheme modifiedMarkScheme = markSchemeRepository.findAll().getFirst();
+        MarkSchemeEntity modifiedMarkScheme = markSchemeRepository.findAll().getFirst();
         assertThat(modifiedMarkScheme.getVersion(), equalTo(1));
     }
 
@@ -52,10 +57,10 @@ class MarkSchemeRepositoryIT {
         data.question(questionId).insert();
         data.markScheme(questionId, "body").insert();
 
-        MarkScheme stale = markSchemeRepository.findAll().getFirst();
+        MarkSchemeEntity stale = markSchemeRepository.findAll().getFirst();
 
         // A concurrent editor wins the race: the row moves to version 1.
-        MarkScheme current = markSchemeRepository.findAll().getFirst();
+        MarkSchemeEntity current = markSchemeRepository.findAll().getFirst();
         setField(current, "body", "Updated first.");
         markSchemeRepository.update(current);
 
@@ -63,7 +68,7 @@ class MarkSchemeRepositoryIT {
         setField(stale, "body", "Updated second, from stale state.");
         assertThrows(OptimisticLockException.class, () -> markSchemeRepository.update(stale));
 
-        MarkScheme survivor = markSchemeRepository.findAll().getFirst();
+        MarkSchemeEntity survivor = markSchemeRepository.findAll().getFirst();
         assertThat(survivor.getBody(), equalTo("Updated first."));
         assertThat(survivor.getVersion(), equalTo(1));
     }
@@ -91,10 +96,33 @@ class MarkSchemeRepositoryIT {
         data.question(8L).insert();
         data.markScheme(8L, "Mark scheme for eight.").insert();
 
-        Optional<MarkScheme> markScheme = markSchemeRepository.findByQuestionId(questionId);
+        Optional<MarkSchemeEntity> markScheme = markSchemeRepository.findByQuestionId(questionId);
         assertThat(markScheme.isPresent(), is(true));
 
         assertThat(markScheme.get().getQuestionId(), equalTo(questionId));
         assertThat(markScheme.get().getBody(), equalTo(body));
+    }
+
+    @Test
+    void cannotSaveMarkSchemeWithTooLongBody() {
+        long questionId = 7L;
+        data.question(questionId).insert();
+
+        String validBody = RandomStringUtils.insecure().nextAlphanumeric(MARK_SCHEME_BODY_MAX_LENGTH);
+        MarkSchemeEntity validMarkScheme = markSchemeRepository.save(new MarkSchemeEntity(questionId, validBody));
+        assertThat(validMarkScheme.getBody(), equalTo(validBody));
+
+        long otherQuestionId = 8L;
+        data.question(otherQuestionId).insert();
+
+        String body = RandomStringUtils.insecure().nextAlphanumeric(MARK_SCHEME_BODY_MAX_LENGTH + 1);
+        MarkSchemeEntity invalidMarkScheme = new MarkSchemeEntity(otherQuestionId, body);
+        ConstraintViolationException thrown =
+                assertThrows(ConstraintViolationException.class, () -> markSchemeRepository.save(invalidMarkScheme));
+
+        Set<ConstraintViolation<?>> constraintViolations = thrown.getConstraintViolations();
+        assertThat(constraintViolations.size(), is(1));
+        String message = constraintViolations.stream().findFirst().get().getMessage();
+        assertThat(message, equalTo("size must be between 0 and " + MARK_SCHEME_BODY_MAX_LENGTH));
     }
 }
