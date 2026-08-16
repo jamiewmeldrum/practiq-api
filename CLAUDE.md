@@ -113,39 +113,49 @@ TARGET (Phase 4+ only): API → SQS → practiq-processor → extractor Lambda �
 
 ```
 com.practiq
-  api/                REST controllers (thin — no business logic)
-  service/            business logic (@Singleton)
-  domain/             JPA entities
-  domain/projection/  read projections (LinkedQuestion, QuestionConceptLink) — never entities
-  domain/query/       QuestionQuery (value object) + specification factory + query runner + policies
-  repository/         Micronaut Data repositories
-  ai/                 AIService interface + StubAIService + ClaudeAIService
-  ingestion/          async ingestion job + extractor HTTP client (Sprint 1.2+)
-  config/             configuration
-  util/               cross-cutting helpers used across layers (e.g. formatting, ids)
-  dto/                request/response records — never expose entities
-  dto/mapper/         static mapper methods (ConceptResponseMapper, QuestionResponseMapper, …)
+  web/          HTTP adapter — controller, dto/request, dto/response, dto/mapper, dto/converter,
+                handler (the 11 exception handlers), binder, plus AdminKeyValidator and HttpConstants
+  service/      business logic (@Singleton) — UserRef, plus a package per feature (concept,
+                markscheme, question, attempt, document), each with dto/request, dto/response and a
+                mapper as needed; question also has a policy package
+  persistence/  the *Entity types at the top level, plus converter, projection, query, repository
+  storage/      S3 access (presign, put/get); no product knowledge — endpoint/expiry arrive as data
+  foundation/   cross-cutting, no layer of its own — types (enums), exception, util
+
+  Import direction (the point of the layering): web -> service -> persistence.
+  persistence and storage import nothing of ours except foundation; foundation imports
+  nothing of ours at all. (ai/ and ingestion/ — the AIService and the async job — land with
+  the extractor/pipeline in Sprint 1.1/1.2, under service.)
 ```
 
-- **`StudentQuestionQueryRunner` owns student question retrieval.** Question repository calls live in the
-  runner, never in services; a service that needs question data injects the concrete runner. The split:
-    - **`QuestionQueryRunner<P extends QuestionQueryPolicy>`** (`domain/query`, abstract, package-private) owns
-      the *mechanics* once — `exists` / `findById` / paged retrieval, the two-query concept stitch, the stable
-      `(created_at, id)` order. Returns domain projections, never DTOs.
-    - **`StudentQuestionQueryPolicy`** (`domain/query`, package-private) owns the *rule* — imposes
-      `status = APPROVED` + concept-link; request filters pass through.
-    - **`StudentQuestionQueryRunner`** (`@Singleton`) binds runner to policy; services inject this concrete type.
-    - **`QuestionQuery`** is a neutral value object with a **public** builder — see the D-024 note below.
-      The admin review path (Sprint 1.3) is a new policy + a ~10-line runner subclass, not a parallel manager.
-- **D-024 enforcement is conventional, not structural — say so.** The runner is the blessed constructor and its
-  name makes the intended path obvious, but `QuestionSpecificationFactory` is public and takes a `QuestionQuery`,
-  so a caller in `service` *can* hand-build a policy-free query and reach the factory directly. That path is
-  prevented by the runner's naming and by code review, **not by the compiler**. Full insulation (package-gated
-  builder) was affordable and declined: it fought test ergonomics (tests need diverse query shapes) to defend
-  against a caller review already catches. A deliberate trade — but the guarantee is conventional, and the doc
-  must not call it structural (D-024 already made that error once).
-- **`LinkedQuestion`** (`domain/projection/`) — `Question` + `Set<QuestionConceptLink>`; the read path's
-  assembly type, consumed by `QuestionResponseMapper`.
+- **Entities live in `persistence` and take an `Entity` suffix** (`ConceptEntity`, `QuestionEntity`,
+  `DocumentEntity`, …); the bare noun (`Concept`, `Question`, …) is the service-layer response record. **The service
+  never exposes a persisted type** — no carve-out for "flat" entities, because an exception list is what people fail to
+  remember.
+- **The question read path:**
+  `QuestionController → QuestionService → QuestionAccessor → QuestionQueryRunner → QuestionRepository`.
+    - **`QuestionQueryRunner`** (`persistence/query/question`, concrete `@Singleton`, no generic parameter, no policy)
+      owns the query mechanics once — `exists(query)`, `findAll(query)`, `findPage(query, pageable)`, the specification,
+      the stable `(created_at, id)` order and the two-query concept stitch. Returns `QuestionWithConceptIds` (a
+      persistence read type beside the runner that builds it), never a DTO. `findOne` became `findAll` because the
+      runner can no longer assume cardinality.
+    - **`QuestionAccessor`** (`service/question`) is the **only** place a policy is applied. It holds a
+      `QuestionQueryPolicy`, built per audience by `QuestionAccessorFactory` and injected by qualifier (
+      `@Named("student")`), and it enforces the cardinality expectation — throwing if more than one row comes back. Mark
+      scheme and attempts reach question visibility through this same shared accessor, never by calling
+      `QuestionService` (which would be a bidirectional service dependency that fails at construction).
+    - The admin review path (Sprint 1.3) is a new policy + a factory binding, not a parallel manager.
+- **Accessors exist only where there is a policy to apply or a cardinality expectation to enforce.** Exactly one
+  exists (`QuestionAccessor`). Concept and mark scheme use named repository finders directly; attempts build a two-field
+  query in the service. Don't add an accessor where there is nothing to guard.
+- **The D-024 guarantee (the student serving policy can't be bypassed) is *conventional*, not structural, and cannot be
+  otherwise.** Java can't express "only this class in another package may construct you" without a module system, so the
+  choice was rule-in-persistence (structural, wrong owner) or rule-in-service (right owner, conventional). The service
+  won; the per-DoD integration tests are the net. It is now conventional *in the service*, not conventional *in a
+  runner's name*.
+- **Projections:** `QuestionConceptLinkProjection` is the only genuine projection. `LinkedQuestion` is gone — no query
+  returned its shape, so it was an assembly wearing a projection's name; the runner returns `QuestionWithConceptIds`
+  instead.
 - **Mappers are static methods, no interface.** A method reference already satisfies `Function<E,R>` and every
   call site knows both types statically, so polymorphism has no call site. **Trigger to revisit:** the day a
   mapper needs a collaborator (e.g. resolving `{{s3:key}}` to presigned URLs) it must become an injected
@@ -157,13 +167,13 @@ com.practiq
 exam_board:      id, name                                  -- AQA | OCR | Edexcel | Generic
 specification:   id, exam_board_id, subject, level, name, version    -- level: gcse|a_level
 spec_section:    id, specification_id, parent_section_id NULL, name, section_ref, sort_order
-concept:         id, name, description, created_at         -- board-agnostic, granular ("Diffraction")
+concept:         id, name, description varchar(500), created_at   -- board-agnostic, granular ("Diffraction")
 
 spec_section_concept: spec_section_id, concept_id          -- "AQA 6.2 covers Diffraction…"
 question_concept:     question_id, concept_id
 note_concept:         note_id, concept_id
 
-question:  id, version (optimistic lock), body (TEXT, not null — Markdown, images via {{s3:key}}, MCQ via - [ ]/- [x]),
+question:  id, version (optimistic lock), body (varchar(10000), not null — Markdown, images via {{s3:key}}, MCQ via - [ ]/- [x]),
            difficulty int (nullable, 1-5),
            type (nullable — SHORT_ANSWER|EXTENDED|MCQ),
            status (not null, default PENDING — PENDING|APPROVED|REJECTED),
@@ -209,7 +219,7 @@ question_origin: id, question_id (FK → question, not null, UNIQUE, ON DELETE C
            -- Field named `authorship` (not kind/source) — D-041. Shipped Sprint 0.3 (tickets 2+3).
 
 mark_scheme: id, question_id (FK, not null, UNIQUE — 1:1), version (optimistic lock),
-             body (TEXT, not null — Markdown, {{s3:key}} refs), created_at
+             body (varchar(10000), not null — Markdown, {{s3:key}} refs), created_at
                            -- Separate entity from question (D-018): different edit lifecycle.
                            -- Mark schemes get tweaked in normal review; question type/status are frozen once set. Don't share a row / lock token /
                            -- contact surface across two workflows that don't move together.
@@ -218,10 +228,12 @@ mark_scheme: id, question_id (FK, not null, UNIQUE — 1:1), version (optimistic
 
 note:      id, title, s3_key, level, status, created_at
 
-question_attempt:           id, question_id, session_token, attempt_body, created_at
+question_attempt:           id, question_id, session_token varchar(64), attempt_body varchar(25000), created_at
                            -- NO unique constraint on (question_id, session_token).
                            -- Repeated attempts are the revision loop, not a duplicate. See D-021.
-                           -- Built in Sprint 0.2.
+                           -- Built in Sprint 0.2. Widths (V10): attempt_body varchar(25000),
+                           -- session_token varchar(64) — each mirrored by @Size + a test pin;
+                           -- session_token bounded because it is client-supplied and indexed.
 
 question_attempt_feedback: id, question_attempt_id, source (SELF|AI),
                            self_score int NULL, max_score int NULL,   -- SELF only
@@ -239,7 +251,9 @@ question_attempt_feedback: id, question_attempt_id, source (SELF|AI),
 **Flyway conventions:**
 
 - Migrations live in `src/main/resources/db/migration/`, named `V<n>__description.sql`
-- Never edit a migration that has already been applied — add a new one
+- Never edit a migration that has run somewhere that matters — but the boundary is the **merge, not the commit**: on an
+  unmerged feature branch, append to the newest `V<n>` file rather than adding another (a local dev database is not
+  somewhere that matters). Once merged, a migration is immutable — add a new one.
 - Flyway owns the schema; it never owns content data
 - `src/main/resources/db/seed_local.sql` exists for manual local data loading only — it is intentionally outside
   `db/migration/` so Flyway ignores it. Load it manually via `docker exec`. It will eventually move to a dedicated
@@ -273,8 +287,13 @@ Conventions: versioned routes, validated DTOs, correct status codes (200/201/400
 `{"error": "...", "status": n}` on **all** failure paths, never leak internals. Anonymous sessions = client-generated
 UUID via `X-Session-Token`; no server session state.
 
-**Outstanding (Sprint 0.1):** only 404 currently returns the structured envelope. 400/422/500 need a global exception
-handler before the DoD is met.
+**Request validation (applied on every route):** a path `id` below 1 → **422** (not 404); non-numeric `page`/`size` → *
+*400**; out-of-range paging values → **422**; a `size` above the configured max → **422** with the ceiling named (never
+silently clamped); any `sort` parameter → **422** refused (the runners impose a total order, so no client sort can be
+honoured — a reordered 200 was a silent lie); a blank or over-64-char `X-Session-Token` → **422** at the controller.
+Paging past the end stays a valid request with an empty envelope. Nothing consumes the API yet, so none of these break a
+client. (The full 400/404/422/500 structured envelope is in place — 11 exception handlers under `web/handler`, error
+shape composed once in `web/dto/mapper`.)
 
 ## 8. Ingestion pipeline (in-process for now)
 
@@ -335,7 +354,7 @@ which is true of all three; "integration" is a conceptual promise the suffix nev
 - **ITs are the DoD in executable form.** An endpoint owes **one IT per clause of what you said you'd build** —
   not one per predicate, code path, or data condition. If the DoD doesn't name a case, it doesn't earn an IT.
   (D-018's DoD names both mark-scheme 404 arms, so both get one.)
-- **The runner is the unit-test entry point.** A runner (e.g. `StudentQuestionQueryRunner`) is tested as one
+- **The runner is the unit-test entry point.** A runner (e.g. `QuestionQueryRunner`) is tested as one
   collaborative unit with its **real** internal parts inside it — policy, specification factory — mocking only
   the database boundary. Internal classes are implementation details tested *through* the runner, not seams
   that each earn a test file. **A seam is not automatically a test boundary**: a test file per internal
@@ -371,6 +390,13 @@ which is true of all three; "integration" is a conceptual promise the suffix nev
   complete a symmetry.
 - **No data setup in `setUp()`** beyond `data.clear()` and port/counter wiring. Each test inserts exactly what
   it depends on — globally-seeded data hides what a test actually relies on.
+- **Test fixtures insert their own rows inline.** No test helper inserts anything — a helper may build and return a
+  value, but the `insert` belongs at the call site, where the test can see what it depends on.
+- **Proving a policy-bound collaborator was actually wired in.** A unit test constructs the collaborator itself, so it
+  can't prove the *right* one was injected. `QuestionServiceAccessorCT` starts the real context, mocks only the
+  repository, and resolves the specification the service caused through `utils.CriteriaProbe`, asserting the
+  restrictions it carries. `CriteriaProbe` proves which criteria calls were made, never which rows come back — which is
+  why the specification factories are proven in the repository ITs instead.
 - **Statics only for values that must change together** (endpoint paths, pinned statement counts, stub
   sentinels). Test data values are per-test locals.
 - **Tests never import an application constant.** A test asserting against a production constant (e.g.
@@ -410,7 +436,8 @@ which is true of all three; "integration" is a conceptual promise the suffix nev
 - **Both assertions are needed.** Invariance catches an N+1 (count scales with rows). The absolute pin catches
   a fetch-join reintroduction — which invariance sails past (count stays constant) and the correctness ITs also
   pass (in-memory paging still returns correct rows). The magic numbers are deliberate friction: update the pin
-  consciously when a query is legitimately added, with a comment saying what the number is made of. Don't
+  consciously when a query is legitimately added, and no more — do NOT add a comment restating what the number is made
+  of; it restates the code and goes stale, leaving a correct number with a false explanation after one refactor. Don't
   decompose it into named constants — that asserts a composition which stops being true once branching exists.
 - **Current pins:** `/concepts` 1 · `/concepts/{id}` 1 · `/questions` 3 · `/questions/{id}` 2 ·
   `/questions/{id}/mark-scheme` 2 · `/questions/{id}/attempts` GET 2 (+ row-count invariance) · POST 2.
@@ -455,10 +482,11 @@ tests are owed per *new query*, not per endpoint.
   stitch: paged root query, then a keyed id-pair projection, stitched onto DTOs. See D-025.
 - **Use a correlated `EXISTS` subquery, not a join, to filter on a to-many.** A join multiplies rows and corrupts
   `totalCount`. See D-026.
-- **The student serving policy lives in `StudentQuestionQueryPolicy`, not in a controller filter.** It imposes
-  `status=APPROVED` + concept-linked; request filters pass through. `status` is never a client parameter. Filters
-  narrow, never widen. *(The `QuestionQuery.studentCatalogue(...)` named constructors are gone — removed in the D-033
-  refactor. Enforcement is **conventional**, not structural: see the D-024 note in §5.)* See D-024 as amended, D-033.
+- **The student serving policy lives in `StudentQuestionQueryPolicy` (`service/question/policy`), applied
+  in `QuestionAccessor`, not in a controller filter.** It imposes `status=APPROVED` + concept-linked; request filters
+  pass through. `status` is never a client parameter. Filters narrow, never widen. *(
+  The `QuestionQuery.studentCatalogue(...)` named constructors are gone — removed in the D-033 refactor. Enforcement
+  is **conventional**, not structural: see the D-024 note in §5.)* See D-024 as amended, D-033.
 - **Write endpoints bind their payload with `@Body`, never `@RequestBean`.** `@RequestBean` binds fields individually,
   so a write endpoint would silently accept its payload as a query parameter — putting user content into access logs,
   proxy logs, browser history and `Referer` headers. `@RequestBean` stays correct for read endpoints assembling filter
@@ -468,22 +496,24 @@ tests are owed per *new query*, not per endpoint.
   D-023.
 - **Framework paging behaviour is pinned once in `PagingCT`.** A new paginated endpoint adds an *ordering* IT only —
   never a fresh paging suite. See D-029.
-- **Cross-aggregate references are by scalar id, never associations.** `MarkScheme` holds `long questionId`, not
-  `@OneToOne Question`; `Question` holds no reference to `MarkScheme` at all. The relationship is expressed exactly
-  once — the `mark_scheme.question_id` FK and its DB constraint. Navigation is a repository query by id. `@OneToOne`
-  defaults to EAGER and its inverse side can't be lazy without bytecode enhancement, so both directions fire wasted
-  selects. **Carve-out:** `Question.conceptLinks` `@OneToMany` stays — that's *within* the aggregate, it's lazy, and the
-  admin concepts write path needs it. See D-031.
+- **Cross-aggregate references are by scalar id, never associations — no exceptions.** `MarkSchemeEntity` holds
+  `long questionId`, not `@OneToOne QuestionEntity`; no entity holds an object reference across an aggregate boundary.
+  The relationship is expressed once — the FK and its DB constraint. Navigation is a repository query by id. `@OneToOne`
+  defaults to EAGER and its inverse can't be lazy without bytecode enhancement, so both directions fire wasted selects.
+  **The former `QuestionEntity.conceptLinks` `@OneToMany` carve-out was deleted** — it had zero readers and its cascade
+  merely duplicated the database's own `ON DELETE CASCADE`. See D-031.
 - **Entities never carry value defaults on fields.** An entity's initial state is set by a full-body constructor or a
   named factory method; the no-arg constructor is protected (Hibernate's only). A field initialiser makes "I forgot to
   set this" and "I meant this value" indistinguishable, and silently owns a decision that a second creation path would
   want to make for itself. **Collection initialisers are not value defaults and stay** — an unset collection is an NPE,
   not a lifecycle decision. **The DB column default stays and serves a different caller:** Hibernate lists every mapped
   column in its INSERT, so a column default is never reachable from application writes — it guards non-JPA writers
-  only (`TestData`, seed scripts) and is pinned by the table's `*DatabaseIT`. *Applied:* `Question.status` lost
-  `= PENDING`; `Question`/`QuestionAttempt` no-arg constructors dropped to protected. `Document` and `QuestionOrigin`
-  are not yet compliant — implicit public no-arg constructor, no populating constructor — which is the document branch's
-  work.
+  only (`TestData`, seed scripts) and is pinned by the table's `*DatabaseIT`. *Applied across every entity:* the
+  bare-noun value defaults are gone; each entity has a protected no-arg constructor (Hibernate's only), a private
+  populating constructor and named factory methods. `DocumentEntity` and `QuestionOriginEntity` are compliant too.
+- **Entities take an `Entity` suffix and live in `persistence`; the bare noun is the service-layer response record.**
+  The service never returns a persisted type. **`version` is `int` everywhere** — column, entity and service record —
+  and it never reaches a web response.
 - **Origin is a separate per-type table, never columns on the content.** A question's provenance (`AUTHORED`/
   `EXTRACTED`/`GENERATED`, and the source document if extracted) lives in `question_origin`, not on `question`. Reasons:
   origin is *cold* (read <1% of the time — keep it off the hot catalogue row) and *polymorphic in shape but not in
@@ -516,21 +546,23 @@ is no demo — the artefact is the repo + a conversation (D-035).**
 > **Sprint 0.2 closed.** Question read API, mark scheme, and attempts all delivered.
 >
 > **Sprint 0.3 in progress:** schema done (`document`, `question_origin`; `source`/`source_spec` dropped — D-036/D-041).
-**Current work: the document upload piece**, sliced 1–5 (see PRACTIQ_MASTER Sprint 0.3): (1) LocalStack S3 + CI
-> wiring → (2) presigned-upload endpoint + `AWAITING_UPLOAD` record → (3) server-owned reconcile (a run-resource on an
-> internal surface) → (4) trigger script → (5) Terraform-scheduled trigger (EventBridge→Lambda, LocalStack). No client
-`/complete` signal; no in-process scheduler (D-044/D-045). ⚠ `Document` has no status default — fixed in slice 2 (its
-> first construct-and-save). After this piece: review/approve (PATCH, 1.3) and extraction.
+**Document upload piece, slices 1–2 built** — LocalStack S3 + CI wiring; presigned-upload endpoint + `AWAITING_UPLOAD`
+> record (the `Document` status-default defect fixed via the create-path constructor). **Layering refactor merged (PR
+#32):** packages are now `web`/`service`/`persistence`/`storage`/`foundation`; entities carry an `Entity` suffix and the
+> bare noun is the service record; per-route request validation applied (id<1→422, bad paging→400/422, `sort` refused,
+> session-token bounds→422). **Outstanding Sprint 0.3 — slices 3–5:** server-owned reconcile (run-resource on an internal
+> surface) → trigger script → Terraform/EventBridge schedule (D-044/D-045). After this piece: review/approve (PATCH, 1.3)
+> and extraction.
 >
 > **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged,
 > filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept
 > stitch · JPA static metamodel · `GET /api/v1/questions/{id}` · `mark_scheme` entity + `V3__mark_scheme.sql` +
 `GET /api/v1/questions/{id}/mark-scheme` (ungated) — **D-018 closed in code** · `QuestionQueryRunner`/
-`StudentQuestionQueryPolicy` (replaced `QuestionQueryManager`) + `LinkedQuestion` projection · performance tier (
+`StudentQuestionQueryPolicy` + `QuestionWithConceptIds` · performance tier (
 `*PT`) · `question_attempt` table + `GET /api/v1/questions/{id}/attempts` (per-session, newest-first, visibility-gated
 > via the runner) · `X-Session-Token` handling (absent → 400, blank → 422) · `POST /api/v1/questions/{id}/attempts` (201 +
-> created attempt, `@Body`-bound, visibility-gated via the same runner `exists`; body length 20k on the DTO, 100k
-> entity-level backstop) — **attempts feature complete**.
+> created attempt, `@Body`-bound, visibility-gated via the same runner `exists`; body length 20k on the DTO, 25k entity +
+> column cap (V10)) — **attempts feature complete**.
 >
 > **Build & CI workstream** (cross-cutting — D-037/D-038): merge-to-main pipeline, security scanning, badge, timeouts
 > all shipped. **CodeQL caveat (D-038):** no Micronaut taint model, so injection-class flaws in controllers are *not*
@@ -544,8 +576,9 @@ is no demo — the artefact is the repo + a conversation (D-035).**
 > **Deliberately out of scope:** `question_attempt_feedback` — whole table deferred to Phase 3 (D-019 amendment; no
 > consumer for a self-score yet) · MCQ auto-marking (separate feature, unscheduled) · idempotency keys (D-021) · unique
 > constraint on attempts (would break the revision loop) · server-issued session tokens (D-020) · async grading / `202` /
-> polling · batch submission · strict `Pageable` binder (D-028) · DB `CHECK` on attempt body length (the backstop lives at
-> the entity as `@Size(max = 100000)`; a loose `CHECK` owes a migration only if non-JPA writers ever appear — D-034).
+> polling · batch submission · strict `Pageable` binder (D-028) · the attempt body cap is now `varchar(25000)` at the
+> column (V10) with a matching `@Size(max = 25000)` on the entity — the earlier "a loose `CHECK` owes a migration only if
+> non-JPA writers appear" caveat no longer applies, since the column carries the cap (D-034).
 
 Full sprint briefs live in PRACTIQ_MASTER.md (the planning doc, kept outside the repo). If a sprint brief is pasted, it
 governs the session's scope.
