@@ -561,7 +561,7 @@ is no demo — the artefact is the repo + a conversation (D-035).**
 > filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept
 > stitch · JPA static metamodel · `GET /api/v1/questions/{id}` · `mark_scheme` entity + `V3__mark_scheme.sql` +
 `GET /api/v1/questions/{id}/mark-scheme` (ungated) — **D-018 closed in code** · `QuestionQueryRunner`/
-`StudentQuestionQueryPolicy` (replaced `QuestionQueryManager`) + `LinkedQuestion` projection · performance tier (
+`StudentQuestionQueryPolicy` + `QuestionWithConceptIds` · performance tier (
 `*PT`) · `question_attempt` table + `GET /api/v1/questions/{id}/attempts` (per-session, newest-first, visibility-gated
 > via the runner) · `X-Session-Token` handling (absent → 400, blank → 422) · `POST /api/v1/questions/{id}/attempts` (201 +
 > created attempt, `@Body`-bound, visibility-gated via the same runner `exists`; body length 20k on the DTO, 25k entity +
