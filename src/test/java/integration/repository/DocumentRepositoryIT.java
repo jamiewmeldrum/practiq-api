@@ -1,18 +1,22 @@
 package integration.repository;
 
+import static java.time.ZoneOffset.UTC;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static utils.TestReflection.setField;
 import static utils.data.TestData.*;
 
+import com.practiq.foundation.types.DocumentStatus;
 import com.practiq.persistence.DocumentEntity;
 import com.practiq.persistence.repository.DocumentRepository;
 import jakarta.inject.Inject;
 import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -149,5 +153,57 @@ class DocumentRepositoryIT {
         assertThat(constraintViolations.size(), is(1));
         String message = constraintViolations.stream().findFirst().get().getMessage();
         assertThat(message, equalTo("must not be null"));
+    }
+
+    @Test
+    void canFindDocumentsWithStatusCreatedBeforeInstant() {
+        Instant boundary = Instant.parse("2026-01-01T00:00:00Z");
+        Instant justBefore = boundary.minusSeconds(1);
+        Instant longBefore = boundary.minus(150, DAYS);
+
+        String matchingKey1 = "matching-key-1";
+        String matchingFilename1 = "matching-1.pdf";
+        String matchingKey2 = "matching-key-2";
+        String matchingFilename2 = "matching-2.pdf";
+
+        aDocument(matchingKey1, matchingFilename1, DocumentStatus.REJECTED, justBefore)
+                .insert();
+        aDocument(matchingKey2, matchingFilename2, DocumentStatus.REJECTED, longBefore)
+                .insert();
+
+        // Right side of the boundary, wrong status.
+        aDocument("approved-key", "approved.pdf", DocumentStatus.APPROVED, justBefore)
+                .insert();
+        aDocument("removed-key", "removed.pdf", DocumentStatus.REMOVED, longBefore)
+                .insert();
+        aDocument("awaiting-key", "awaiting.pdf", DocumentStatus.AWAITING_UPLOAD, longBefore)
+                .insert();
+
+        // Right status, wrong side of the boundary - including the boundary itself, which is excluded.
+        aDocument("on-boundary-key", "on-boundary.pdf", DocumentStatus.REJECTED, boundary)
+                .insert();
+        aDocument("after-key", "after.pdf", DocumentStatus.REJECTED, boundary.plusSeconds(1))
+                .insert();
+
+        List<DocumentEntity> found =
+                documentRepository.findByStatusAndCreatedAtBefore(DocumentStatus.REJECTED, boundary);
+
+        assertThat(
+                found,
+                containsInAnyOrder(
+                        allOf(
+                                hasProperty("s3Key", equalTo(matchingKey1)),
+                                hasProperty("filename", equalTo(matchingFilename1)),
+                                hasProperty("status", equalTo(DocumentStatus.REJECTED)),
+                                hasProperty("createdAt", equalTo(justBefore))),
+                        allOf(
+                                hasProperty("s3Key", equalTo(matchingKey2)),
+                                hasProperty("filename", equalTo(matchingFilename2)),
+                                hasProperty("status", equalTo(DocumentStatus.REJECTED)),
+                                hasProperty("createdAt", equalTo(longBefore)))));
+    }
+
+    private TestData.DocumentRow aDocument(String s3Key, String filename, DocumentStatus status, Instant createdAt) {
+        return data.document(s3Key, filename).status(status).createdAt(createdAt.atOffset(UTC));
     }
 }
