@@ -364,6 +364,9 @@ which is true of all three; "integration" is a conceptual promise the suffix nev
   proven against real Postgres in one class. (`*SpecificationFactoryIT` is retired as a flavour and folded in.)
   **`*DatabaseIT` stays separate**: it answers what the *migration* guarantees, which is a different question
   from how the table is queried.
+- **A column with a DB ceiling owes two boundary tests** — a repository/entity test proving the application `@Size`
+  guard rejects an over-long value, and a `*DatabaseIT` proving the hard column cap does too. Different layers; neither
+  substitutes for the other. (`concept.name`, `document.source_spec`, the `V10` widths.)
 - **Standalone unit tests only where a guarantee is invisible from a higher boundary.** Kept for reusable
   components — `SessionTokenRestriction`, difficulty mapping, response mappers, the serving-policy object.
   Dropped for abstract base classes, which are proven through their concrete implementations (so each concrete
@@ -558,7 +561,7 @@ is no demo — the artefact is the repo + a conversation (D-035).**
 > filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept
 > stitch · JPA static metamodel · `GET /api/v1/questions/{id}` · `mark_scheme` entity + `V3__mark_scheme.sql` +
 `GET /api/v1/questions/{id}/mark-scheme` (ungated) — **D-018 closed in code** · `QuestionQueryRunner`/
-`StudentQuestionQueryPolicy` + `QuestionWithConceptIds` · performance tier (
+`StudentQuestionQueryPolicy` (replaced `QuestionQueryManager`) + `LinkedQuestion` projection · performance tier (
 `*PT`) · `question_attempt` table + `GET /api/v1/questions/{id}/attempts` (per-session, newest-first, visibility-gated
 > via the runner) · `X-Session-Token` handling (absent → 400, blank → 422) · `POST /api/v1/questions/{id}/attempts` (201 +
 > created attempt, `@Body`-bound, visibility-gated via the same runner `exists`; body length 20k on the DTO, 25k entity +
