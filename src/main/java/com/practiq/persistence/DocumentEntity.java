@@ -57,4 +57,9 @@ public class DocumentEntity {
     public static DocumentEntity newUpload(String s3Key, String filename, String sourceSpec) {
         return new DocumentEntity(s3Key, filename, sourceSpec, DocumentStatus.AWAITING_UPLOAD);
     }
+
+    public DocumentEntity updateStatus(DocumentStatus status) {
+        this.status = status;
+        return this;
+    }
 }
