@@ -46,8 +46,9 @@ public class DocumentUploadReconciler {
         List<DocumentEntity> completedUploads = documents.stream()
                 .filter(document -> uploadedKeys.contains(document.getS3Key()))
                 .toList();
+        // These documents are managed for the life of the transaction, so the status change is written
+        // at commit and an explicit update call would issue no statement of its own.
         completedUploads.forEach(document -> document.updateStatus(DocumentStatus.UNAPPROVED));
-        documentRepository.saveAll(completedUploads);
 
         List<DocumentEntity> missingUploads = documents.stream()
                 .filter(document -> !uploadedKeys.contains(document.getS3Key()))

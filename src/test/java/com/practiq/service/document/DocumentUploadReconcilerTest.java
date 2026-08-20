@@ -63,8 +63,9 @@ class DocumentUploadReconcilerTest {
 
         verify(documentRepository).findByStatusAndCreatedAtBefore(DocumentStatus.AWAITING_UPLOAD, cutOff);
         verify(s3DocumentStorage).filterToKeysThatExist(Set.of(key1, key2, key3, key4));
-        verify(documentRepository).saveAll(List.of(documentEntity2, documentEntity4));
 
+        // Nothing is saved: the reconciler mutates the documents the repository handed back and lets the
+        // transaction write them at commit. These are those same instances, so their state is the write.
         assertThat(documentEntity1.getStatus(), equalTo(DocumentStatus.AWAITING_UPLOAD));
         assertThat(documentEntity2.getStatus(), equalTo(DocumentStatus.UNAPPROVED));
         assertThat(documentEntity3.getStatus(), equalTo(DocumentStatus.AWAITING_UPLOAD));
