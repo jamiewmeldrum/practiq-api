@@ -38,3 +38,9 @@ flyway:
 
 practiq:
   admin-key: ${PRACTIQ_ADMIN_KEY}
+  s3:
+    # Bounds one attempt, not the whole call. The SDK sets neither by default, so an unresponsive
+    # S3 burns the 30s socket timeout on each of three attempts — and the reconcile holds a pooled
+    # connection for all of it. The total budget stays open because a document download's duration
+    # scales with the file; a single attempt's does not.
+    api-call-attempt-timeout: 10s
