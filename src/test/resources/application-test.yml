@@ -25,3 +25,7 @@ aws:
 
 practiq:
   admin-key: "b10ef800-3a3a-4395-9bbd-bfe2fa316872"
+  # The schedule stays off in tests: an IT drives the reconcile by calling the scheduler directly,
+  # so a background firing would only race its fixtures.
+  document-upload-reconcile-scheduler:
+    enabled: false

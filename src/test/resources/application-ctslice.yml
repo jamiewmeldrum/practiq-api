@@ -49,3 +49,6 @@ aws:
 
 practiq:
   admin-key: "b10ef800-3a3a-4395-9bbd-bfe2fa316872"
+  # No scheduled work in the DB-less tier — the reconcile would have no datasource to run against.
+  document-upload-reconcile-scheduler:
+    enabled: false
