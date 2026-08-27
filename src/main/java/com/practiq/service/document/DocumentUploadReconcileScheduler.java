@@ -19,7 +19,7 @@ public class DocumentUploadReconcileScheduler {
             fixedDelay = "${practiq.document-upload-reconcile-scheduler.interval}",
             initialDelay = "${practiq.document-upload-reconcile-scheduler.initial-delay}",
             condition = "${practiq.document-upload-reconcile-scheduler.enabled}")
-    public void runScheduledUploadReconcile() {
+    public void runUploadReconcile() {
         log.info("Scheduled document upload reconcile fired");
         documentUploadReconciler.reconcileDocumentsAwaitingUpload();
     }

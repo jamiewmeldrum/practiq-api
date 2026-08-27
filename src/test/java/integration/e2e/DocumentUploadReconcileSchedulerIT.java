@@ -1,4 +1,4 @@
-package integration.scheduled;
+package integration.e2e;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -62,7 +62,7 @@ class DocumentUploadReconcileSchedulerIT {
                 .insert();
         s3TestUtils.createObject(TARGET_BUCKET, uploadedKey, "the file that arrived");
 
-        scheduler.runScheduledUploadReconcile();
+        scheduler.runUploadReconcile();
 
         List<DBRow> documents = data.retrieveDocuments();
         assertThat(DBRow.collectColumn(documents, "id"), contains(41L));
@@ -86,7 +86,7 @@ class DocumentUploadReconcileSchedulerIT {
                 .insert();
         s3TestUtils.createObject(TARGET_BUCKET, uploadedKey, "the file that arrived");
 
-        scheduler.runScheduledUploadReconcile();
+        scheduler.runUploadReconcile();
 
         List<DBRow> documents = data.retrieveDocuments();
         assertThat(DBRow.collectColumn(documents, "id"), contains(51L));
@@ -102,7 +102,7 @@ class DocumentUploadReconcileSchedulerIT {
                 .createdAt(withinTheUploadWindow)
                 .insert();
 
-        scheduler.runScheduledUploadReconcile();
+        scheduler.runUploadReconcile();
 
         List<DBRow> documents = data.retrieveDocuments();
         assertThat(DBRow.collectColumn(documents, "id"), contains(61L));
