@@ -29,6 +29,8 @@ public class DocumentUploadReconciler {
         this.clock = clock;
     }
 
+    // The pooled connection is deliberately held across the S3 checks: the job is single-threaded, so that
+    // costs one connection, and promoting and expiring in one transaction is worth more than releasing it.
     @Transactional
     public void reconcileDocumentsAwaitingUpload() {
         // We want anything that should really have been uploaded by now but hasn't, with a little bit of cooling off
