@@ -14,7 +14,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Singleton
 public class DocumentUploadReconciler {
 
@@ -36,9 +38,12 @@ public class DocumentUploadReconciler {
         // We want anything that should really have been uploaded by now but hasn't, with a little bit of cooling off
         // to prevent being over eager and grabbing something just as it ticks over despite still being uploaded.
         Instant cutOff = clock.instant().minus(UPLOAD_URL_EXPIRY.plusMinutes(5));
+        log.info("Reconciling documents awaiting upload created before {}", cutOff);
+
         List<DocumentEntity> documents =
                 documentRepository.findByStatusAndCreatedAtBefore(DocumentStatus.AWAITING_UPLOAD, cutOff);
         if (CollectionUtils.isEmpty(documents)) {
+            logCompletion(0, 0, 0);
             return;
         }
 
@@ -56,5 +61,15 @@ public class DocumentUploadReconciler {
                 .filter(document -> !uploadedKeys.contains(document.getS3Key()))
                 .toList();
         documentRepository.deleteAll(missingUploads);
+
+        logCompletion(documents.size(), completedUploads.size(), missingUploads.size());
+    }
+
+    private void logCompletion(int examined, int promoted, int expired) {
+        log.info(
+                "Document upload reconcile complete: examined={}, promoted={}, expired={}",
+                examined,
+                promoted,
+                expired);
     }
 }
