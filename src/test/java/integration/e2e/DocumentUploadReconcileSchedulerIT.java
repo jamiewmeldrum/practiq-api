@@ -2,8 +2,8 @@ package integration.e2e;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
 
 import com.practiq.foundation.types.DocumentStatus;
 import com.practiq.service.document.DocumentUploadReconcileScheduler;
@@ -21,10 +21,10 @@ import utils.aws.S3TestUtils;
 import utils.data.DBRow;
 import utils.data.TestData;
 
-// Three rather than the production hundred so a backlog can be built from four rows. The other tests
-// here stay well under it, so an off-by-one in the limit fails the backlog test and only that one.
+// Five rather than the production hundred so a backlog can be built from six rows. The other tests here
+// stay under it, so an off-by-one in the limit fails the backlog test and only that one.
 @IntegrationTest
-@Property(name = "practiq.document-upload-reconcile.batch-size", value = "3")
+@Property(name = "practiq.document-upload-reconcile.batch-size", value = "5")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DocumentUploadReconcileSchedulerIT {
 
@@ -51,50 +51,57 @@ class DocumentUploadReconcileSchedulerIT {
     }
 
     @Test
-    void promotesADocumentWhoseUploadReachedStorage() {
+    void promotesEveryDocumentWhoseUploadReachedStorage() {
         OffsetDateTime beyondTheUploadWindow = DateTimeUtils.now().minusMinutes(20);
-        String uploadedKey = "uploaded.txt";
 
-        data.document(uploadedKey, "uploaded.txt")
-                .id(41L)
-                .status(DocumentStatus.AWAITING_UPLOAD)
-                .createdAt(beyondTheUploadWindow)
-                .insert();
-        data.document("abandoned.txt", "abandoned.txt")
-                .id(42L)
-                .status(DocumentStatus.AWAITING_UPLOAD)
-                .createdAt(beyondTheUploadWindow)
-                .insert();
-        s3TestUtils.createObject(TARGET_BUCKET, uploadedKey, "the file that arrived");
+        anAwaitingUpload(41L, "uploaded-one.txt", beyondTheUploadWindow).insert();
+        anAwaitingUpload(42L, "uploaded-two.txt", beyondTheUploadWindow).insert();
+        anAwaitingUpload(43L, "abandoned-one.txt", beyondTheUploadWindow).insert();
+        anAwaitingUpload(44L, "abandoned-two.txt", beyondTheUploadWindow).insert();
+        s3TestUtils.createObject(TARGET_BUCKET, "uploaded-one.txt", "the first file that arrived");
+        s3TestUtils.createObject(TARGET_BUCKET, "uploaded-two.txt", "the second file that arrived");
 
         scheduler.runUploadReconcile();
 
         List<DBRow> documents = data.retrieveDocuments();
-        assertThat(DBRow.collectColumn(documents, "id"), contains(41L));
-        assertThat(documents.getFirst().get("status"), equalTo(DocumentStatus.UNAPPROVED.name()));
+        assertThat(DBRow.collectColumn(documents, "id"), containsInAnyOrder(41L, 42L));
+        assertThat(
+                DBRow.collectColumn(documents, "status"),
+                contains(DocumentStatus.UNAPPROVED.name(), DocumentStatus.UNAPPROVED.name()));
     }
 
     @Test
-    void deletesADocumentWhoseUploadNeverReachedStorage() {
+    void deletesEveryDocumentWhoseUploadNeverReachedStorage() {
         OffsetDateTime beyondTheUploadWindow = DateTimeUtils.now().minusMinutes(20);
-        String uploadedKey = "uploaded.txt";
 
-        data.document(uploadedKey, "uploaded.txt")
-                .id(51L)
-                .status(DocumentStatus.AWAITING_UPLOAD)
-                .createdAt(beyondTheUploadWindow)
-                .insert();
-        data.document("abandoned.txt", "abandoned.txt")
-                .id(52L)
-                .status(DocumentStatus.AWAITING_UPLOAD)
-                .createdAt(beyondTheUploadWindow)
-                .insert();
-        s3TestUtils.createObject(TARGET_BUCKET, uploadedKey, "the file that arrived");
+        anAwaitingUpload(51L, "uploaded-one.txt", beyondTheUploadWindow).insert();
+        anAwaitingUpload(52L, "uploaded-two.txt", beyondTheUploadWindow).insert();
+        anAwaitingUpload(53L, "abandoned-one.txt", beyondTheUploadWindow).insert();
+        anAwaitingUpload(54L, "abandoned-two.txt", beyondTheUploadWindow).insert();
+        s3TestUtils.createObject(TARGET_BUCKET, "uploaded-one.txt", "the first file that arrived");
+        s3TestUtils.createObject(TARGET_BUCKET, "uploaded-two.txt", "the second file that arrived");
+
+        scheduler.runUploadReconcile();
+
+        // The survivors are exactly the two uploaded: both abandoned rows are gone, and the run did not
+        // simply delete everything it looked at.
+        assertThat(DBRow.collectColumn(data.retrieveDocuments(), "id"), containsInAnyOrder(51L, 52L));
+    }
+
+    @Test
+    void leavesEveryDocumentStillInsideItsUploadWindow() {
+        OffsetDateTime withinTheUploadWindow = DateTimeUtils.now().minusMinutes(5);
+
+        anAwaitingUpload(61L, "still-uploading-one.txt", withinTheUploadWindow).insert();
+        anAwaitingUpload(62L, "still-uploading-two.txt", withinTheUploadWindow).insert();
 
         scheduler.runUploadReconcile();
 
         List<DBRow> documents = data.retrieveDocuments();
-        assertThat(DBRow.collectColumn(documents, "id"), contains(51L));
+        assertThat(DBRow.collectColumn(documents, "id"), containsInAnyOrder(61L, 62L));
+        assertThat(
+                DBRow.collectColumn(documents, "status"),
+                contains(DocumentStatus.AWAITING_UPLOAD.name(), DocumentStatus.AWAITING_UPLOAD.name()));
     }
 
     @Test
@@ -103,51 +110,27 @@ class DocumentUploadReconcileSchedulerIT {
 
         // Inserted newest-first: with the rows in the order the run should pick them, an unordered query
         // would return them correctly by physical scan order and this would pass having proven nothing.
-        data.document("fourth.txt", "fourth.txt")
-                .id(74L)
-                .status(DocumentStatus.AWAITING_UPLOAD)
-                .createdAt(oldest.plusMinutes(15))
-                .insert();
-        data.document("third.txt", "third.txt")
-                .id(73L)
-                .status(DocumentStatus.AWAITING_UPLOAD)
-                .createdAt(oldest.plusMinutes(10))
-                .insert();
-        data.document("second.txt", "second.txt")
-                .id(72L)
-                .status(DocumentStatus.AWAITING_UPLOAD)
-                .createdAt(oldest.plusMinutes(5))
-                .insert();
-        data.document("first.txt", "first.txt")
-                .id(71L)
-                .status(DocumentStatus.AWAITING_UPLOAD)
-                .createdAt(oldest)
-                .insert();
+        anAwaitingUpload(76L, "sixth.txt", oldest.plusMinutes(25)).insert();
+        anAwaitingUpload(75L, "fifth.txt", oldest.plusMinutes(20)).insert();
+        anAwaitingUpload(74L, "fourth.txt", oldest.plusMinutes(15)).insert();
+        anAwaitingUpload(73L, "third.txt", oldest.plusMinutes(10)).insert();
+        anAwaitingUpload(72L, "second.txt", oldest.plusMinutes(5)).insert();
+        anAwaitingUpload(71L, "first.txt", oldest).insert();
 
         scheduler.runUploadReconcile();
 
         // Only the newest is left: a run takes the batch size, and takes the oldest of what is waiting.
-        assertThat(DBRow.collectColumn(data.retrieveDocuments(), "id"), contains(74L));
+        assertThat(DBRow.collectColumn(data.retrieveDocuments(), "id"), contains(76L));
 
         scheduler.runUploadReconcile();
 
         assertThat(data.retrieveDocuments(), empty());
     }
 
-    @Test
-    void leavesADocumentStillInsideItsUploadWindow() {
-        OffsetDateTime withinTheUploadWindow = DateTimeUtils.now().minusMinutes(5);
-
-        data.document("still-uploading.txt", "still-uploading.txt")
-                .id(61L)
+    private TestData.DocumentRow anAwaitingUpload(long id, String s3Key, OffsetDateTime createdAt) {
+        return data.document(s3Key, s3Key)
+                .id(id)
                 .status(DocumentStatus.AWAITING_UPLOAD)
-                .createdAt(withinTheUploadWindow)
-                .insert();
-
-        scheduler.runUploadReconcile();
-
-        List<DBRow> documents = data.retrieveDocuments();
-        assertThat(DBRow.collectColumn(documents, "id"), contains(61L));
-        assertThat(documents.getFirst().get("status"), equalTo(DocumentStatus.AWAITING_UPLOAD.name()));
+                .createdAt(createdAt);
     }
 }
