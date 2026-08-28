@@ -44,6 +44,10 @@ practiq:
     # connection for all of it. The total budget stays open because a document download's duration
     # scales with the file; a single attempt's does not.
     api-call-attempt-timeout: 10s
+  document-upload-reconcile:
+    # A run takes at most this many, oldest first; the rest wait for the next one. Sized against the
+    # schedule interval, so it is a drain rate as much as a cap.
+    batch-size: 100
   document-upload-reconcile-scheduler:
     # An absent initial-delay is passed to the scheduler as null and becomes 0, firing a reconcile
     # while the context is still starting. Setting it keeps the first run off application startup.

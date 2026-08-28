@@ -4,7 +4,9 @@ import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.practiq.service.document.dto.response.DocumentUploadReconciliationSummary;
 import io.micronaut.context.annotation.Property;
 import io.micronaut.test.annotation.MockBean;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -24,7 +26,10 @@ class DocumentUploadReconcileSchedulerCT {
 
     @MockBean(DocumentUploadReconciler.class)
     DocumentUploadReconciler documentUploadReconciler() {
-        return mock(DocumentUploadReconciler.class);
+        DocumentUploadReconciler reconciler = mock(DocumentUploadReconciler.class);
+        when(reconciler.reconcileDocumentsAwaitingUpload())
+                .thenReturn(new DocumentUploadReconciliationSummary(0, 0, 0, 0));
+        return reconciler;
     }
 
     @Test

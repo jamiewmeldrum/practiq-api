@@ -1,5 +1,6 @@
 package com.practiq.service.document;
 
+import com.practiq.service.document.dto.response.DocumentUploadReconciliationSummary;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,10 @@ public class DocumentUploadReconcileScheduler {
             condition = "${practiq.document-upload-reconcile-scheduler.enabled}")
     public void runUploadReconcile() {
         log.info("Scheduled document upload reconcile fired");
-        documentUploadReconciler.reconcileDocumentsAwaitingUpload();
+        DocumentUploadReconciliationSummary summary = documentUploadReconciler.reconcileDocumentsAwaitingUpload();
+        log.info(
+                "Scheduled document upload reconcile complete: processed={}, remaining={}",
+                summary.examined(),
+                summary.remaining());
     }
 }
