@@ -54,10 +54,10 @@ class DocumentUploadReconcileSchedulerIT {
     void promotesEveryDocumentWhoseUploadReachedStorage() {
         OffsetDateTime beyondTheUploadWindow = DateTimeUtils.now().minusMinutes(20);
 
-        anAwaitingUpload(41L, "uploaded-one.txt", beyondTheUploadWindow).insert();
-        anAwaitingUpload(42L, "uploaded-two.txt", beyondTheUploadWindow).insert();
-        anAwaitingUpload(43L, "abandoned-one.txt", beyondTheUploadWindow).insert();
-        anAwaitingUpload(44L, "abandoned-two.txt", beyondTheUploadWindow).insert();
+        aDocumentAwaitingUpload(41L, "uploaded-one.txt", beyondTheUploadWindow).insert();
+        aDocumentAwaitingUpload(42L, "uploaded-two.txt", beyondTheUploadWindow).insert();
+        aDocumentAwaitingUpload(43L, "abandoned-one.txt", beyondTheUploadWindow).insert();
+        aDocumentAwaitingUpload(44L, "abandoned-two.txt", beyondTheUploadWindow).insert();
         s3TestUtils.createObject(TARGET_BUCKET, "uploaded-one.txt", "the first file that arrived");
         s3TestUtils.createObject(TARGET_BUCKET, "uploaded-two.txt", "the second file that arrived");
 
@@ -74,10 +74,10 @@ class DocumentUploadReconcileSchedulerIT {
     void deletesEveryDocumentWhoseUploadNeverReachedStorage() {
         OffsetDateTime beyondTheUploadWindow = DateTimeUtils.now().minusMinutes(20);
 
-        anAwaitingUpload(51L, "uploaded-one.txt", beyondTheUploadWindow).insert();
-        anAwaitingUpload(52L, "uploaded-two.txt", beyondTheUploadWindow).insert();
-        anAwaitingUpload(53L, "abandoned-one.txt", beyondTheUploadWindow).insert();
-        anAwaitingUpload(54L, "abandoned-two.txt", beyondTheUploadWindow).insert();
+        aDocumentAwaitingUpload(51L, "uploaded-one.txt", beyondTheUploadWindow).insert();
+        aDocumentAwaitingUpload(52L, "uploaded-two.txt", beyondTheUploadWindow).insert();
+        aDocumentAwaitingUpload(53L, "abandoned-one.txt", beyondTheUploadWindow).insert();
+        aDocumentAwaitingUpload(54L, "abandoned-two.txt", beyondTheUploadWindow).insert();
         s3TestUtils.createObject(TARGET_BUCKET, "uploaded-one.txt", "the first file that arrived");
         s3TestUtils.createObject(TARGET_BUCKET, "uploaded-two.txt", "the second file that arrived");
 
@@ -92,8 +92,10 @@ class DocumentUploadReconcileSchedulerIT {
     void leavesEveryDocumentStillInsideItsUploadWindow() {
         OffsetDateTime withinTheUploadWindow = DateTimeUtils.now().minusMinutes(5);
 
-        anAwaitingUpload(61L, "still-uploading-one.txt", withinTheUploadWindow).insert();
-        anAwaitingUpload(62L, "still-uploading-two.txt", withinTheUploadWindow).insert();
+        aDocumentAwaitingUpload(61L, "still-uploading-one.txt", withinTheUploadWindow)
+                .insert();
+        aDocumentAwaitingUpload(62L, "still-uploading-two.txt", withinTheUploadWindow)
+                .insert();
 
         scheduler.runUploadReconcile();
 
@@ -110,12 +112,12 @@ class DocumentUploadReconcileSchedulerIT {
 
         // Inserted newest-first: with the rows in the order the run should pick them, an unordered query
         // would return them correctly by physical scan order and this would pass having proven nothing.
-        anAwaitingUpload(76L, "sixth.txt", oldest.plusMinutes(25)).insert();
-        anAwaitingUpload(75L, "fifth.txt", oldest.plusMinutes(20)).insert();
-        anAwaitingUpload(74L, "fourth.txt", oldest.plusMinutes(15)).insert();
-        anAwaitingUpload(73L, "third.txt", oldest.plusMinutes(10)).insert();
-        anAwaitingUpload(72L, "second.txt", oldest.plusMinutes(5)).insert();
-        anAwaitingUpload(71L, "first.txt", oldest).insert();
+        aDocumentAwaitingUpload(76L, "sixth.txt", oldest.plusMinutes(25)).insert();
+        aDocumentAwaitingUpload(75L, "fifth.txt", oldest.plusMinutes(20)).insert();
+        aDocumentAwaitingUpload(74L, "fourth.txt", oldest.plusMinutes(15)).insert();
+        aDocumentAwaitingUpload(73L, "third.txt", oldest.plusMinutes(10)).insert();
+        aDocumentAwaitingUpload(72L, "second.txt", oldest.plusMinutes(5)).insert();
+        aDocumentAwaitingUpload(71L, "first.txt", oldest).insert();
 
         scheduler.runUploadReconcile();
 
@@ -127,7 +129,7 @@ class DocumentUploadReconcileSchedulerIT {
         assertThat(data.retrieveDocuments(), empty());
     }
 
-    private TestData.DocumentRow anAwaitingUpload(long id, String s3Key, OffsetDateTime createdAt) {
+    private TestData.DocumentRow aDocumentAwaitingUpload(long id, String s3Key, OffsetDateTime createdAt) {
         return data.document(s3Key, s3Key)
                 .id(id)
                 .status(DocumentStatus.AWAITING_UPLOAD)
