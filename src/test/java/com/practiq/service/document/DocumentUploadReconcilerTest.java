@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 
 class DocumentUploadReconcilerTest {
 
-    private static final int CUT_OFF_MINUTES = 15;
+    private static final int CUT_OFF_MINUTES = 20;
 
     private final DocumentRepository documentRepository = mock(DocumentRepository.class);
     private final S3DocumentStorage s3DocumentStorage = mock(S3DocumentStorage.class);

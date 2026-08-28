@@ -52,7 +52,7 @@ class DocumentUploadReconcileSchedulerIT {
 
     @Test
     void promotesEveryDocumentWhoseUploadReachedStorage() {
-        OffsetDateTime beyondTheUploadWindow = DateTimeUtils.now().minusMinutes(20);
+        OffsetDateTime beyondTheUploadWindow = DateTimeUtils.now().minusMinutes(30);
 
         aDocumentAwaitingUpload(41L, "uploaded-one.txt", beyondTheUploadWindow).insert();
         aDocumentAwaitingUpload(42L, "uploaded-two.txt", beyondTheUploadWindow).insert();
@@ -72,7 +72,7 @@ class DocumentUploadReconcileSchedulerIT {
 
     @Test
     void deletesEveryDocumentWhoseUploadNeverReachedStorage() {
-        OffsetDateTime beyondTheUploadWindow = DateTimeUtils.now().minusMinutes(20);
+        OffsetDateTime beyondTheUploadWindow = DateTimeUtils.now().minusMinutes(30);
 
         aDocumentAwaitingUpload(51L, "uploaded-one.txt", beyondTheUploadWindow).insert();
         aDocumentAwaitingUpload(52L, "uploaded-two.txt", beyondTheUploadWindow).insert();
