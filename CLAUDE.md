@@ -82,9 +82,11 @@ TARGET (Phase 4+ only): API → SQS → practiq-processor → extractor Lambda �
 - PostgreSQL 16 (Docker Compose) · Micronaut Data **JPA** · Flyway (hbm2ddl off, always)
 - Config format is **`application.yml` (YAML)** — reverses D-004 (see D-043). Requires `snakeyaml` on the classpath;
   Micronaut 4 doesn't bundle it, and without it `.yml` is **silently ignored** (no error). Layered profiles unchanged.
-- Environment profiles: `local` for dev loop (compose Postgres), `test` activated by `@MicronautTest`. Base
-  `application.yml` contains no datasource URL — environments provide it. This prevents tests accidentally hitting the
-  dev database.
+- Environment profiles: base `application.yml` is **universal-only** (app name, feature toggles like
+  `reconcile.scheduler.enabled: true`, no datasource, no running config) — it does **not** represent production.
+  Explicit profiles: `local` (dev loop, compose Postgres), `test` (`@MicronautTest`). **No `application-prod.yml`** —
+  production is a deliberate future config; bare base is non-functional so running requires choosing an environment (no
+  accidental prod). Load order: base → `application-{env}.yml` per active env → env vars → system properties. See D-050.
 - Docker: **native Docker Engine (`docker-ce`) in WSL2** — not Docker Desktop. Docker Desktop Home on Windows Home
   doesn't expose its Engine API as a Unix socket into WSL2. Native `docker-ce` is installed directly in Ubuntu and
   auto-starts via systemd. Testcontainers connects via `/run/docker.sock`.
@@ -105,6 +107,10 @@ TARGET (Phase 4+ only): API → SQS → practiq-processor → extractor Lambda �
       `Unable to load credentials`. Env vars satisfy both, and match how a deployed IAM role resolves.
     - `aws.region` is mandatory for presigning and is read from Micronaut's `Environment`; without it:
       `Pre-signed requests require 'aws.region'`.
+    - **The AWS SDK ships with no default API call timeout.** An unresponsive S3 will block the caller indefinitely —
+      and any DB connection it is holding — until some other limit bites (observed around 90s). Any S3 call that runs
+      inside a transaction or a scheduled job (the upload reconcile does both) must set an explicit call/attempt timeout
+      so a stuck object store is time-bounded, not a stalled job. Don't rely on the SDK to give up on its own.
 - **App AI key env var: `PRACTIQ_ANTHROPIC_API_KEY`** — deliberately NOT `ANTHROPIC_API_KEY`, to avoid colliding with
   Claude Code's own credentials. Never committed, never in application config.
 - Local DB: `jdbc:postgresql://localhost:5432/practiq`, user/pass `practiq`/`practiq_local`.
@@ -277,7 +283,7 @@ POST /api/v1/questions/{id}/attempts      X-Session-Token header (nested: genuin
 GET  /api/v1/questions/{id}/attempts      this session's attempts, newest first, no pagination. NO feedback inline in 0.2 — no feedback rows until Phase 3 (D-019 amendment)
 --- admin: static API key header (X-Admin-Key) until Phase 6 ---
 POST /api/v1/admin/documents              → register document (AWAITING_UPLOAD) + presigned upload URL
-POST /internal/document-upload-reconciliations → run upload reconcile (internal/mgmt surface, scheduled trigger): uploaded -> UNAPPROVED, expire abandoned. Old client /complete is gone (D-044/D-045)
+(no endpoint) upload reconcile is a DOMAIN SERVICE, not a route — uploaded -> UNAPPROVED, delete abandoned. Triggered by a guarded in-app @Scheduled stopgap now (fail-fast if enabled outside {local,test}), a Lambda adapter later (D-049). Run-resource endpoint + client /complete both gone. Real-time accelerant (D-051): S3 object-created event -> thin Lambda -> PATCH the one doc through the SAME transition; the sweep is the backstop (recovers missed events + owns abandoned-registration expiry, which no event can signal)
 GET  /api/v1/admin/questions/pending
 PATCH /api/v1/admin/questions/{id}          review: set status (APPROVED|REJECTED) + field edits; If-Match/version -> 409 (D-027, D-042)
 PUT  /api/v1/admin/questions/{id}/concepts  replace the concept set (sub-collection — already RESTful)
@@ -297,12 +303,41 @@ shape composed once in `web/dto/mapper`.)
 
 ## 8. Ingestion pipeline (in-process for now)
 
-upload (presigned, browser→S3 direct) → complete notification → async job (Micronaut executor): S3 download → extractor
-over HTTP (`POST http://localhost:8000/extract`, multipart or S3-key payload — contract agreed in Sprint 1.2) →
-`AIService.structure(chunks)` → `AIService.suggestConcepts(question)` → write questions status=pending → superuser
-review → approve.
+upload (presigned, browser→S3 direct) → **arrival detected by a server-owned reconcile, no client signal** (D-044): an
+in-app `@Scheduled` reconcile sweeps `AWAITING_UPLOAD` docs and settles each — file in storage → PATCH to UNAPPROVED;
+file never arrived → the abandoned registration is removed. **This is what ships** (Sprint 0.3, PR #35). The
+S3-object-created → Lambda → PATCH accelerant (same transition, sweep as backstop) is designed but **not built —
+deferred, slot in when convenient, no fixed sprint**: it needs a deployed environment to run and none exists yet (
+D-051). → superuser review → **APPROVED** → processing triggered off state (D-051): SNS→SQS-per-processor fan-out (
+accelerant) with a reconcile-from-state backstop ("APPROVED docs with no success record of type X" = processor X's work
+list) → async job (Micronaut executor): S3 download → extractor over HTTP (`POST http://localhost:8000/extract`,
+multipart or S3-key payload — contract agreed in Sprint 1.2) → `AIService.structure(chunks)` →
+`AIService.suggestConcepts(question)` → write questions status=pending.
 Ingestion failures are flagged for the review UI — never student-facing. AI prompts must demand strict JSON; parse
 defensively; validate before persisting.
+**Flow control (D-051):** every stage advances by reading STATE (level-triggered reconcile = the correctness backbone,
+always present); events/queues are edge accelerants that speed a single item and never carry correctness alone (edges
+can be missed). Queue = at-least-once (dup-prone → idempotent consumers), and only protects a message after enqueue, so
+the reconcile backstop stays. `document_processing_job` per type = audit + idempotency key + the reconcile's work list.
+Open kinks for the processing build: enqueue-gap (sweep vs transactional outbox), record shape (one type-column table vs
+per-processor).
+
+**The upload reconcile (shipped, in-process — standing facts):**
+
+- **Trigger is an in-app `@Scheduled` job — a deliberate stopgap.** Slices 3–5 (internal HTTP endpoint → trigger
+  script → EventBridge schedule in Terraform) all collapsed into it, because there is no deployed environment or
+  Terraform yet for anything external to trigger. Realizes D-049 (`@Scheduled` now; a Lambda adapter over the same
+  domain service later, timing fluid). Fail-fast guard: enabled outside `{local,test}` → refuse to boot (D-050 — no prod
+  config, so nothing runs as prod by accident).
+- **Multi-instance limitation — a scaling constraint, not a bug.** The scheduler fires on *every* running instance, so
+  two instances would run two overlapping reconciles and conflict. There is no cross-instance lock. Harmless while a
+  single instance runs; **must be resolved before autoscaling** — it comes due with the 0.4 deployment work. Do not add
+  distributed-lock machinery now; record it, defer it.
+- **Work is capped per run: 100 docs, oldest-first.** Bounds transaction size so a large backlog can't produce one
+  enormous transaction; oldest-first so nothing at the back of the queue starves. Each run logs how many were left
+  over — that log is the evidence for whether 100 is the right number; nobody can size it correctly yet, so the number
+  is provisional and the log is how it gets sized.
+- **S3 calls are timeout-bounded** (see §4) so slow storage can't stall the run or pin a DB connection.
 
 **Content data model:** Concepts and other content are NOT seeded via Flyway migrations. Content is AI-generated and
 human-reviewed through the ingestion pipeline. Flyway owns schema only. Test data is generated on the fly within tests.
@@ -548,14 +583,23 @@ is no demo — the artefact is the repo + a conversation (D-035).**
 >
 > **Sprint 0.2 closed.** Question read API, mark scheme, and attempts all delivered.
 >
-> **Sprint 0.3 in progress:** schema done (`document`, `question_origin`; `source`/`source_spec` dropped — D-036/D-041).
-**Document upload piece, slices 1–2 built** — LocalStack S3 + CI wiring; presigned-upload endpoint + `AWAITING_UPLOAD`
-> record (the `Document` status-default defect fixed via the create-path constructor). **Layering refactor merged (PR
-#32):** packages are now `web`/`service`/`persistence`/`storage`/`foundation`; entities carry an `Entity` suffix and the
-> bare noun is the service record; per-route request validation applied (id<1→422, bad paging→400/422, `sort` refused,
-> session-token bounds→422). **Outstanding Sprint 0.3 — slices 3–5:** server-owned reconcile (run-resource on an internal
-> surface) → trigger script → Terraform/EventBridge schedule (D-044/D-045). After this piece: review/approve (PATCH, 1.3)
-> and extraction.
+> **Sprint 0.3 — document upload piece COMPLETE** (PR #35, 16 commits, green across all four tiers). Schema done (
+`document`, `question_origin`; `source`/`source_spec` dropped — D-036/D-041). Slices 1–2: LocalStack S3 + CI wiring;
+> presigned-upload endpoint + `AWAITING_UPLOAD` record (status-default defect fixed via the create-path constructor). *
+*Layering refactor merged (PR #32):** `web`/`service`/`persistence`/`storage`/`foundation`; `Entity` suffix, bare noun =
+> service record; per-route validation (id<1→422, bad paging→400/422, `sort` refused, session-token bounds→422). **Upload
+lifecycle now closed:** the reconcile **domain service** (no HTTP endpoint — D-049) driven by an in-app `@Scheduled`
+> stopgap settles every `AWAITING_UPLOAD` doc (arrived → UNAPPROVED; never arrived → removed), so a failed browser upload
+> no longer leaves a permanent orphan row. Batch-capped (100, oldest-first, logs leftover), S3 calls timeout-bounded,
+> config restructured to no-prod (D-050). Full reconcile standing facts + the multi-instance constraint live in §8.
+>
+> **Deferred — slot in soon, no fixed sprint:** the S3-object-created → Lambda → PATCH accelerant (D-051, same
+> transition, sweep as backstop) — designed, not built; it needs a deployed environment to run, so it waits on infra
+> rather than on a sprint boundary. **Comes due with 0.4:** the multi-instance scheduler fix (the `@Scheduled` stopgap
+> fires on every instance — §8).
+>
+> **Next functional work:** review/approve `PATCH` (1.3 — see the 409 note below), then extraction + Flow 2 processing (
+> SNS→SQS-per-processor + reconcile-from-state backstop, two open kinks — D-051).
 >
 > **Done:** `question`/`question_concept` migrations · `@Version` on content entities · `GET /api/v1/questions` (paged,
 > filterable, serving policy enforced) · full 400/404/422/500 error envelope · `PageResponse<T>` · two-query concept
