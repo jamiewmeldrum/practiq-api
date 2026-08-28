@@ -1,5 +1,6 @@
 package com.practiq.service.document;
 
+import static com.practiq.service.document.DocumentUploadRules.UPLOAD_COMPLETION_GRACE;
 import static com.practiq.service.document.DocumentUploadRules.UPLOAD_URL_EXPIRY;
 
 import com.practiq.foundation.types.DocumentStatus;
@@ -49,7 +50,7 @@ public class DocumentUploadReconciler {
     public DocumentUploadReconciliationSummary reconcileDocumentsAwaitingUpload() {
         // We want anything that should really have been uploaded by now but hasn't, with a little bit of cooling off
         // to prevent being over eager and grabbing something just as it ticks over despite still being uploaded.
-        Instant cutOff = clock.instant().minus(UPLOAD_URL_EXPIRY.plusMinutes(5));
+        Instant cutOff = clock.instant().minus(UPLOAD_URL_EXPIRY.plus(UPLOAD_COMPLETION_GRACE));
         log.info("Reconciling documents awaiting upload created before {}", cutOff);
 
         Page<DocumentEntity> due = documentRepository.findByStatusAndCreatedAtBefore(
