@@ -12,5 +12,5 @@ public class DocumentUploadRules {
     // long if it leaks.
     public static final Duration UPLOAD_URL_EXPIRY = Duration.ofMinutes(10);
 
-    public static final Duration UPLOAD_COMPLETION_GRACE = Duration.ofMinutes(5);
+    public static final Duration UPLOAD_COMPLETION_GRACE = Duration.ofMinutes(10);
 }

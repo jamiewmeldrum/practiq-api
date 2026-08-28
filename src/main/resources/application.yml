@@ -52,5 +52,5 @@ practiq:
     # An absent initial-delay is passed to the scheduler as null and becomes 0, firing a reconcile
     # while the context is still starting. Setting it keeps the first run off application startup.
     enabled: true
-    interval: 15m
-    initial-delay: 15m
+    interval: 20m
+    initial-delay: 20m
