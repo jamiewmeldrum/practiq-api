@@ -11,12 +11,14 @@ import static utils.data.TestData.*;
 import com.practiq.foundation.types.DocumentStatus;
 import com.practiq.persistence.DocumentEntity;
 import com.practiq.persistence.repository.DocumentRepository;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
+import io.micronaut.data.model.Sort;
 import jakarta.inject.Inject;
 import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
-import java.util.List;
 import java.util.Set;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -185,11 +187,13 @@ class DocumentRepositoryIT {
         aDocument("after-key", "after.pdf", DocumentStatus.REJECTED, boundary.plusSeconds(1))
                 .insert();
 
-        List<DocumentEntity> found =
-                documentRepository.findByStatusAndCreatedAtBefore(DocumentStatus.REJECTED, boundary);
+        Page<DocumentEntity> found = documentRepository.findByStatusAndCreatedAtBefore(
+                DocumentStatus.REJECTED,
+                boundary,
+                Pageable.from(0, 10, Sort.of(Sort.Order.asc("createdAt"), Sort.Order.asc("id"))));
 
         assertThat(
-                found,
+                found.getContent(),
                 containsInAnyOrder(
                         allOf(
                                 hasProperty("s3Key", equalTo(matchingKey1)),
@@ -201,6 +205,33 @@ class DocumentRepositoryIT {
                                 hasProperty("filename", equalTo(matchingFilename2)),
                                 hasProperty("status", equalTo(DocumentStatus.REJECTED)),
                                 hasProperty("createdAt", equalTo(longBefore)))));
+    }
+
+    @Test
+    void returnsOnlyTheOldestUpToTheRequestedLimit() {
+        Instant boundary = Instant.parse("2026-01-01T00:00:00Z");
+        Instant oldest = boundary.minus(30, DAYS);
+        Instant middle = boundary.minus(20, DAYS);
+        Instant newest = boundary.minus(10, DAYS);
+
+        // Inserted newest-first so a passing result cannot come from insertion order.
+        aDocument("newest-key", "newest.pdf", DocumentStatus.AWAITING_UPLOAD, newest)
+                .insert();
+        aDocument("middle-key", "middle.pdf", DocumentStatus.AWAITING_UPLOAD, middle)
+                .insert();
+        aDocument("oldest-key", "oldest.pdf", DocumentStatus.AWAITING_UPLOAD, oldest)
+                .insert();
+
+        Page<DocumentEntity> found = documentRepository.findByStatusAndCreatedAtBefore(
+                DocumentStatus.AWAITING_UPLOAD,
+                boundary,
+                Pageable.from(0, 2, Sort.of(Sort.Order.asc("createdAt"), Sort.Order.asc("id"))));
+
+        assertThat(
+                found.getContent(),
+                contains(hasProperty("s3Key", equalTo("oldest-key")), hasProperty("s3Key", equalTo("middle-key"))));
+        // The total counts everything waiting, not just the page, so a caller can see it got a partial set.
+        assertThat(found.getTotalSize(), equalTo(3L));
     }
 
     private TestData.DocumentRow aDocument(String s3Key, String filename, DocumentStatus status, Instant createdAt) {
