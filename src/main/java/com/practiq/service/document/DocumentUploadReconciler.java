@@ -25,6 +25,8 @@ import lombok.extern.slf4j.Slf4j;
 @Singleton
 public class DocumentUploadReconciler {
 
+    private static final Sort OLDEST_FIRST = Sort.of(Sort.Order.asc("createdAt"), Sort.Order.asc("id"));
+
     private final DocumentRepository documentRepository;
     private final S3DocumentStorage s3DocumentStorage;
     private final Clock clock;
@@ -51,16 +53,13 @@ public class DocumentUploadReconciler {
         log.info("Reconciling documents awaiting upload created before {}", cutOff);
 
         Page<DocumentEntity> due = documentRepository.findByStatusAndCreatedAtBefore(
-                DocumentStatus.AWAITING_UPLOAD,
-                cutOff,
-                Pageable.from(0, batchSize, Sort.of(Sort.Order.asc("createdAt"), Sort.Order.asc("id"))));
+                DocumentStatus.AWAITING_UPLOAD, cutOff, Pageable.from(0, batchSize, OLDEST_FIRST));
         List<DocumentEntity> documents = due.getContent();
         if (CollectionUtils.isEmpty(documents)) {
-            return createReconciliationSummary(0, 0, 0, 0);
+            // Not assumed to be zero: an empty page with a non-zero total would otherwise report a clear
+            // backlog as nothing left, and that number feeds alerting.
+            return createReconciliationSummary(0, 0, 0, due.getTotalSize());
         }
-        // Everything this run took is either promoted out of AWAITING_UPLOAD or deleted, so what is left
-        // is simply what the batch could not reach. No second count is needed to know it.
-        long remaining = due.getTotalSize() - documents.size();
 
         Set<String> s3Keys = documents.stream().map(DocumentEntity::getS3Key).collect(Collectors.toSet());
         Set<String> uploadedKeys = s3DocumentStorage.filterToKeysThatExist(s3Keys);
@@ -77,6 +76,9 @@ public class DocumentUploadReconciler {
                 .toList();
         documentRepository.deleteAll(missingUploads);
 
+        // Everything this run took is either promoted out of AWAITING_UPLOAD or deleted, so what is left
+        // is simply what the batch could not reach. No second count is needed to know it.
+        long remaining = due.getTotalSize() - documents.size();
         return createReconciliationSummary(documents.size(), completedUploads.size(), missingUploads.size(), remaining);
     }
 
